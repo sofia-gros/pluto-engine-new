@@ -1,8 +1,10 @@
 import type { BenchResult, BenchScene } from './bench-types';
 import { scene as emptyScene } from './scenes/empty';
+import { scene as ecsMoveScene } from './scenes/ecs-move';
 
 const scenes: Record<string, BenchScene> = {
   empty: emptyScene,
+  'ecs-move': ecsMoveScene,
 };
 
 const params = new URLSearchParams(window.location.search);

@@ -12,8 +12,7 @@ const Velocity = defineComponent('Velocity', { x: ScalarType.F32, y: ScalarType.
 describe('World', () => {
   it('ignores operations on dead entities and missing components', () => {
     const w = new World();
-    const q = new Query({ all: [Position] });
-    w.registerQuery(q);
+    const q = w.query({ all: [Position] });
     w.despawn(123 as Entity);
     w.addComponent(123 as Entity, Position);
     w.removeComponent(123 as Entity, Position);
@@ -31,16 +30,14 @@ describe('World', () => {
   });
   it('spawns and queries entities instantly (when not iterating)', () => {
     const world = new World();
-    const qPre = new Query({ all: [Velocity] });
-    world.registerQuery(qPre);
+    const qPre = world.query({ all: [Velocity] });
     const e1 = world.spawn(Position);
     world.set(e1, Position.x, 10);
 
     const e2 = world.spawn(Position, Velocity);
     world.set(e2, Position.x, 20);
 
-    const q = new Query({ all: [Position] });
-    world.registerQuery(q);
+    const q = world.query({ all: [Position] });
 
     expect(q.count()).toBe(2);
 
@@ -77,8 +74,7 @@ describe('World', () => {
 
   it('defers structural changes during iterations via CommandBuffer', () => {
     const world = new World();
-    const qPre = new Query({ all: [Velocity] });
-    world.registerQuery(qPre);
+    const qPre = world.query({ all: [Velocity] });
     const e1 = world.spawn(Position);
 
     world.isIterating = true;

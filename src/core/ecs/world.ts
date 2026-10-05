@@ -13,7 +13,7 @@ import {
   CMD_REMOVE_COMPONENT,
   CMD_SET,
 } from './command-buffer';
-import type { Query } from './query';
+import { Query, type QueryDesc } from './query';
 import type { AnyComponentDef } from './component';
 import { COMPONENT_REGISTRY } from './component';
 import { type Entity, MAX_ENTITIES } from './entity';
@@ -189,14 +189,24 @@ export class World {
     arch.changeTracker.markRange(field.fieldId, row, row + 1);
   }
 
+  private readonly queryCache = new Map<string, Query>();
+
   /**
-   * 既存のクエリインスタンスをWorldに登録する。
+   * 指定した条件のQueryを取得する（キャッシュ付き）
    */
-  public registerQuery(q: Query): void {
-    this.queries.push(q);
-    for (const arch of this.graph.getArchetypes()) {
-      q.tryRegister(arch);
+  public query(desc: QueryDesc): Query {
+    // 簡易的にJSONをキーにしてキャッシュする
+    const key = JSON.stringify(desc);
+    let q = this.queryCache.get(key);
+    if (!q) {
+      q = new Query(desc);
+      this.queries.push(q);
+      for (const arch of this.graph.getArchetypes()) {
+        q.tryRegister(arch);
+      }
+      this.queryCache.set(key, q);
     }
+    return q;
   }
 
   public addSystem(s: SystemDef): void {

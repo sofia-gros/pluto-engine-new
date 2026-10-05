@@ -12,11 +12,17 @@ async function runBench() {
   const server = await createServer({
     server: { port: 5174 },
     configFile: false, // avoid picking up our vite.config.ts if it does things that break
+    define: {
+      __DEBUG__: 'false',
+      __PARALLEL__: 'false',
+      __VERSION__: '"bench"',
+    },
   });
   await server.listen();
 
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
+  page.on('console', msg => console.log('BROWSER:', msg.text()));
 
   await page.goto(`http://localhost:5174/bench/runner.html?scene=${sceneName}`);
 
