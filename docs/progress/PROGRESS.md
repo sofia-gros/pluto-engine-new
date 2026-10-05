@@ -12,10 +12,10 @@
 
 | ID     | 内容                             | 状態 | レビュー記録                   | コミット |
 | ------ | -------------------------------- | ---- | ------------------------------ | -------- |
-| T-0.1  | パッケージと TypeScript 設定     | DONE | [T-0.1.md](./reviews/T-0.1.md) |          |
-| T-0.2  | ESLint                           | DONE | [T-0.2.md](./reviews/T-0.2.md) |          |
-| T-0.3  | Vite 2 ビルドとエントリ          | DONE | [T-0.3.md](./reviews/T-0.3.md) |          |
-| T-0.4  | Vitest と最初のコード            | DONE | [T-0.4.md](./reviews/T-0.4.md) |          |
+| T-0.1  | パッケージと TypeScript 設定     | DONE | [T-0.1.md](./reviews/T-0.1.md) | [90bb219](https://github.com/sofia-gros/pluto-engine-new/commit/90bb219) |
+| T-0.2  | ESLint                           | DONE | [T-0.2.md](./reviews/T-0.2.md) | [4652f6c](https://github.com/sofia-gros/pluto-engine-new/commit/4652f6c) |
+| T-0.3  | Vite 2 ビルドとエントリ          | DONE | [T-0.3.md](./reviews/T-0.3.md) | [2e2b360](https://github.com/sofia-gros/pluto-engine-new/commit/2e2b360) |
+| T-0.4  | Vitest と最初のコード            | DONE | [T-0.4.md](./reviews/T-0.4.md) | [c537423](https://github.com/sofia-gros/pluto-engine-new/commit/c537423) |
 | T-0.5  | Playwright ハーネス              | TODO |                                |          |
 | T-0.6  | CI                               | TODO |                                |          |
 | T-0.7  | ベンチ基盤                       | TODO |                                |          |
