@@ -1,45 +1,33 @@
-# T-1.3: メモリ
+# T-1.4: イベント
 
 ## 目的
 
-ECSやRHI基盤となるメモリ管理システムを構築する。型の統一 (`ScalarType`)、SharedArrayBufferへの対応 (`buffer-factory.ts`)、ビットセットやフリーリスト、アロケータなどの汎用データ構造を提供する。
+型安全な `EventEmitter<EventMap>` を実装し、エンジン内の様々なサブシステム (RHI, ECS等) の間でイベントをやり取りできるようにする。
 
 ## 編集・作成するファイル
 
-- `src/core/memory/index.ts` (公開窓口)
-- `src/core/memory/scalar-type.ts` (`ScalarType`, `SCALAR_BYTES`, `TypedArrayOf` 定義)
-- `src/core/memory/buffer-factory.ts` (`createBackingBuffer`, `growBackingBuffer`, `isSharedMemoryEnabled`)
-- `src/core/memory/bitset.ts` (固定長ビットセット, `Uint32Array` ベース)
-- `src/core/memory/free-list.ts` (u32インデックスの再利用スタック)
-- `src/core/memory/range-allocator.ts` (first-fit の範囲確保・解放)
-- `src/core/memory/ring-buffer.ts` (固定長のリングバッファ)
-- `src/core/memory/object-pool.ts` (コールドパス/汎用オブジェクトプール)
-- 対応するテストコード (`tests/unit/core/memory/*.test.ts`)
+- `src/core/events/index.ts` (公開窓口)
+- `src/core/events/event-emitter.ts` (`EventEmitter` クラス)
+- 対応するテストコード (`tests/unit/core/events/event-emitter.test.ts`)
 
 ## 実装ステップ
 
-1. **scalar-type.ts & buffer-factory.ts**
-   - `docs/04-memory-and-ecs.md` §1 の仕様に基づき `ScalarType` (F32, I32, U32, I16, U16, I8, U8) と `SCALAR_BYTES` を実装。
-   - `isSharedMemoryEnabled()` で `__PARALLEL__ && globalThis.crossOriginIsolated` を判定（`__PARALLEL__` が設定されていれば）。
-   - `createBackingBuffer(initial, max)` を実装 (Resizable ArrayBuffer / Growable SharedArrayBuffer)。
-2. **bitset.ts**
-   - `Uint32Array` を用いた固定長のビットセット。指定されたビットの set, clear, test などを提供。
-3. **free-list.ts**
-   - `Uint32Array` を用いたスタック (LIFO)。ECS で削除されたエンティティIDなどを管理するため。
-4. **range-allocator.ts**
-   - バイト範囲 (start, size) を管理するアロケータ。first-fit で空き領域から確保、解放時には隣接ブロックと結合。
-5. **ring-buffer.ts**
-   - 固定長の TypedArray (Uint8Arrayなど) をリングバッファとして扱う。書き込みと読み出し位置の管理。
-6. **object-pool.ts**
-   - 関数などを通じて生成されるオブジェクトを再利用する簡単なプール `ObjectPool<T>` を実装。
-7. **テストの作成・実行**
-   - すべてのファイルに対して単体テストを作成し、境界値や再利用動作などを確認する。
+1. **event-emitter.ts の実装**
+   - `EventMap` 型（イベント名からペイロードへのマッピング）を受け取るジェネリックな `EventEmitter` クラスを実装する。
+   - `on(event, listener)`: イベントリスナーを登録する。
+   - `once(event, listener)`: 一度だけ実行されるイベントリスナーを登録する。内部で元のリスナーをラップするか、専用のフラグを持たせて実現する。
+   - `off(event, listener)`: 登録済みのイベントリスナーを解除する。「リスナー配列は再利用」の制約により、`filter` による新規配列生成を行わず、`splice` などを利用してインプレースで要素を削除する。また、イベント発火中に `off` が呼ばれた場合のイテレーション破壊を防ぐための仕組み（コピー配列上でのループなど）を設ける。
+   - `emit(event, payload)`: イベントを発火し、リスナーを同期的に呼び出す。
+2. **テストの作成・実行**
+   - `on`, `once`, `off`, `emit` が正しく動作すること。
+   - 同じイベントに複数リスナーを登録したときの順序。
+   - `emit` のコールバック内で `off` や `on` が呼ばれてもクラッシュや無限ループしないこと。
    - カバレッジ (lines 95%, branches 90%) を満たすことを確認。
 
 ## 完了条件（受け入れ条件）
 
 1. 仕様書のシグネチャ・定数名・値と完全一致すること（レビュー記録に対応表を書く）。
-2. `buffer-factory` の挙動が `__PARALLEL__` 定数により SharedArrayBuffer / ArrayBuffer を返すこと（テストでモックして確認）。
-3. ユニットテスト: 公開関数ごとに正常系・境界値・異常系が存在すること。
-4. カバレッジ `core/memory/**` が lines 95% / branches 90% 以上であること。
-5. HOT ファイル (`bitset.ts`, `free-list.ts`, `ring-buffer.ts`) は `pnpm check:rules` を通過すること。
+2. `EventEmitter` が `EventMap` を型引数に取り、各メソッドが型安全にペイロードを受け渡しできること。
+3. リスナーの配列が再利用される（毎回新しい配列を作らない）実装になっていること。
+4. ユニットテスト: 公開関数ごとに正常系・境界値・異常系が存在すること。
+5. カバレッジ `core/events/**` が lines 95% / branches 90% 以上であること。

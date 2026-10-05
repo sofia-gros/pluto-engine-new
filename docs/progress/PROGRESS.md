@@ -6,7 +6,7 @@
 
 ## 現在のタスク
 
-**T-1.4** イベント (状態: TODO)
+**T-1.5** 時間 (状態: TODO)
 
 ## タスク状態表
 
@@ -22,7 +22,7 @@
 | T-1.1  | 数学                             | DONE | [T-1.1.md](./reviews/T-1.1.md) | [cbba746](https://github.com/sofia-gros/pluto-engine-new/commit/cbba746) |
 | T-1.2  | エラー・ログ                     | DONE | [T-1.2.md](./reviews/T-1.2.md) | [b24ba45](https://github.com/sofia-gros/pluto-engine-new/commit/b24ba45) |
 | T-1.3  | メモリ                           | DONE | [T-1.3.md](./reviews/T-1.3.md) | [7f86618](https://github.com/sofia-gros/pluto-engine-new/commit/7f86618) |
-| T-1.4  | イベント                         | TODO |                                |                                                                          |
+| T-1.4  | イベント                         | DONE | [T-1.4.md](./reviews/T-1.4.md) |          |
 | T-1.5  | 時間                             | TODO |                                |                                                                          |
 | T-1.6  | エンティティ・コンポーネント     | TODO |                                |                                                                          |
 | T-1.7  | アーキタイプ                     | TODO |                                |                                                                          |
@@ -49,7 +49,13 @@ Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後に�
 
 ## 作業ログ (新しいものを上に追記)
 
+### 2026-10-05 T-1.4
+- やったこと: `EventEmitter` の実装。再利用可能なリスナー配列 (GC 発生を防ぐ in-place compaction) の作成。
+- 証拠: `pnpm verify` がエラー0、テストカバレッジ 100% (lines) / 95.83% (branches) を達成。
+- 未解決: なし
+
 ### 2026-10-05 T-1.3
+
 - やったこと: `ScalarType`, `createBackingBuffer` の実装。各種データ構造（`Bitset`, `FreeList`, `RangeAllocator`, `RingBuffer`, `ObjectPool`）の実装とテスト。
 - 証拠: `pnpm verify` がエラー0、テストカバレッジ 97.08% (lines) / 94.59% (branches) を達成。
 - 未解決: なし
