@@ -6,7 +6,7 @@
 
 ## 現在のタスク
 
-**T-1.1** 数学 (状態: TODO)
+**T-1.2** エラー・ログ (状態: TODO)
 
 ## タスク状態表
 
@@ -19,7 +19,7 @@
 | T-0.5  | Playwright ハーネス              | DONE | [T-0.5.md](./reviews/T-0.5.md) | [d4bb4f6](https://github.com/sofia-gros/pluto-engine-new/commit/d4bb4f6) |
 | T-0.6  | CI                               | DONE | [T-0.6.md](./reviews/T-0.6.md) | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
 | T-0.7  | ベンチ基盤                       | DONE | [T-0.7.md](./reviews/T-0.7.md) | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
-| T-1.1  | 数学                             | TODO |                                |                                                                          |
+| T-1.1  | 数学                             | DONE | [T-1.1.md](./reviews/T-1.1.md) |          |
 | T-1.2  | エラー・ログ                     | TODO |                                |                                                                          |
 | T-1.3  | メモリ                           | TODO |                                |                                                                          |
 | T-1.4  | イベント                         | TODO |                                |                                                                          |
@@ -49,7 +49,13 @@ Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後に�
 
 ## 作業ログ (新しいものを上に追記)
 
+### 2026-10-05 T-1.1
+- やったこと: スカラー演算、2Dベクトル、アフィン行列、AABB、ビット演算、カラー、半精度浮動小数点、乱数の実装。及びそれぞれのテスト作成。
+- 証拠: `pnpm verify` がエラー0、テストカバレッジ 99.51% (lines) / 91.66% (branches) を達成。
+- 未解決: なし
+
 ### 2026-10-05 T-0.7
+
 - やったこと: ベンチマーク測定のランナー (`runner.html`, `runner.ts`) と比較スクリプト (`run-bench.mjs`, `compare-bench.mjs`) の作成。空のシーンで計測・10%の悪化検知が行えることを確認。
 - 証拠: `node tools/run-bench.mjs --scene empty` および `node tools/compare-bench.mjs` が要求通りの終了コードと出力を返すことを確認。
 - 未解決: なし
