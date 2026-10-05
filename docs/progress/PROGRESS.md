@@ -6,7 +6,7 @@
 
 ## 現在のタスク
 
-**T-1.9** World (状態: TODO)
+**T-2.3** スケジューラ選択とパリティ (状態: IN_PROGRESS)
 
 ## タスク状態表
 
@@ -30,7 +30,7 @@
 | T-1.9  | World                            | DONE | 2026-10-06                     | [8a8b4d5](https://github.com/sofia-gros/pluto-engine-new/commit/8a8b4d5) |
 | T-1.10 | ECS ベンチ                       | DONE | [T-1.10.md](./reviews/T-1.10.md)| [cb53fd8](https://github.com/sofia-gros/pluto-engine-new/commit/cb53fd8) |
 | T-2.1  | カーネル・直列スケジューラ       | DONE | [T-2.1.md](./reviews/T-2.1.md) | [3e84716](https://github.com/sofia-gros/pluto-engine-new/commit/3e84716) |
-| T-2.2  | 並列スケジューラ                 | TODO |                                |                                                                          |
+| T-2.2  | 並列スケジューラ                 | DONE | [T-2.2.md](./reviews/T-2.2.md) | [d179532](https://github.com/sofia-gros/pluto-engine-new/commit/d179532) |
 | T-2.3  | スケジューラ選択とパリティ       | TODO |                                |                                                                          |
 | T-2.4  | Transform                        | TODO |                                |                                                                          |
 | T-3.1  | RHI インターフェース             | TODO |                                |                                                                          |
