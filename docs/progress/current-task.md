@@ -1,37 +1,45 @@
-# T-1.2: エラー・ログ
+# T-1.3: メモリ
 
 ## 目的
 
-エンジン内部のエラーを統括する `PlutoError` と `ErrorCode`、およびコンソール出力をラップする `logger` を実装する。既存の `assert.ts` が投げるエラーも `PlutoError` に変更し、無秩序な `console.*` 呼び出しや生の `Error` 送出を防止する。
+ECSやRHI基盤となるメモリ管理システムを構築する。型の統一 (`ScalarType`)、SharedArrayBufferへの対応 (`buffer-factory.ts`)、ビットセットやフリーリスト、アロケータなどの汎用データ構造を提供する。
 
 ## 編集・作成するファイル
 
-- `src/core/debug/pluto-error.ts` (新規: `PlutoError` クラス, `ErrorCode` 定数)
-- `src/core/debug/logger.ts` (新規: `logger` オブジェクト)
-- `src/core/debug/index.ts` (編集: 新規ファイルからの公開を追加)
-- `src/core/debug/assert.ts` (編集: エラー送出を `PlutoError` に変更)
-- 対応するテスト (`tests/unit/core/debug/pluto-error.test.ts`, `logger.test.ts`, `assert.test.ts` の修正)
+- `src/core/memory/index.ts` (公開窓口)
+- `src/core/memory/scalar-type.ts` (`ScalarType`, `SCALAR_BYTES`, `TypedArrayOf` 定義)
+- `src/core/memory/buffer-factory.ts` (`createBackingBuffer`, `growBackingBuffer`, `isSharedMemoryEnabled`)
+- `src/core/memory/bitset.ts` (固定長ビットセット, `Uint32Array` ベース)
+- `src/core/memory/free-list.ts` (u32インデックスの再利用スタック)
+- `src/core/memory/range-allocator.ts` (first-fit の範囲確保・解放)
+- `src/core/memory/ring-buffer.ts` (固定長のリングバッファ)
+- `src/core/memory/object-pool.ts` (コールドパス/汎用オブジェクトプール)
+- 対応するテストコード (`tests/unit/core/memory/*.test.ts`)
 
 ## 実装ステップ
 
-1. **pluto-error.ts の実装とテスト**
-   - `docs/03-coding-standards.md` の §5 に記載されている `ErrorCode` 定数 (as const) を定義。
-   - `PlutoError` クラスを `Error` を継承して作成。
-   - テスト: `code` と `message` が正しく設定され、`instanceof Error` となることを確認。
-2. **logger.ts の実装とテスト**
-   - `console` をラップする `logger` オブジェクト (`info`, `warn`, `error`, `debug` 等) を実装。
-   - このファイルのみ `eslint-disable no-console` または ESLint 設定でのオーバーライドを考慮する（今回は ESLint 設定で対応済みのため直接 `console` を使用可能）。
-   - テスト: Spy を用いて `console.warn` 等が呼ばれることを確認。
-3. **assert.ts の修正とテスト修正**
-   - `assert` 関数内で `throw new Error` していた箇所を `throw new PlutoError(ErrorCode.InvalidState, message)` に変更。
-   - 既存の `tests/unit/core/debug/assert.test.ts` を修正し、`PlutoError` が投げられることを確認。
-4. **index.ts の修正**
-   - `PlutoError`, `ErrorCode`, `logger` を公開。
+1. **scalar-type.ts & buffer-factory.ts**
+   - `docs/04-memory-and-ecs.md` §1 の仕様に基づき `ScalarType` (F32, I32, U32, I16, U16, I8, U8) と `SCALAR_BYTES` を実装。
+   - `isSharedMemoryEnabled()` で `__PARALLEL__ && globalThis.crossOriginIsolated` を判定（`__PARALLEL__` が設定されていれば）。
+   - `createBackingBuffer(initial, max)` を実装 (Resizable ArrayBuffer / Growable SharedArrayBuffer)。
+2. **bitset.ts**
+   - `Uint32Array` を用いた固定長のビットセット。指定されたビットの set, clear, test などを提供。
+3. **free-list.ts**
+   - `Uint32Array` を用いたスタック (LIFO)。ECS で削除されたエンティティIDなどを管理するため。
+4. **range-allocator.ts**
+   - バイト範囲 (start, size) を管理するアロケータ。first-fit で空き領域から確保、解放時には隣接ブロックと結合。
+5. **ring-buffer.ts**
+   - 固定長の TypedArray (Uint8Arrayなど) をリングバッファとして扱う。書き込みと読み出し位置の管理。
+6. **object-pool.ts**
+   - 関数などを通じて生成されるオブジェクトを再利用する簡単なプール `ObjectPool<T>` を実装。
+7. **テストの作成・実行**
+   - すべてのファイルに対して単体テストを作成し、境界値や再利用動作などを確認する。
+   - カバレッジ (lines 95%, branches 90%) を満たすことを確認。
 
 ## 完了条件（受け入れ条件）
 
 1. 仕様書のシグネチャ・定数名・値と完全一致すること（レビュー記録に対応表を書く）。
-2. `ErrorCode` が `03-coding-standards.md` §5 に指定された通りに定義されている。
-3. `assert` の失敗時に `PlutoError` (code = `InvalidState`) が送出されること。
-4. ユニットテスト: 公開関数ごとに正常系・境界値・異常系が存在すること。
-5. カバレッジ `core/debug/**` が lines 95% / branches 90% 以上であること。
+2. `buffer-factory` の挙動が `__PARALLEL__` 定数により SharedArrayBuffer / ArrayBuffer を返すこと（テストでモックして確認）。
+3. ユニットテスト: 公開関数ごとに正常系・境界値・異常系が存在すること。
+4. カバレッジ `core/memory/**` が lines 95% / branches 90% 以上であること。
+5. HOT ファイル (`bitset.ts`, `free-list.ts`, `ring-buffer.ts`) は `pnpm check:rules` を通過すること。
