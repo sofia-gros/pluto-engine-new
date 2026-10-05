@@ -19,7 +19,7 @@
 | T-0.5  | Playwright ハーネス              | DONE | [T-0.5.md](./reviews/T-0.5.md) | [d4bb4f6](https://github.com/sofia-gros/pluto-engine-new/commit/d4bb4f6) |
 | T-0.6  | CI                               | DONE | [T-0.6.md](./reviews/T-0.6.md) | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
 | T-0.7  | ベンチ基盤                       | DONE | [T-0.7.md](./reviews/T-0.7.md) | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
-| T-1.1  | 数学                             | DONE | [T-1.1.md](./reviews/T-1.1.md) |          |
+| T-1.1  | 数学                             | DONE | [T-1.1.md](./reviews/T-1.1.md) | [cbba746](https://github.com/sofia-gros/pluto-engine-new/commit/cbba746) |
 | T-1.2  | エラー・ログ                     | TODO |                                |                                                                          |
 | T-1.3  | メモリ                           | TODO |                                |                                                                          |
 | T-1.4  | イベント                         | TODO |                                |                                                                          |
