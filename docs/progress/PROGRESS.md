@@ -23,7 +23,7 @@
 | T-1.2  | エラー・ログ                     | DONE | [T-1.2.md](./reviews/T-1.2.md) | [b24ba45](https://github.com/sofia-gros/pluto-engine-new/commit/b24ba45) |
 | T-1.3  | メモリ                           | DONE | [T-1.3.md](./reviews/T-1.3.md) | [7f86618](https://github.com/sofia-gros/pluto-engine-new/commit/7f86618) |
 | T-1.4  | イベント                         | DONE | [T-1.4.md](./reviews/T-1.4.md) | [abd00f9](https://github.com/sofia-gros/pluto-engine-new/commit/abd00f9) |
-| T-1.5  | 時間                             | DONE | [T-1.5.md](./reviews/T-1.5.md) |          |
+| T-1.5  | 時間                             | DONE | [T-1.5.md](./reviews/T-1.5.md) | [f953359](https://github.com/sofia-gros/pluto-engine-new/commit/f953359) |
 | T-1.6  | エンティティ・コンポーネント     | TODO |                                |                                                                          |
 | T-1.7  | アーキタイプ                     | TODO |                                |                                                                          |
 | T-1.8  | クエリ・変更追跡                 | TODO |                                |                                                                          |
