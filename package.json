@@ -1,0 +1,54 @@
+{
+  "name": "pluto-engine",
+  "version": "0.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": { "types": "./dist/types/index.d.ts", "default": "./dist/embed/pluto.js" },
+    "./parallel": { "types": "./dist/types/index.d.ts", "default": "./dist/parallel/pluto.js" },
+    "./embed": { "types": "./dist/types/index.d.ts", "default": "./dist/embed/pluto.js" },
+    "./lowlevel": { "types": "./dist/types/lowlevel.d.ts", "default": "./dist/embed/pluto-lowlevel.js" }
+  },
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:structure": "node tools/check-structure.mjs",
+    "check:boundaries": "node tools/check-boundaries.mjs",
+    "check:rules": "node tools/check-rules.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:browser": "playwright test",
+    "test:browser:embed": "pnpm build:embed && playwright test --project=embed",
+    "build:parallel": "vite build --mode parallel && vite build --mode parallel-debug",
+    "build:embed": "vite build --mode embed && vite build --mode embed-debug",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build": "pnpm build:parallel && pnpm build:embed && pnpm build:types && node tools/check-bundle.mjs",
+    "bench": "pnpm build:embed && node tools/run-bench.mjs && node tools/compare-bench.mjs",
+    "verify": "node tools/verify.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.4",
+    "@types/pngjs": "^6.0.5",
+    "@vitest/coverage-v8": "^5.0.3",
+    "@webgpu/types": "^0.1.74",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
+    "prettier": "^3.9.9",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}
