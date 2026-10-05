@@ -1,47 +1,21 @@
-# T-2.1: カーネル・直列スケジューラ (Phase 2)
+# T-2.2: 並列スケジューラ (Phase 2)
 
-## 目標
+## 目的
+Worker スレッドを用いて ECS カーネル関数を並列に実行する仕組み（ThreadedScheduler）を実装する。
 
-ジョブシステムの基盤となる `Kernel`, `Scheduler` のインターフェースと、直列実行を行う `SerialScheduler` の実装。
+## 編集・作成するファイル
+- `src/jobs/sync.ts` (新規作成)
+- `src/jobs/worker-protocol.ts` (新規作成)
+- `src/jobs/worker-entry.ts` (新規作成)
+- `src/jobs/threaded-scheduler.ts` (新規作成)
 
-## 実装対象ファイル
+## 実装ステップ
+1. **sync.ts の実装**: `SharedArrayBuffer` ベースの制御ブロック（CTRL_EPOCH, CTRL_KERNEL_ID等）のレイアウト定数を定義。
+2. **worker-protocol.ts の実装**: メインと Worker 間のメッセージ（init, archetype, query, buffer, ready）の型定義と、受信データの展開ロジック。
+3. **worker-entry.ts の実装**: Worker のエントリポイントを実装。Atomics.wait で待機し、Atomics.add でチャンクを奪い合って `kernel.fn` を実行するループを作成。
+4. **threaded-scheduler.ts の実装**: `Scheduler` インターフェースを実装。Worker の生成と同期プロトコルの送信、World更新時の差分（Archetype, Query）送信、メインスレッド側からのチャンク処理と終了待機スピンを実装。
+5. **テスト作成**: T-2.3 で結合パリティテストを行うため、ここでの単体テストは可能な範囲で実施するかスキップし、T-2.3 への結合を主眼に置く。
 
-- `src/jobs/index.ts`
-- `src/jobs/kernel.ts`
-- `src/jobs/kernel-registry.ts`
-- `src/jobs/scheduler.ts`
-- `src/jobs/serial-scheduler.ts`
-
-## 参照ドキュメント
-
-- `docs/05-jobs-and-builds.md` §2〜3.1
-- `docs/02-directory-structure.md`
-
-## やること
-
-1. `src/jobs/kernel.ts`:
-   - `KernelId`, `KernelBuffers`, `KernelFn`, `KernelDef` インターフェースの定義。
-   - `defineKernel` 関数の実装。
-   - `KernelBufferSlot` の定義。
-2. `src/jobs/kernel-registry.ts`:
-   - 定義されたすべての Kernel を管理し、ID から Kernel を引けるようにするレジストリを実装。
-   - `defineKernel` で登録される仕組みを作る。
-3. `src/jobs/scheduler.ts`:
-   - `Scheduler` インターフェースの定義 (`concurrency`, `syncWorld`, `registerBuffer`, `runKernel`, `dispose`)。
-4. `src/jobs/serial-scheduler.ts`:
-   - `SerialScheduler` の実装。
-   - `concurrency = 1`。
-   - `registerBuffer` で `u32`, `f32`, `i32` のバッファを管理。
-   - `runKernel` で `query.chunkCount()` 回数分 `query.getChunk()` を呼んでカーネルを直列実行。
-   - `syncWorld` / `dispose` は特に何もしない。
-5. ユニットテストの作成 (`tests/unit/jobs/`)
-   - `kernel.test.ts`
-   - `serial-scheduler.test.ts`
-6. `pnpm verify`, カバレッジチェックを通す。
-
-## 受け入れ条件
-
-- 各ファイルの型や定数が `docs/05-jobs-and-builds.md` の仕様と一致している。
-- `SerialScheduler.runKernel` が正しくチャンクをイテレートし、カーネル関数を呼び出す。
-- `registerBuffer` で登録されたバッファがカーネルの第3引数に正しく渡される。
-- ユニットテストが全てパスし、要件カバレッジを満たす。
+## 完了条件
+- `ThreadedScheduler` などのクラス・関数が `docs/05-jobs-and-builds.md` §3.2-3.3 に従って実装されている。
+- Lint、Typecheck、Format がすべて成功している。

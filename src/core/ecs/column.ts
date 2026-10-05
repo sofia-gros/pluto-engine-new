@@ -46,7 +46,7 @@ export class Column<T extends ScalarType = ScalarType> {
   public readonly type: T;
   private readonly maxRows: number;
   private currentRows: number;
-  private buffer: ArrayBufferLike;
+  public buffer: ArrayBufferLike;
   public data: TypedArrayOf<T>;
 
   /**

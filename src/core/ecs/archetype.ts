@@ -30,7 +30,7 @@ export class Archetype {
   public entities: Uint32Array;
 
   // フィールドごとの Column (キーは fieldId)
-  private readonly columns = new Map<number, Column>();
+  public readonly columns = new Map<number, Column>();
 
   /**
    * @param id アーキタイプID

@@ -29,10 +29,10 @@ export interface WorldConfig {
 
 export class World {
   private readonly entityTable: EntityTable;
-  private readonly graph: ArchetypeGraph;
+  public readonly graph: ArchetypeGraph;
   public readonly commands: CommandBuffer;
 
-  private readonly queries: Query[] = [];
+  public readonly queries: Query[] = [];
 
   // システムリスト: フェーズごとに配列で保持
   private readonly systems = new Map<Phase, SystemDef[]>();

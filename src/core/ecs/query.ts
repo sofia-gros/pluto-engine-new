@@ -18,12 +18,15 @@ export interface QueryDesc {
  * 指定したコンポーネント構成条件(all, none)に合致するアーキタイプを抽出し、
  * そのチャンクを反復処理するためのクラス。
  */
+let nextQueryId = 1;
+
 export class Query {
+  public readonly id = nextQueryId++;
   private readonly allMask: Bitset;
   private readonly noneMask: Bitset;
 
   // キャッシュされた適合アーキタイプ
-  private readonly archetypes: Archetype[] = [];
+  public readonly archetypes: Archetype[] = [];
 
   // 反復処理用に使い回すビュー
   private readonly view = new ChunkView();
