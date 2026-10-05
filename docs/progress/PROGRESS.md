@@ -27,7 +27,7 @@
 | T-1.6  | エンティティ・コンポーネント     | DONE | [T-1.6.md](./reviews/T-1.6.md) | [2411499](https://github.com/sofia-gros/pluto-engine-new/commit/2411499) |
 | T-1.7  | アーキタイプ                     | DONE | [T-1.7.md](./reviews/T-1.7.md) | [761cb70](https://github.com/sofia-gros/pluto-engine-new/commit/761cb70) |
 | T-1.8  | クエリ・変更追跡                 | DONE | [T-1.8.md](./reviews/T-1.8.md) | [5571111](https://github.com/sofia-gros/pluto-engine-new/commit/5571111) |
-| T-1.9  | World                            | TODO |                                |                                                                          |
+| T-1.9  | World                            | DONE | 2026-10-06                     | [8a8b4d5](https://github.com/sofia-gros/pluto-engine-new/commit/8a8b4d5) |
 | T-1.10 | ECS ベンチ                       | TODO |                                |                                                                          |
 | T-2.1  | カーネル・直列スケジューラ       | TODO |                                |                                                                          |
 | T-2.2  | 並列スケジューラ                 | TODO |                                |                                                                          |
@@ -145,4 +145,5 @@ Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後に�
 - 証拠: pnpm verify の要約 / テスト件数 / ベンチ値
 - 未解決:
 -->
+
 
