@@ -5,14 +5,13 @@ import type { Entity } from '../../../../src/core/ecs/entity';
 import { defineSystem, Phase } from '../../../../src/core/ecs/system';
 import { ScalarType } from '../../../../src/core/memory/scalar-type';
 
-
 const Position = defineComponent('Position', { x: ScalarType.F32, y: ScalarType.F32 });
 const Velocity = defineComponent('Velocity', { x: ScalarType.F32, y: ScalarType.F32 });
 
 describe('World', () => {
   it('ignores operations on dead entities and missing components', () => {
     const w = new World();
-    
+
     w.despawn(123 as Entity);
     w.addComponent(123 as Entity, Position);
     w.removeComponent(123 as Entity, Position);
@@ -30,7 +29,7 @@ describe('World', () => {
   });
   it('spawns and queries entities instantly (when not iterating)', () => {
     const world = new World();
-    
+
     const e1 = world.spawn(Position);
     world.set(e1, Position.x, 10);
 
@@ -74,7 +73,7 @@ describe('World', () => {
 
   it('defers structural changes during iterations via CommandBuffer', () => {
     const world = new World();
-    
+
     const e1 = world.spawn(Position);
 
     world.isIterating = true;

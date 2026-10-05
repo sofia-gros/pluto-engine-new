@@ -39,14 +39,22 @@ class WorkerArchetype {
     const buf = this.columns.get(fieldId);
     if (!buf) return null;
     switch (type) {
-      case ScalarType.F32: return new Float32Array(buf);
-      case ScalarType.I32: return new Int32Array(buf);
-      case ScalarType.U32: return new Uint32Array(buf);
-      case ScalarType.I16: return new Int16Array(buf);
-      case ScalarType.U16: return new Uint16Array(buf);
-      case ScalarType.I8: return new Int8Array(buf);
-      case ScalarType.U8: return new Uint8Array(buf);
-      default: return new Uint8Array(buf);
+      case ScalarType.F32:
+        return new Float32Array(buf);
+      case ScalarType.I32:
+        return new Int32Array(buf);
+      case ScalarType.U32:
+        return new Uint32Array(buf);
+      case ScalarType.I16:
+        return new Int16Array(buf);
+      case ScalarType.U16:
+        return new Uint16Array(buf);
+      case ScalarType.I8:
+        return new Int8Array(buf);
+      case ScalarType.U8:
+        return new Uint8Array(buf);
+      default:
+        return new Uint8Array(buf);
     }
   }
 }
@@ -109,7 +117,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
       const arr = new (
         msg.kind === 'u32' ? Uint32Array : msg.kind === 'f32' ? Float32Array : Int32Array
       )(msg.buffer as ArrayBuffer & SharedArrayBuffer, msg.byteOffset, msg.length);
-      
+
       if (msg.kind === 'u32') {
         (buffers.u32 as Uint32Array[])[msg.slot] = arr as Uint32Array;
       } else if (msg.kind === 'f32') {
@@ -123,8 +131,6 @@ self.onmessage = (e: MessageEvent<WorkerMessage>) => {
 };
 
 function pump() {
-  
-
   for (;;) {
     if (Atomics.load(ctrl, CTRL_SHUTDOWN) !== 0) {
       self.close();
@@ -172,7 +178,7 @@ function pump() {
           chunkView.start = localChunk * CHUNK_ROWS;
           chunkView.end = Math.min((localChunk + 1) * CHUNK_ROWS, c);
           chunkView.chunkIndex = chunk;
-          
+
           kernel.fn(chunkView, paramsFloat, buffers);
           break;
         }

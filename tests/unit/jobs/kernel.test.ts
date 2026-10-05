@@ -1,6 +1,10 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { defineKernel, KernelBufferSlot } from '../../../src/jobs/kernel';
-import { getKernelById, clearKernelRegistryForTesting, getAllKernels } from '../../../src/jobs/kernel-registry';
+import {
+  getKernelById,
+  clearKernelRegistryForTesting,
+  getAllKernels,
+} from '../../../src/jobs/kernel-registry';
 import type { KernelFn, KernelId } from '../../../src/jobs/kernel';
 
 describe('Kernel and KernelRegistry', () => {

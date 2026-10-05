@@ -6,6 +6,7 @@
 import type { Scheduler } from './scheduler';
 
 import type { Query } from '../core/ecs/query';
+import type { World } from '../core/ecs/world';
 import type { KernelDef, KernelBuffers } from './kernel';
 import { ChunkView } from '../core/ecs/chunk-view';
 
@@ -30,8 +31,8 @@ export class SerialScheduler implements Scheduler {
   /**
    * World の状態を同期する (直列実行のため何もしない)。
    */
-  public syncWorld(): void {
-    // 処理なし
+  public syncWorld(world?: World): void {
+    if (world === undefined) return;
   }
 
   /**

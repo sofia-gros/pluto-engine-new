@@ -25,7 +25,7 @@ export const scene: BenchScene = {
   name: 'ecs-move',
   setup(_game: unknown, count: number): void {
     if (count === 0) count = 1_000_000;
-    
+
     window.world = new World();
     const world = window.world;
 
@@ -85,7 +85,7 @@ export const scene: BenchScene = {
         tx[i] += vx[i];
         ty[i] += vy[i];
       }
-      
+
       view.markDirty(Transform.x);
       view.markDirty(Transform.y);
     });

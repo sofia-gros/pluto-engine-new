@@ -29,11 +29,11 @@ import { ChunkView } from '../core/ecs/chunk-view';
 export class ThreadedScheduler implements Scheduler {
   public readonly concurrency: number;
   private readonly workers: Worker[] = [];
-  
+
   private readonly ctrlBuffer: SharedArrayBuffer;
   private readonly ctrl: Int32Array;
   private readonly paramsFloat: Float32Array;
-  
+
   private readonly countsBuffer: SharedArrayBuffer;
   private readonly counts: Uint32Array;
 
@@ -78,7 +78,10 @@ export class ThreadedScheduler implements Scheduler {
       if (this.syncedArchetypes.has(arch.id)) continue;
 
       const columns: Record<number, SharedArrayBuffer> = {};
-      for (const [fieldId, column] of arch.columns as unknown as Map<number, {buffer: ArrayBufferLike}>) {
+      for (const [fieldId, column] of arch.columns as unknown as Map<
+        number,
+        { buffer: ArrayBufferLike }
+      >) {
         columns[fieldId] = column.buffer as SharedArrayBuffer;
       }
 
@@ -98,7 +101,7 @@ export class ThreadedScheduler implements Scheduler {
     // Send new queries
     for (const q of Array.from(world.queries.values())) {
       if (this.syncedQueries.has(q.id)) continue;
-      
+
       const msg: QueryMessage = {
         type: 'query',
         queryId: q.id,

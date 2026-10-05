@@ -5,6 +5,8 @@ import type { ChunkView } from '../../../src/core/ecs/chunk-view';
 import type { KernelBuffers, KernelFn } from '../../../src/jobs/kernel';
 import type { Query } from '../../../src/core/ecs/query';
 
+import { World } from '../../../src/core/ecs/world';
+
 describe('SerialScheduler', () => {
   it('has concurrency 1', () => {
     const scheduler = new SerialScheduler();
@@ -13,6 +15,9 @@ describe('SerialScheduler', () => {
 
   it('syncWorld and dispose do not throw', () => {
     const scheduler = new SerialScheduler();
+    expect(() => {
+      scheduler.syncWorld(new World());
+    }).not.toThrow();
     expect(() => {
       scheduler.syncWorld();
     }).not.toThrow();
@@ -36,7 +41,7 @@ describe('SerialScheduler', () => {
       f32: [],
       i32: [],
     };
-    
+
     const fn: KernelFn = (_view, _params, buffers) => {
       capturedBuffers = buffers;
     };

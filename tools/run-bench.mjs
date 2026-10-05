@@ -22,7 +22,7 @@ async function runBench() {
 
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
-  page.on('console', msg => console.log('BROWSER:', msg.text()));
+  page.on('console', (msg) => console.log('BROWSER:', msg.text()));
 
   await page.goto(`http://localhost:5174/bench/runner.html?scene=${sceneName}`);
 

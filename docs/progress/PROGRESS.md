@@ -10,40 +10,40 @@
 
 ## タスク状態表
 
-| ID     | 内容                             | 状態 | レビュー記録                   | コミット                                                                 |
-| ------ | -------------------------------- | ---- | ------------------------------ | ------------------------------------------------------------------------ |
-| T-0.1  | パッケージと TypeScript 設定     | DONE | [T-0.1.md](./reviews/T-0.1.md) | [90bb219](https://github.com/sofia-gros/pluto-engine-new/commit/90bb219) |
-| T-0.2  | ESLint                           | DONE | [T-0.2.md](./reviews/T-0.2.md) | [4652f6c](https://github.com/sofia-gros/pluto-engine-new/commit/4652f6c) |
-| T-0.3  | Vite 2 ビルドとエントリ          | DONE | [T-0.3.md](./reviews/T-0.3.md) | [2e2b360](https://github.com/sofia-gros/pluto-engine-new/commit/2e2b360) |
-| T-0.4  | Vitest と最初のコード            | DONE | [T-0.4.md](./reviews/T-0.4.md) | [c537423](https://github.com/sofia-gros/pluto-engine-new/commit/c537423) |
-| T-0.5  | Playwright ハーネス              | DONE | [T-0.5.md](./reviews/T-0.5.md) | [d4bb4f6](https://github.com/sofia-gros/pluto-engine-new/commit/d4bb4f6) |
-| T-0.6  | CI                               | DONE | [T-0.6.md](./reviews/T-0.6.md) | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
-| T-0.7  | ベンチ基盤                       | DONE | [T-0.7.md](./reviews/T-0.7.md) | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
-| T-1.1  | 数学                             | DONE | [T-1.1.md](./reviews/T-1.1.md) | [cbba746](https://github.com/sofia-gros/pluto-engine-new/commit/cbba746) |
-| T-1.2  | エラー・ログ                     | DONE | [T-1.2.md](./reviews/T-1.2.md) | [b24ba45](https://github.com/sofia-gros/pluto-engine-new/commit/b24ba45) |
-| T-1.3  | メモリ                           | DONE | [T-1.3.md](./reviews/T-1.3.md) | [7f86618](https://github.com/sofia-gros/pluto-engine-new/commit/7f86618) |
-| T-1.4  | イベント                         | DONE | [T-1.4.md](./reviews/T-1.4.md) | [abd00f9](https://github.com/sofia-gros/pluto-engine-new/commit/abd00f9) |
-| T-1.5  | 時間                             | DONE | [T-1.5.md](./reviews/T-1.5.md) | [f953359](https://github.com/sofia-gros/pluto-engine-new/commit/f953359) |
-| T-1.6  | エンティティ・コンポーネント     | DONE | [T-1.6.md](./reviews/T-1.6.md) | [2411499](https://github.com/sofia-gros/pluto-engine-new/commit/2411499) |
-| T-1.7  | アーキタイプ                     | DONE | [T-1.7.md](./reviews/T-1.7.md) | [761cb70](https://github.com/sofia-gros/pluto-engine-new/commit/761cb70) |
-| T-1.8  | クエリ・変更追跡                 | DONE | [T-1.8.md](./reviews/T-1.8.md) | [5571111](https://github.com/sofia-gros/pluto-engine-new/commit/5571111) |
-| T-1.9  | World                            | DONE | 2026-10-06                     | [8a8b4d5](https://github.com/sofia-gros/pluto-engine-new/commit/8a8b4d5) |
-| T-1.10 | ECS ベンチ                       | DONE | [T-1.10.md](./reviews/T-1.10.md)| [cb53fd8](https://github.com/sofia-gros/pluto-engine-new/commit/cb53fd8) |
-| T-2.1  | カーネル・直列スケジューラ       | DONE | [T-2.1.md](./reviews/T-2.1.md) | [3e84716](https://github.com/sofia-gros/pluto-engine-new/commit/3e84716) |
-| T-2.2  | 並列スケジューラ                 | DONE | [T-2.2.md](./reviews/T-2.2.md) | [d179532](https://github.com/sofia-gros/pluto-engine-new/commit/d179532) |
-| T-2.3  | スケジューラ選択とパリティ       | TODO |                                |                                                                          |
-| T-2.4  | Transform                        | TODO |                                |                                                                          |
-| T-3.1  | RHI インターフェース             | TODO |                                |                                                                          |
-| T-3.2  | RHI WebGPU 実装                  | TODO |                                |                                                                          |
-| T-3.3  | RHI WebGL2 実装                  | TODO |                                |                                                                          |
-| T-3.4  | デバイス生成とブラウザテスト     | TODO |                                |                                                                          |
-| T-4.1  | シェーダ基盤                     | TODO |                                |                                                                          |
-| T-4.2  | テクスチャ・アセット             | TODO |                                |                                                                          |
-| T-4.3  | スプライトデータ                 | TODO |                                |                                                                          |
-| T-4.4  | CPU 補助描画パス                 | TODO |                                |                                                                          |
-| T-4.5  | GPU プリミティブ                 | TODO |                                |                                                                          |
-| T-4.6  | GPU 駆動描画パス                 | TODO |                                |                                                                          |
-| T-4.7  | カメラ・レンダーグラフ・レンダラ | TODO |                                |                                                                          |
+| ID     | 内容                             | 状態 | レビュー記録                     | コミット                                                                 |
+| ------ | -------------------------------- | ---- | -------------------------------- | ------------------------------------------------------------------------ |
+| T-0.1  | パッケージと TypeScript 設定     | DONE | [T-0.1.md](./reviews/T-0.1.md)   | [90bb219](https://github.com/sofia-gros/pluto-engine-new/commit/90bb219) |
+| T-0.2  | ESLint                           | DONE | [T-0.2.md](./reviews/T-0.2.md)   | [4652f6c](https://github.com/sofia-gros/pluto-engine-new/commit/4652f6c) |
+| T-0.3  | Vite 2 ビルドとエントリ          | DONE | [T-0.3.md](./reviews/T-0.3.md)   | [2e2b360](https://github.com/sofia-gros/pluto-engine-new/commit/2e2b360) |
+| T-0.4  | Vitest と最初のコード            | DONE | [T-0.4.md](./reviews/T-0.4.md)   | [c537423](https://github.com/sofia-gros/pluto-engine-new/commit/c537423) |
+| T-0.5  | Playwright ハーネス              | DONE | [T-0.5.md](./reviews/T-0.5.md)   | [d4bb4f6](https://github.com/sofia-gros/pluto-engine-new/commit/d4bb4f6) |
+| T-0.6  | CI                               | DONE | [T-0.6.md](./reviews/T-0.6.md)   | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
+| T-0.7  | ベンチ基盤                       | DONE | [T-0.7.md](./reviews/T-0.7.md)   | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
+| T-1.1  | 数学                             | DONE | [T-1.1.md](./reviews/T-1.1.md)   | [cbba746](https://github.com/sofia-gros/pluto-engine-new/commit/cbba746) |
+| T-1.2  | エラー・ログ                     | DONE | [T-1.2.md](./reviews/T-1.2.md)   | [b24ba45](https://github.com/sofia-gros/pluto-engine-new/commit/b24ba45) |
+| T-1.3  | メモリ                           | DONE | [T-1.3.md](./reviews/T-1.3.md)   | [7f86618](https://github.com/sofia-gros/pluto-engine-new/commit/7f86618) |
+| T-1.4  | イベント                         | DONE | [T-1.4.md](./reviews/T-1.4.md)   | [abd00f9](https://github.com/sofia-gros/pluto-engine-new/commit/abd00f9) |
+| T-1.5  | 時間                             | DONE | [T-1.5.md](./reviews/T-1.5.md)   | [f953359](https://github.com/sofia-gros/pluto-engine-new/commit/f953359) |
+| T-1.6  | エンティティ・コンポーネント     | DONE | [T-1.6.md](./reviews/T-1.6.md)   | [2411499](https://github.com/sofia-gros/pluto-engine-new/commit/2411499) |
+| T-1.7  | アーキタイプ                     | DONE | [T-1.7.md](./reviews/T-1.7.md)   | [761cb70](https://github.com/sofia-gros/pluto-engine-new/commit/761cb70) |
+| T-1.8  | クエリ・変更追跡                 | DONE | [T-1.8.md](./reviews/T-1.8.md)   | [5571111](https://github.com/sofia-gros/pluto-engine-new/commit/5571111) |
+| T-1.9  | World                            | DONE | 2026-10-06                       | [8a8b4d5](https://github.com/sofia-gros/pluto-engine-new/commit/8a8b4d5) |
+| T-1.10 | ECS ベンチ                       | DONE | [T-1.10.md](./reviews/T-1.10.md) | [cb53fd8](https://github.com/sofia-gros/pluto-engine-new/commit/cb53fd8) |
+| T-2.1  | カーネル・直列スケジューラ       | DONE | [T-2.1.md](./reviews/T-2.1.md)   | [3e84716](https://github.com/sofia-gros/pluto-engine-new/commit/3e84716) |
+| T-2.2  | 並列スケジューラ                 | DONE | [T-2.2.md](./reviews/T-2.2.md)   | [d179532](https://github.com/sofia-gros/pluto-engine-new/commit/d179532) |
+| T-2.3  | スケジューラ選択とパリティ       | TODO |                                  |                                                                          |
+| T-2.4  | Transform                        | TODO |                                  |                                                                          |
+| T-3.1  | RHI インターフェース             | TODO |                                  |                                                                          |
+| T-3.2  | RHI WebGPU 実装                  | TODO |                                  |                                                                          |
+| T-3.3  | RHI WebGL2 実装                  | TODO |                                  |                                                                          |
+| T-3.4  | デバイス生成とブラウザテスト     | TODO |                                  |                                                                          |
+| T-4.1  | シェーダ基盤                     | TODO |                                  |                                                                          |
+| T-4.2  | テクスチャ・アセット             | TODO |                                  |                                                                          |
+| T-4.3  | スプライトデータ                 | TODO |                                  |                                                                          |
+| T-4.4  | CPU 補助描画パス                 | TODO |                                  |                                                                          |
+| T-4.5  | GPU プリミティブ                 | TODO |                                  |                                                                          |
+| T-4.6  | GPU 駆動描画パス                 | TODO |                                  |                                                                          |
+| T-4.7  | カメラ・レンダーグラフ・レンダラ | TODO |                                  |                                                                          |
 
 Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後にユーザーへ詳細化を依頼すること。
 
