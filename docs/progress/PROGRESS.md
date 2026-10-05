@@ -18,7 +18,7 @@
 | T-0.4  | Vitest と最初のコード            | DONE | [T-0.4.md](./reviews/T-0.4.md) | [c537423](https://github.com/sofia-gros/pluto-engine-new/commit/c537423) |
 | T-0.5  | Playwright ハーネス              | DONE | [T-0.5.md](./reviews/T-0.5.md) | [d4bb4f6](https://github.com/sofia-gros/pluto-engine-new/commit/d4bb4f6) |
 | T-0.6  | CI                               | DONE | [T-0.6.md](./reviews/T-0.6.md) | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
-| T-0.7  | ベンチ基盤                       | DONE | [T-0.7.md](./reviews/T-0.7.md) |          |
+| T-0.7  | ベンチ基盤                       | DONE | [T-0.7.md](./reviews/T-0.7.md) | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
 | T-1.1  | 数学                             | TODO |                                |                                                                          |
 | T-1.2  | エラー・ログ                     | TODO |                                |                                                                          |
 | T-1.3  | メモリ                           | TODO |                                |                                                                          |
