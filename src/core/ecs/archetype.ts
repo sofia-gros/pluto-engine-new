@@ -12,6 +12,7 @@ import type { FieldToken } from './schema';
 import type { AnyComponentDef } from './component';
 import type { Entity } from './entity';
 import { NULL_ENTITY } from './entity';
+import { ChangeTracker } from './change-tracking';
 
 /**
  * 特定のコンポーネント群を持つエンティティのデータを SoA 形式で保持するブロック。
@@ -21,6 +22,8 @@ export class Archetype {
   public readonly mask: Bitset;
   private maxRows: number;
   public count: number;
+
+  public readonly changeTracker: ChangeTracker;
 
   // 拡張可能な Entity 配列
   public entities: Uint32Array;
@@ -39,12 +42,16 @@ export class Archetype {
     this.count = 0;
     this.mask = new Bitset(MAX_COMPONENTS);
 
+    const fieldIds: number[] = [];
     for (const comp of components) {
       this.mask.set(comp.id);
       for (const field of comp.fields) {
         this.columns.set(field.fieldId, new Column(field.type, maxRows));
+        fieldIds.push(field.fieldId);
       }
     }
+
+    this.changeTracker = new ChangeTracker(maxRows, fieldIds);
 
     this.entities = new Uint32Array(Math.min(INITIAL_ARCHETYPE_ROWS, maxRows));
   }

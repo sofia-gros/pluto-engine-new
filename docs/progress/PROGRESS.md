@@ -6,7 +6,7 @@
 
 ## 現在のタスク
 
-**T-1.8** クエリ・変更追跡 (状態: TODO)
+**T-1.9** World (状態: TODO)
 
 ## タスク状態表
 
@@ -26,7 +26,7 @@
 | T-1.5  | 時間                             | DONE | [T-1.5.md](./reviews/T-1.5.md) | [f953359](https://github.com/sofia-gros/pluto-engine-new/commit/f953359) |
 | T-1.6  | エンティティ・コンポーネント     | DONE | [T-1.6.md](./reviews/T-1.6.md) | [2411499](https://github.com/sofia-gros/pluto-engine-new/commit/2411499) |
 | T-1.7  | アーキタイプ                     | DONE | [T-1.7.md](./reviews/T-1.7.md) | [761cb70](https://github.com/sofia-gros/pluto-engine-new/commit/761cb70) |
-| T-1.8  | クエリ・変更追跡                 | TODO |                                |                                                                          |
+| T-1.8  | クエリ・変更追跡                 | DONE | [T-1.8.md](./reviews/T-1.8.md) |          |
 | T-1.9  | World                            | TODO |                                |                                                                          |
 | T-1.10 | ECS ベンチ                       | TODO |                                |                                                                          |
 | T-2.1  | カーネル・直列スケジューラ       | TODO |                                |                                                                          |
@@ -49,7 +49,13 @@ Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後に�
 
 ## 作業ログ (新しいものを上に追記)
 
+### 2026-10-05 T-1.8
+- やったこと: バッチ処理の単位であるチャンク (`ChunkView`)、条件に合致するアーキタイプを検索・キャッシュする `Query`、コンポーネントデータの変更(dirty)を64行単位で追跡する `ChangeTracker` を実装。
+- 証拠: `pnpm verify` がエラー0、テストカバレッジ `ecs/` で 98.69% (lines) / 92.55% (branches) を達成。
+- 未解決: なし
+
 ### 2026-10-05 T-1.7
+
 - やったこと: コンポーネント構成ごとにデータをSoA形式で格納するバッファ管理 (`Column`, `Archetype`) と、コンポーネント追加/削除時のアーキタイプ遷移グラフ (`ArchetypeGraph`) を実装。
 - 証拠: `pnpm verify` がエラー0、テストカバレッジ `ecs/` で 98.26% (lines) / 92.30% (branches) を達成。
 - 未解決: なし
