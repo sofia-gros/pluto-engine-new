@@ -283,7 +283,7 @@ export class World {
           const archId = this.entityTable.getArchetype(entity);
           const arch = this.graph.getArchetypeById(archId);
           if (arch) {
-  const row = this.entityTable.getRow(entity);
+            const row = this.entityTable.getRow(entity);
             const col = arch.getColumnByFieldId(fieldId); // 拡張が必要
             if (col) {
               col[row] = value;

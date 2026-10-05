@@ -29,7 +29,7 @@
 | T-1.8  | クエリ・変更追跡                 | DONE | [T-1.8.md](./reviews/T-1.8.md) | [5571111](https://github.com/sofia-gros/pluto-engine-new/commit/5571111) |
 | T-1.9  | World                            | DONE | 2026-10-06                     | [8a8b4d5](https://github.com/sofia-gros/pluto-engine-new/commit/8a8b4d5) |
 | T-1.10 | ECS ベンチ                       | TODO |                                |                                                                          |
-| T-2.1  | カーネル・直列スケジューラ       | TODO |                                |                                                                          |
+| T-2.1  | カーネル・直列スケジューラ       | DONE | [T-2.1.md](./reviews/T-2.1.md) |                                                                          |
 | T-2.2  | 並列スケジューラ                 | TODO |                                |                                                                          |
 | T-2.3  | スケジューラ選択とパリティ       | TODO |                                |                                                                          |
 | T-2.4  | Transform                        | TODO |                                |                                                                          |
@@ -48,6 +48,12 @@
 Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後にユーザーへ詳細化を依頼すること。
 
 ## 作業ログ (新しいものを上に追記)
+
+### 2026-10-06 T-2.1
+
+- やったこと: ジョブシステムの基盤となる `Kernel`, `Scheduler` の定義と、直列実行スケジューラである `SerialScheduler` の実装、`kernel-registry` の作成。
+- 証拠: `pnpm verify` 成功。ユニットテストにより `SerialScheduler.runKernel` が正しくイテレートしてカーネル関数を呼び出すことを確認し、`jobs/` 以下のカバレッジ100%を達成。
+- 未解決: なし
 
 ### 2026-10-05 T-1.8
 
@@ -145,5 +151,3 @@ Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後に�
 - 証拠: pnpm verify の要約 / テスト件数 / ベンチ値
 - 未解決:
 -->
-
-

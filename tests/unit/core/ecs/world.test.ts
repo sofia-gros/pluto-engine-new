@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { World } from '../../../../src/core/ecs/world';
 import { defineComponent } from '../../../../src/core/ecs/component';
+import type { Entity } from '../../../../src/core/ecs/entity';
 import { defineSystem, Phase } from '../../../../src/core/ecs/system';
 import { ScalarType } from '../../../../src/core/memory/scalar-type';
 import { Query } from '../../../../src/core/ecs/query';
@@ -18,7 +19,9 @@ describe('World', () => {
     w.removeComponent(123 as Entity, Position);
     expect(w.hasComponent(123 as Entity, Position)).toBe(false);
     expect(() => w.get(123 as Entity, Position.x)).toThrow();
-    expect(() => w.set(123 as Entity, Position.x, 0)).toThrow();
+    expect(() => {
+      w.set(123 as Entity, Position.x, 0);
+    }).toThrow();
     const e = w.spawn(Position);
     w.addComponent(e, Position); // already has it
     w.removeComponent(e, Velocity); // does not have it
@@ -79,8 +82,12 @@ describe('World', () => {
     const e1 = world.spawn(Position);
 
     world.isIterating = true;
-    expect(() => { world.spawn(Position); }).toThrow();
-    expect(() => { world.despawn(e1); }).toThrow(); // 即時APIは失敗する
+    expect(() => {
+      world.spawn(Position);
+    }).toThrow();
+    expect(() => {
+      world.despawn(e1);
+    }).toThrow(); // 即時APIは失敗する
     expect(() => {
       world.addComponent(e1, Velocity);
     }).toThrow();

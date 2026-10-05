@@ -1,39 +1,47 @@
-# T-1.9: World
+# T-2.1: カーネル・直列スケジューラ (Phase 2)
 
-## 目的
+## 目標
 
-ECSのコアを統合する最重要クラス `World` と、システム(ゲームロジック)の定義基盤である `System` およびフェーズ(`Phase`)、さらに構造変更を遅延評価するための `CommandBuffer` を実装する。
+ジョブシステムの基盤となる `Kernel`, `Scheduler` のインターフェースと、直列実行を行う `SerialScheduler` の実装。
 
-## 編集・作成するファイル
+## 実装対象ファイル
 
-- `src/core/ecs/command-buffer.ts` (作成済)
-- `src/core/ecs/system.ts` (作成済)
-- `src/core/ecs/world.ts`
-- `src/core/ecs/index.ts`
-- `tests/unit/core/ecs/world.test.ts`
-- `tests/unit/core/ecs/command-buffer.test.ts`
+- `src/jobs/index.ts`
+- `src/jobs/kernel.ts`
+- `src/jobs/kernel-registry.ts`
+- `src/jobs/scheduler.ts`
+- `src/jobs/serial-scheduler.ts`
 
-## 実装ステップ
+## 参照ドキュメント
 
-1. **コンポーネント定義のレジストリ対応** (対応済)
-   - `component.ts` で `defineComponent` された全コンポーネントを保持する `COMPONENT_REGISTRY` を追加し、グローバルIDで引けるようにした。
-2. **command-buffer.ts と system.ts の実装** (対応済)
-   - `CommandBuffer`: `Uint32Array` と `Float32Array` / `Int32Array` のビューを用いて、エンティティの構造変更やデータ更新コマンドをアロケーション無しでストリームとして蓄積する。
-   - `SystemDef` および `Phase`: システムの実行順序や依存関係を定義。
-3. **world.ts の実装**
-   - 内部に `EntityTable`, `ArchetypeGraph`, `CommandBuffer` を保持。
-   - `query` による抽出とキャッシュの管理。
-   - `spawn`, `despawn`, `addComponent`, `removeComponent`, `get`, `set` の即時APIの提供。
-   - `isIterating` 中の即時構造変更に対するアサーション。
-   - `flush` の実装。コマンドバッファのストリームをループして実際の構造変更(Archetype遷移等)を反映。
-   - システム群 (`SystemDef`) をフェーズおよび `order` に従ってソートして登録し、`runPhase` で逐次実行する。
-4. **テスト作成**
-   - `command-buffer.test.ts`: コマンドストリームの正常記録のテスト。
-   - `world.test.ts`: 全体のインテグレーションテスト。`spawn`, コンポーネント付与、クエリ取得、`flush` による遅延適用の確認。システムのフェーズ単位実行の確認。
+- `docs/05-jobs-and-builds.md` §2〜3.1
+- `docs/02-directory-structure.md`
 
-## 完了条件
+## やること
 
-1. `World` クラスが仕様どおりのAPIを提供し、正しく動作すること。
-2. `CommandBuffer` による構造変更のバッチ化と `flush` がアロケーションなしで正常に行われること。
-3. カバレッジ `core/ecs/**` が lines 95% / branches 90% 以上であること。
-4. ホットパスのルールに準拠していること。
+1. `src/jobs/kernel.ts`:
+   - `KernelId`, `KernelBuffers`, `KernelFn`, `KernelDef` インターフェースの定義。
+   - `defineKernel` 関数の実装。
+   - `KernelBufferSlot` の定義。
+2. `src/jobs/kernel-registry.ts`:
+   - 定義されたすべての Kernel を管理し、ID から Kernel を引けるようにするレジストリを実装。
+   - `defineKernel` で登録される仕組みを作る。
+3. `src/jobs/scheduler.ts`:
+   - `Scheduler` インターフェースの定義 (`concurrency`, `syncWorld`, `registerBuffer`, `runKernel`, `dispose`)。
+4. `src/jobs/serial-scheduler.ts`:
+   - `SerialScheduler` の実装。
+   - `concurrency = 1`。
+   - `registerBuffer` で `u32`, `f32`, `i32` のバッファを管理。
+   - `runKernel` で `query.chunkCount()` 回数分 `query.getChunk()` を呼んでカーネルを直列実行。
+   - `syncWorld` / `dispose` は特に何もしない。
+5. ユニットテストの作成 (`tests/unit/jobs/`)
+   - `kernel.test.ts`
+   - `serial-scheduler.test.ts`
+6. `pnpm verify`, カバレッジチェックを通す。
+
+## 受け入れ条件
+
+- 各ファイルの型や定数が `docs/05-jobs-and-builds.md` の仕様と一致している。
+- `SerialScheduler.runKernel` が正しくチャンクをイテレートし、カーネル関数を呼び出す。
+- `registerBuffer` で登録されたバッファがカーネルの第3引数に正しく渡される。
+- ユニットテストが全てパスし、要件カバレッジを満たす。
