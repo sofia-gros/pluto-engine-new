@@ -20,7 +20,7 @@
 | T-0.6  | CI                               | DONE | [T-0.6.md](./reviews/T-0.6.md) | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
 | T-0.7  | ベンチ基盤                       | DONE | [T-0.7.md](./reviews/T-0.7.md) | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
 | T-1.1  | 数学                             | DONE | [T-1.1.md](./reviews/T-1.1.md) | [cbba746](https://github.com/sofia-gros/pluto-engine-new/commit/cbba746) |
-| T-1.2  | エラー・ログ                     | DONE | [T-1.2.md](./reviews/T-1.2.md) |          |
+| T-1.2  | エラー・ログ                     | DONE | [T-1.2.md](./reviews/T-1.2.md) | [b24ba45](https://github.com/sofia-gros/pluto-engine-new/commit/b24ba45) |
 | T-1.3  | メモリ                           | TODO |                                |                                                                          |
 | T-1.4  | イベント                         | TODO |                                |                                                                          |
 | T-1.5  | 時間                             | TODO |                                |                                                                          |
