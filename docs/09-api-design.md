@@ -7,22 +7,22 @@
 
 ## 2. 設計規約 (全 API 共通・必須)
 
-| # | 規約 |
-|---|------|
-| A1 | **機能を作ったら必ず高レベル入口を作る**。下位層 (render, sim, physics...) に機能を追加するタスクは、対応する `scene.*` API と `examples/` のサンプルまで含めて完了とする |
-| A2 | 生成は `scene.add.<名前>(必須引数..., config?)`、戻り値は `<名前>Handle`。必須引数は最大 4 個、残りは `config` オブジェクト |
-| A3 | `config` の全フィールドは省略可能。既定値は `DEFAULT_<NAME>_CONFIG` (`Readonly`, export) に集約し JSDoc に記載 |
-| A4 | ハンドルの setter は `setXxx(v): this` (チェーン可)。プロパティアクセサ (`handle.x = 10`) も提供する |
-| A5 | 破棄は `handle.destroy()`。破棄済みハンドルの使用は `__DEBUG__` で `PlutoError(InvalidState)` |
-| A6 | 1,000 個を超える生成用に **一括 API** を用意する (`add.sprites`, `SpriteBatch`)。一括 API は個別オブジェクトを作らない |
-| A7 | 時間の単位は **ミリ秒**、名前に `Ms` を付ける (`durationMs`, `delayMs`)。`update(time, deltaMs)` も ms。内部 ECS は秒 (`dt`) で変換は `scene/game.ts` だけが行う |
-| A8 | 角度は `rotation` (ラジアン) と `angle` (度) の両方を提供 |
-| A9 | 色は `0xRRGGBB` の数値、アルファは別引数 `alpha` (0〜1) |
-| A10 | 非同期は `Game.create()` と `load.*` 系のみ。それ以外は同期 API |
-| A11 | イベント名は小文字連結 (`'pointerdown'`, `'complete'`)。`handle.on(name, fn)` / `off` / `once` |
-| A12 | バックエンドで使えない機能は `XxxHandle.isSupported(game)` で事前確認可能にし、非対応時に生成したら `PlutoError(UnsupportedFeature)` (理由と代替案を日本語で) |
-| A13 | オプション機能の **無言の無効化禁止**。品質表 (`docs/08-simulation.md` §2) で無効になる設定は `logger.warn` を 1 回出す |
-| A14 | 入力検証は API 境界 (scene 層) で行う。下位層には検証済みの値だけを渡す |
+| #   | 規約                                                                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | **機能を作ったら必ず高レベル入口を作る**。下位層 (render, sim, physics...) に機能を追加するタスクは、対応する `scene.*` API と `examples/` のサンプルまで含めて完了とする |
+| A2  | 生成は `scene.add.<名前>(必須引数..., config?)`、戻り値は `<名前>Handle`。必須引数は最大 4 個、残りは `config` オブジェクト                                               |
+| A3  | `config` の全フィールドは省略可能。既定値は `DEFAULT_<NAME>_CONFIG` (`Readonly`, export) に集約し JSDoc に記載                                                            |
+| A4  | ハンドルの setter は `setXxx(v): this` (チェーン可)。プロパティアクセサ (`handle.x = 10`) も提供する                                                                      |
+| A5  | 破棄は `handle.destroy()`。破棄済みハンドルの使用は `__DEBUG__` で `PlutoError(InvalidState)`                                                                             |
+| A6  | 1,000 個を超える生成用に **一括 API** を用意する (`add.sprites`, `SpriteBatch`)。一括 API は個別オブジェクトを作らない                                                    |
+| A7  | 時間の単位は **ミリ秒**、名前に `Ms` を付ける (`durationMs`, `delayMs`)。`update(time, deltaMs)` も ms。内部 ECS は秒 (`dt`) で変換は `scene/game.ts` だけが行う          |
+| A8  | 角度は `rotation` (ラジアン) と `angle` (度) の両方を提供                                                                                                                 |
+| A9  | 色は `0xRRGGBB` の数値、アルファは別引数 `alpha` (0〜1)                                                                                                                   |
+| A10 | 非同期は `Game.create()` と `load.*` 系のみ。それ以外は同期 API                                                                                                           |
+| A11 | イベント名は小文字連結 (`'pointerdown'`, `'complete'`)。`handle.on(name, fn)` / `off` / `once`                                                                            |
+| A12 | バックエンドで使えない機能は `XxxHandle.isSupported(game)` で事前確認可能にし、非対応時に生成したら `PlutoError(UnsupportedFeature)` (理由と代替案を日本語で)             |
+| A13 | オプション機能の **無言の無効化禁止**。品質表 (`docs/08-simulation.md` §2) で無効になる設定は `logger.warn` を 1 回出す                                                   |
+| A14 | 入力検証は API 境界 (scene 層) で行う。下位層には検証済みの値だけを渡す                                                                                                   |
 
 ## 3. 最小コード例 (この形を保つこと)
 
@@ -34,7 +34,12 @@ class Main extends Scene {
     this.load.atlas('units', 'units.png', 'units.json');
   }
   public create(): void {
-    const army = this.add.crowd({ count: 1_000_000, texture: 'units', frame: 'soldier', goal: { x: 1600, y: 900 } });
+    const army = this.add.crowd({
+      count: 1_000_000,
+      texture: 'units',
+      frame: 'soldier',
+      goal: { x: 1600, y: 900 },
+    });
     this.input.on('pointerdown', (p) => army.setGoal(p.worldX, p.worldY));
   }
 }
@@ -46,12 +51,12 @@ await Game.create({ parent: document.body, width: 1920, height: 1080, scenes: [M
 
 ### 4.1 Game / GameConfig (`scene/game.ts`, `scene/game-config.ts`) — T-5.1
 
-| API | 説明 |
-|-----|------|
-| `Game.create(config: GameConfig): Promise<Game>` | デバイス生成・初期化・最初のシーン開始 |
-| `game.pause()` / `game.resume()` / `game.destroy()` | ループ制御 |
-| `game.backend: 'webgpu' \| 'webgl2'` | 使用中バックエンド |
-| `game.isParallel: boolean` | 並列実行中か |
+| API                                                 | 説明                                   |
+| --------------------------------------------------- | -------------------------------------- |
+| `Game.create(config: GameConfig): Promise<Game>`    | デバイス生成・初期化・最初のシーン開始 |
+| `game.pause()` / `game.resume()` / `game.destroy()` | ループ制御                             |
+| `game.backend: 'webgpu' \| 'webgl2'`                | 使用中バックエンド                     |
+| `game.isParallel: boolean`                          | 並列実行中か                           |
 
 `GameConfig`: `parent?: HTMLElement`, `canvas?: HTMLCanvasElement`, `width`, `height`, `resolution?` (既定 `devicePixelRatio`), `backgroundColor?` (既定 `0x000000`), `pixelArt?` (既定 false), `backend?` (`'auto'`), `maxSprites?` (1,048,576), `maxEntities?` (1,048,576), `maxWorkers?` (7), `fixedStepHz?` (60), `maxSubSteps?` (4), `scenes: SceneClass[]`, `debug?: { stats?: boolean }`。
 
@@ -59,38 +64,38 @@ await Game.create({ parent: document.body, width: 1920, height: 1080, scenes: [M
 
 ライフサイクル: `init(data)`, `preload()`, `create()`, `update(time, deltaMs)`, `shutdown()`。
 
-| プロパティ | 型 | タスク |
-|-----------|----|--------|
-| `this.add` | `GameObjectFactory` | T-5.1〜 |
-| `this.load` | `Loader` | T-5.1 |
-| `this.input` | 入力 | T-5.2 |
-| `this.cameras` | `CameraManager` | T-5.1 |
-| `this.tweens` | `TweenManager` | T-5.3 |
-| `this.anims` | `AnimsManager` | T-5.4 |
-| `this.time` | `TimerManager` | T-5.5 |
-| `this.physics` | `PhysicsManager` | T-8.1 |
-| `this.sound` | `SoundManager` | T-9.6 |
-| `this.fx` | `FxManager` | T-9.7 |
-| `this.scenes` | `SceneManager` (`start`, `stop`, `pause`, `resume`, `launch`) | T-5.1 |
-| `this.events` | シーンイベント (`'update'`, `'shutdown'`) | T-5.1 |
-| `this.world` | 低レベル `World` (上級者向け) | T-5.1 |
+| プロパティ     | 型                                                            | タスク  |
+| -------------- | ------------------------------------------------------------- | ------- |
+| `this.add`     | `GameObjectFactory`                                           | T-5.1〜 |
+| `this.load`    | `Loader`                                                      | T-5.1   |
+| `this.input`   | 入力                                                          | T-5.2   |
+| `this.cameras` | `CameraManager`                                               | T-5.1   |
+| `this.tweens`  | `TweenManager`                                                | T-5.3   |
+| `this.anims`   | `AnimsManager`                                                | T-5.4   |
+| `this.time`    | `TimerManager`                                                | T-5.5   |
+| `this.physics` | `PhysicsManager`                                              | T-8.1   |
+| `this.sound`   | `SoundManager`                                                | T-9.6   |
+| `this.fx`      | `FxManager`                                                   | T-9.7   |
+| `this.scenes`  | `SceneManager` (`start`, `stop`, `pause`, `resume`, `launch`) | T-5.1   |
+| `this.events`  | シーンイベント (`'update'`, `'shutdown'`)                     | T-5.1   |
+| `this.world`   | 低レベル `World` (上級者向け)                                 | T-5.1   |
 
 ### 4.3 `this.add.*` (`scene/game-object-factory.ts`)
 
-| API | 戻り値 | タスク |
-|-----|--------|--------|
-| `image(x, y, texture, frame?)` | `SpriteHandle` | T-5.1 |
-| `sprite(x, y, texture, frame?)` | `SpriteHandle` (アニメ可) | T-5.1 |
-| `sprites(config: SpriteBatchConfig)` | `SpriteBatch` | T-5.1 |
-| `container(x, y, children?)` | `ContainerHandle` | T-5.6 |
-| `group(config?)` | `GroupHandle` | T-5.6 |
-| `particles(x, y, config)` | `ParticlesHandle` | T-6.2 |
-| `crowd(config)` | `CrowdHandle` | T-6.3 |
-| `fluid(config)` | `FluidHandle` | T-7.1 |
-| `text(x, y, content, style?)` | `TextHandle` | T-9.2 |
-| `tilemap(config)` | `TilemapHandle` | T-9.3 |
-| `graphics()` | `GraphicsHandle` | T-9.4 |
-| `light(x, y, config?)` | `LightHandle` | T-9.5 |
+| API                                  | 戻り値                    | タスク |
+| ------------------------------------ | ------------------------- | ------ |
+| `image(x, y, texture, frame?)`       | `SpriteHandle`            | T-5.1  |
+| `sprite(x, y, texture, frame?)`      | `SpriteHandle` (アニメ可) | T-5.1  |
+| `sprites(config: SpriteBatchConfig)` | `SpriteBatch`             | T-5.1  |
+| `container(x, y, children?)`         | `ContainerHandle`         | T-5.6  |
+| `group(config?)`                     | `GroupHandle`             | T-5.6  |
+| `particles(x, y, config)`            | `ParticlesHandle`         | T-6.2  |
+| `crowd(config)`                      | `CrowdHandle`             | T-6.3  |
+| `fluid(config)`                      | `FluidHandle`             | T-7.1  |
+| `text(x, y, content, style?)`        | `TextHandle`              | T-9.2  |
+| `tilemap(config)`                    | `TilemapHandle`           | T-9.3  |
+| `graphics()`                         | `GraphicsHandle`          | T-9.4  |
+| `light(x, y, config?)`               | `LightHandle`             | T-9.5  |
 
 ### 4.4 SpriteHandle (`scene/handles/sprite-handle.ts`) — T-5.1
 
@@ -117,22 +122,22 @@ await Game.create({ parent: document.body, width: 1920, height: 1080, scenes: [M
 
 ### 4.9 トゥイーン・アニメ・時間
 
-| API | タスク |
-|-----|--------|
-| `tweens.add({ targets, props, durationMs, delayMs?, ease?, repeat?, yoyo?, onComplete? }) → TweenHandle` | T-5.3 |
-| `tweens.timeline(steps) → TimelineHandle` | T-5.3 |
-| `anims.create({ key, frames, frameRate, repeat })`, `anims.frames(texture, { prefix, start, end, zeroPad? })` | T-5.4 |
-| `time.delayedCall(delayMs, cb)`, `time.addLoop(intervalMs, cb, repeat?)`, `time.now`, `time.timeScale` | T-5.5 |
+| API                                                                                                           | タスク |
+| ------------------------------------------------------------------------------------------------------------- | ------ |
+| `tweens.add({ targets, props, durationMs, delayMs?, ease?, repeat?, yoyo?, onComplete? }) → TweenHandle`      | T-5.3  |
+| `tweens.timeline(steps) → TimelineHandle`                                                                     | T-5.3  |
+| `anims.create({ key, frames, frameRate, repeat })`, `anims.frames(texture, { prefix, start, end, zeroPad? })` | T-5.4  |
+| `time.delayedCall(delayMs, cb)`, `time.addLoop(intervalMs, cb, repeat?)`, `time.now`, `time.timeScale`        | T-5.5  |
 
 `ease` は `animation/easing.ts` の名前 (`'Linear'`, `'QuadIn'`, `'QuadOut'`, `'QuadInOut'`, `'CubicIn'` ... `'BounceOut'`, `'ElasticOut'`, `'BackOut'`)。
 
 ### 4.10 GPU Tier ハンドル
 
-| ハンドル | 主な API | タスク |
-|----------|----------|--------|
-| `ParticlesHandle` | `start()`, `stop()`, `explode(count, x?, y?)`, `setEmitRate(perSec)`, `setPosition(x, y)`, `aliveEstimate` | T-6.2 |
-| `CrowdHandle` | `setGoal(x, y, goalIndex?)`, `addObstacleRect(x, y, w, h)`, `clearObstacles()`, `setMaxSpeed(v)`, `count`, 設定 `avoidance?: boolean` (WebGL2 では無効 + warn) | T-6.3 / T-6.4 |
-| `FluidHandle` | `type: 'grid' \| 'pbf' \| 'mpm'`, `addForce(x, y, fx, fy, radius)`, `addDye(x, y, color, radius)` (grid), `addParticles(x, y, w, h, count)` (pbf/mpm), `static isSupported(game, type)` | T-7.x |
+| ハンドル          | 主な API                                                                                                                                                                                | タスク        |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `ParticlesHandle` | `start()`, `stop()`, `explode(count, x?, y?)`, `setEmitRate(perSec)`, `setPosition(x, y)`, `aliveEstimate`                                                                              | T-6.2         |
+| `CrowdHandle`     | `setGoal(x, y, goalIndex?)`, `addObstacleRect(x, y, w, h)`, `clearObstacles()`, `setMaxSpeed(v)`, `count`, 設定 `avoidance?: boolean` (WebGL2 では無効 + warn)                          | T-6.3 / T-6.4 |
+| `FluidHandle`     | `type: 'grid' \| 'pbf' \| 'mpm'`, `addForce(x, y, fx, fy, radius)`, `addDye(x, y, color, radius)` (grid), `addParticles(x, y, w, h, count)` (pbf/mpm), `static isSupported(game, type)` | T-7.x         |
 
 ### 4.11 物理 (`this.physics`) — T-8.x
 

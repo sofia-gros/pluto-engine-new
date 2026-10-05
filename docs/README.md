@@ -11,17 +11,17 @@
 
 ## 仕様書 (タスクごとに参照)
 
-| ファイル | 内容 |
-|----------|------|
-| [04-memory-and-ecs.md](./04-memory-and-ecs.md) | メモリモデル・SoA ECS の厳密な仕様 |
-| [05-jobs-and-builds.md](./05-jobs-and-builds.md) | ジョブシステム・parallel/embed ビルド |
-| [06-rhi.md](./06-rhi.md) | GPU 抽象層 (WebGPU / WebGL2) |
-| [07-renderer.md](./07-renderer.md) | スプライトレイアウト・描画パイプライン・カリング・ソート |
-| [08-simulation.md](./08-simulation.md) | パーティクル・群衆・流体・物理のアルゴリズム |
-| [09-api-design.md](./09-api-design.md) | 高レベル API の設計規約と API カタログ |
-| [10-testing-strategy.md](./10-testing-strategy.md) | テストの種類・配置・閾値 |
-| [11-build-and-release.md](./11-build-and-release.md) | ツールチェーン・依存許可リスト・scripts・CI |
-| [13-glossary.md](./13-glossary.md) | 用語集 |
+| ファイル                                             | 内容                                                     |
+| ---------------------------------------------------- | -------------------------------------------------------- |
+| [04-memory-and-ecs.md](./04-memory-and-ecs.md)       | メモリモデル・SoA ECS の厳密な仕様                       |
+| [05-jobs-and-builds.md](./05-jobs-and-builds.md)     | ジョブシステム・parallel/embed ビルド                    |
+| [06-rhi.md](./06-rhi.md)                             | GPU 抽象層 (WebGPU / WebGL2)                             |
+| [07-renderer.md](./07-renderer.md)                   | スプライトレイアウト・描画パイプライン・カリング・ソート |
+| [08-simulation.md](./08-simulation.md)               | パーティクル・群衆・流体・物理のアルゴリズム             |
+| [09-api-design.md](./09-api-design.md)               | 高レベル API の設計規約と API カタログ                   |
+| [10-testing-strategy.md](./10-testing-strategy.md)   | テストの種類・配置・閾値                                 |
+| [11-build-and-release.md](./11-build-and-release.md) | ツールチェーン・依存許可リスト・scripts・CI              |
+| [13-glossary.md](./13-glossary.md)                   | 用語集                                                   |
 
 ## 意思決定記録 (ADR)
 
@@ -29,9 +29,9 @@
 
 ## 進捗管理 (エージェントが更新してよい唯一の場所)
 
-| パス | 内容 |
-|------|------|
-| `progress/PROGRESS.md` | タスク状態表と作業ログ |
-| `progress/current-task.md` | 現在のタスクの計画 (`pluto-task-start` で上書き) |
-| `progress/reviews/T-x.y.md` | タスクごとの自己レビュー記録 |
-| `progress/escalations.md` | ユーザーへの確認事項の記録 |
+| パス                        | 内容                                             |
+| --------------------------- | ------------------------------------------------ |
+| `progress/PROGRESS.md`      | タスク状態表と作業ログ                           |
+| `progress/current-task.md`  | 現在のタスクの計画 (`pluto-task-start` で上書き) |
+| `progress/reviews/T-x.y.md` | タスクごとの自己レビュー記録                     |
+| `progress/escalations.md`   | ユーザーへの確認事項の記録                       |

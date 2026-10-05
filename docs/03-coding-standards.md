@@ -98,14 +98,14 @@ export { defineSystem, Phase } from './system';
 
 ## 2. 型
 
-| 規則 | 良い例 | 悪い例 |
-|------|--------|--------|
-| 列挙は `as const` + 同名型 | `export const BlendMode = { Normal: 0, Add: 1 } as const;` | `enum BlendMode { ... }` |
-| 公開関数の戻り値型を明示 | `export function len(v: Float32Array): number` | `export function len(v: Float32Array)` |
-| 型 import を分離 | `import type { World } from './world';` | `import { World } from './world';` (型としてのみ使用) |
-| オプショナルは `?:` | `interface Cfg { width?: number }` | `width: number \| undefined` を省略可能の意味で使う |
-| ユニオン判定は網羅 | `default: unreachable(kind);` | `default: break;` |
-| unknown を絞り込む | `if (typeof v === 'number')` | `v as number` |
+| 規則                       | 良い例                                                     | 悪い例                                                |
+| -------------------------- | ---------------------------------------------------------- | ----------------------------------------------------- |
+| 列挙は `as const` + 同名型 | `export const BlendMode = { Normal: 0, Add: 1 } as const;` | `enum BlendMode { ... }`                              |
+| 公開関数の戻り値型を明示   | `export function len(v: Float32Array): number`             | `export function len(v: Float32Array)`                |
+| 型 import を分離           | `import type { World } from './world';`                    | `import { World } from './world';` (型としてのみ使用) |
+| オプショナルは `?:`        | `interface Cfg { width?: number }`                         | `width: number \| undefined` を省略可能の意味で使う   |
+| ユニオン判定は網羅         | `default: unreachable(kind);`                              | `default: break;`                                     |
+| unknown を絞り込む         | `if (typeof v === 'number')`                               | `v as number`                                         |
 
 - `object`, `Function`, `{}` 型は禁止。
 - クラスは「状態 + 振る舞い」がある場合のみ。状態のない関数群はモジュール関数にする。
@@ -115,17 +115,17 @@ export { defineSystem, Phase } from './system';
 
 ## 3. 命名
 
-| 対象 | 規則 | 例 |
-|------|------|-----|
-| ファイル | kebab-case | `sprite-buffer.ts` |
-| クラス・型・インターフェース | PascalCase | `SpriteBuffer`, `RhiDevice` |
-| 関数・メソッド・変数 | camelCase | `allocateSlots` |
-| モジュール定数 | UPPER_SNAKE_CASE | `MAX_SPRITES` |
-| `as const` 列挙オブジェクト | PascalCase (キーも PascalCase) | `Phase.FixedUpdate` |
-| 真偽値 | is/has/can/should 接頭辞 | `isVisible`, `hasCompute` |
-| TypedArray 変数 | 中身を表す名前 | `positionsX`, `frameIds` (`arr`, `data` は禁止) |
-| 単位を含む値 | 単位を接尾辞に | `durationMs`, `angleRad`, `sizeBytes` |
-| 自作の GPU 関連型 | `Rhi` 接頭辞 | `RhiBuffer` (`GPUBuffer` は WebGPU 組込名なので禁止) |
+| 対象                         | 規則                           | 例                                                   |
+| ---------------------------- | ------------------------------ | ---------------------------------------------------- |
+| ファイル                     | kebab-case                     | `sprite-buffer.ts`                                   |
+| クラス・型・インターフェース | PascalCase                     | `SpriteBuffer`, `RhiDevice`                          |
+| 関数・メソッド・変数         | camelCase                      | `allocateSlots`                                      |
+| モジュール定数               | UPPER_SNAKE_CASE               | `MAX_SPRITES`                                        |
+| `as const` 列挙オブジェクト  | PascalCase (キーも PascalCase) | `Phase.FixedUpdate`                                  |
+| 真偽値                       | is/has/can/should 接頭辞       | `isVisible`, `hasCompute`                            |
+| TypedArray 変数              | 中身を表す名前                 | `positionsX`, `frameIds` (`arr`, `data` は禁止)      |
+| 単位を含む値                 | 単位を接尾辞に                 | `durationMs`, `angleRad`, `sizeBytes`                |
+| 自作の GPU 関連型            | `Rhi` 接頭辞                   | `RhiBuffer` (`GPUBuffer` は WebGPU 組込名なので禁止) |
 
 ## 4. コメント (日本語必須)
 
@@ -156,7 +156,9 @@ export const ErrorCode = {
 
 export class PlutoError extends Error {
   public readonly code: ErrorCode;
-  public constructor(code: ErrorCode, message: string) { /* ... */ }
+  public constructor(code: ErrorCode, message: string) {
+    /* ... */
+  }
 }
 ```
 
@@ -183,18 +185,18 @@ export function assert(condition: boolean, message: string): asserts condition {
 
 ## 7. 禁止 API 一覧
 
-| 禁止 | 代替 | 例外ファイル |
-|------|------|--------------|
-| `console.*` | `logger` | `src/core/debug/logger.ts` |
-| `Math.random()` | `createRng(seed)` | なし |
-| `Date.now()`, `performance.now()` | `Clock` | `src/core/time/clock.ts`, `src/devtools/**` |
-| `setTimeout`, `setInterval` | `TimerManager` | なし |
-| `requestAnimationFrame` | - | `src/scene/game.ts` |
-| `new Worker` | - | `src/jobs/threaded-scheduler.ts` |
-| `SharedArrayBuffer` | `createBackingBuffer` | `src/core/memory/buffer-factory.ts`, `src/jobs/**` |
-| `navigator.gpu`, `getContext('webgl2')` | `createDevice` | `src/rhi/**` |
-| `document`, `window` | - | `src/input/**`, `src/scene/game.ts`, `src/devtools/stats-overlay.ts`, `src/assets/loaders/**` |
-| `eval`, `new Function` | - | なし |
+| 禁止                                    | 代替                  | 例外ファイル                                                                                  |
+| --------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------- |
+| `console.*`                             | `logger`              | `src/core/debug/logger.ts`                                                                    |
+| `Math.random()`                         | `createRng(seed)`     | なし                                                                                          |
+| `Date.now()`, `performance.now()`       | `Clock`               | `src/core/time/clock.ts`, `src/devtools/**`                                                   |
+| `setTimeout`, `setInterval`             | `TimerManager`        | なし                                                                                          |
+| `requestAnimationFrame`                 | -                     | `src/scene/game.ts`                                                                           |
+| `new Worker`                            | -                     | `src/jobs/threaded-scheduler.ts`                                                              |
+| `SharedArrayBuffer`                     | `createBackingBuffer` | `src/core/memory/buffer-factory.ts`, `src/jobs/**`                                            |
+| `navigator.gpu`, `getContext('webgl2')` | `createDevice`        | `src/rhi/**`                                                                                  |
+| `document`, `window`                    | -                     | `src/input/**`, `src/scene/game.ts`, `src/devtools/stats-overlay.ts`, `src/assets/loaders/**` |
+| `eval`, `new Function`                  | -                     | なし                                                                                          |
 
 ## 8. ESLint 設定 (T-0.2 で `eslint.config.js` にこの内容を実装する)
 
@@ -236,5 +238,12 @@ export function assert(condition: boolean, message: string): asserts condition {
 ## 9. Prettier 設定 (`.prettierrc.json`)
 
 ```json
-{ "printWidth": 100, "singleQuote": true, "trailingComma": "all", "semi": true, "arrowParens": "always", "endOfLine": "lf" }
+{
+  "printWidth": 100,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "semi": true,
+  "arrowParens": "always",
+  "endOfLine": "lf"
+}
 ```

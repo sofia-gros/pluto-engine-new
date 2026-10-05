@@ -45,9 +45,9 @@ export type TypedArrayOf<T extends ScalarType> = /* F32→Float32Array, ... U8�
 
 ### 2.1 ハンドル (`src/core/ecs/entity.ts`)
 
-| ビット | 内容 |
-|--------|------|
-| 0–21 (22bit) | index (0 〜 4,194,303) |
+| ビット        | 内容                         |
+| ------------- | ---------------------------- |
+| 0–21 (22bit)  | index (0 〜 4,194,303)       |
 | 22–31 (10bit) | generation (0 〜 1023, 循環) |
 
 ```ts
@@ -66,11 +66,11 @@ export function entityGeneration(e: Entity): number;
 
 SoA、長さ `maxEntities`:
 
-| カラム | 型 | 内容 |
-|--------|----|------|
+| カラム         | 型            | 内容                                 |
+| -------------- | ------------- | ------------------------------------ |
 | `archetypeIds` | `Uint16Array` | 所属アーキタイプ (`0xFFFF` = 未使用) |
-| `rows` | `Uint32Array` | アーキタイプ内の行番号 |
-| `generations` | `Uint16Array` | 現在の世代 |
+| `rows`         | `Uint32Array` | アーキタイプ内の行番号               |
+| `generations`  | `Uint16Array` | 現在の世代                           |
 
 - 解放された index は `FreeList` で再利用。解放時に generation を +1 (mask)。
 - `isAlive(e)`: index 範囲内 && `generations[index] === entityGeneration(e)` && `archetypeIds[index] !== 0xFFFF`。
@@ -101,7 +101,7 @@ export const Transform = defineComponent('Transform', {
 - 型:
   ```ts
   export interface FieldToken<T extends ScalarType = ScalarType> {
-    readonly fieldId: number;     // 全コンポーネント通しの連番
+    readonly fieldId: number; // 全コンポーネント通しの連番
     readonly componentId: number;
     readonly type: T;
     readonly name: string;
@@ -122,14 +122,14 @@ export const Transform = defineComponent('Transform', {
 
 ```ts
 export class Archetype {
-  public readonly id: number;                 // 0 〜 65534
-  public readonly mask: Bitset;               // 所有コンポーネント (256bit)
-  public readonly entities: Uint32Array;      // 行 → Entity (length-tracking)
-  public count: number;                       // 使用行数
+  public readonly id: number; // 0 〜 65534
+  public readonly mask: Bitset; // 所有コンポーネント (256bit)
+  public readonly entities: Uint32Array; // 行 → Entity (length-tracking)
+  public count: number; // 使用行数
   public getColumn<T extends ScalarType>(field: FieldToken<T>): TypedArrayOf<T>;
   public hasComponent(componentId: number): boolean;
-  public pushRow(entity: Entity): number;     // 新しい行番号を返す。値はゼロ初期化
-  public swapRemove(row: number): Entity;     // 最終行を row に移動し、移動したエンティティを返す (無ければ NULL_ENTITY)
+  public pushRow(entity: Entity): number; // 新しい行番号を返す。値はゼロ初期化
+  public swapRemove(row: number): Entity; // 最終行を row に移動し、移動したエンティティを返す (無ければ NULL_ENTITY)
   public copyRowTo(row: number, dst: Archetype, dstRow: number): void; // 共通フィールドのみコピー
 }
 ```
@@ -156,9 +156,9 @@ export class Archetype {
 
 ```ts
 export class ChunkView {
-  public archetype: Archetype;   // 再利用のため readonly にしない
-  public start: number;          // 開始行 (含む)
-  public end: number;            // 終了行 (含まない)
+  public archetype: Archetype; // 再利用のため readonly にしない
+  public start: number; // 開始行 (含む)
+  public end: number; // 終了行 (含まない)
   public chunkIndex: number;
   public column<T extends ScalarType>(field: FieldToken<T>): TypedArrayOf<T>;
   public entity(row: number): Entity;
@@ -217,10 +217,10 @@ export const MovementSystem = defineSystem({
   name: 'Movement',
   phase: Phase.Update,
   query: { all: [Transform, Velocity] },
-  writes: [Transform],         // dirty 追跡と並列安全性の宣言
-  kernel: MoveKernel,          // jobs の Kernel (並列可能)。kernel か run のどちらか一方
+  writes: [Transform], // dirty 追跡と並列安全性の宣言
+  kernel: MoveKernel, // jobs の Kernel (並列可能)。kernel か run のどちらか一方
   // run: (world, dt) => void  // 並列不可の自由処理 (メインスレッド)
-  order: 0,                    // 同フェーズ内の実行順 (小さい順、同値は登録順)
+  order: 0, // 同フェーズ内の実行順 (小さい順、同値は登録順)
 });
 ```
 
@@ -233,9 +233,9 @@ export const MovementSystem = defineSystem({
 
 ```ts
 export interface WorldConfig {
-  maxEntities?: number;          // デフォルト 1_048_576 (上限 MAX_ENTITIES)
-  maxRowsPerArchetype?: number;  // デフォルト maxEntities
-  commandCapacity?: number;      // デフォルト 1_048_576
+  maxEntities?: number; // デフォルト 1_048_576 (上限 MAX_ENTITIES)
+  maxRowsPerArchetype?: number; // デフォルト maxEntities
+  commandCapacity?: number; // デフォルト 1_048_576
 }
 export class World {
   public constructor(config?: WorldConfig);
@@ -245,7 +245,7 @@ export class World {
   public removeComponent(e: Entity, c: ComponentDef): void;
   public hasComponent(e: Entity, c: ComponentDef): boolean;
   public isAlive(e: Entity): boolean;
-  public get<T extends ScalarType>(e: Entity, field: FieldToken<T>): number;      // コールドパス用
+  public get<T extends ScalarType>(e: Entity, field: FieldToken<T>): number; // コールドパス用
   public set<T extends ScalarType>(e: Entity, field: FieldToken<T>, v: number): void; // コールドパス用 (dirty を立てる)
   public query(desc: QueryDesc): Query;
   public readonly commands: CommandBuffer;
@@ -258,8 +258,8 @@ export class World {
 
 ## 10. 性能受け入れ基準
 
-| 項目 | 基準 (基準機, embed ビルド, Node ではなくブラウザで計測) |
-|------|------|
-| 100 万エンティティ (Transform+Velocity) の移動カーネル 1 回 | ≤ 2.0ms |
-| 100 万 spawn (即時 API, 同一アーキタイプ) | ≤ 150ms |
-| `world.get/set` 100 万回 | ≤ 30ms |
+| 項目                                                        | 基準 (基準機, embed ビルド, Node ではなくブラウザで計測) |
+| ----------------------------------------------------------- | -------------------------------------------------------- |
+| 100 万エンティティ (Transform+Velocity) の移動カーネル 1 回 | ≤ 2.0ms                                                  |
+| 100 万 spawn (即時 API, 同一アーキタイプ)                   | ≤ 150ms                                                  |
+| `world.get/set` 100 万回                                    | ≤ 30ms                                                   |

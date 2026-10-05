@@ -2,14 +2,14 @@
 
 ## 1. テストの種類
 
-| 種類 | ツール | 場所 | 対象 | 実行コマンド |
-|------|--------|------|------|--------------|
-| ユニット | Vitest (Node) | `tests/unit/` | GPU を使わない全コード | `pnpm test` |
-| ブラウザ | Playwright (Chromium) | `tests/browser/` | RHI・シェーダ・レンダラ・Worker・入力 | `pnpm test:browser` |
-| ゴールデン画像 | Playwright + pixelmatch | `tests/browser/golden/` | 描画結果 | `pnpm test:browser` に含む |
-| パリティ | Vitest / Playwright | 各モジュール | Serial と Threaded の結果一致、WebGPU と WebGL2 の結果一致 | 同上 |
-| ベンチ | Playwright + `bench/` | `bench/` | 性能 | `pnpm bench` |
-| 静的検査 | tsc / ESLint / tools | - | 全体 | `pnpm verify` |
+| 種類           | ツール                  | 場所                    | 対象                                                       | 実行コマンド               |
+| -------------- | ----------------------- | ----------------------- | ---------------------------------------------------------- | -------------------------- |
+| ユニット       | Vitest (Node)           | `tests/unit/`           | GPU を使わない全コード                                     | `pnpm test`                |
+| ブラウザ       | Playwright (Chromium)   | `tests/browser/`        | RHI・シェーダ・レンダラ・Worker・入力                      | `pnpm test:browser`        |
+| ゴールデン画像 | Playwright + pixelmatch | `tests/browser/golden/` | 描画結果                                                   | `pnpm test:browser` に含む |
+| パリティ       | Vitest / Playwright     | 各モジュール            | Serial と Threaded の結果一致、WebGPU と WebGL2 の結果一致 | 同上                       |
+| ベンチ         | Playwright + `bench/`   | `bench/`                | 性能                                                       | `pnpm bench`               |
+| 静的検査       | tsc / ESLint / tools    | -                       | 全体                                                       | `pnpm verify`              |
 
 ## 2. ユニットテストの規則
 
@@ -23,11 +23,11 @@
 
 ### カバレッジ閾値 (`vitest.config.ts`)
 
-| 範囲 | lines | branches |
-|------|-------|----------|
-| `src/core/**` | 95% | 90% |
-| `src/jobs/**`, `src/transform/**`, `src/animation/**`, `src/physics/**` | 90% | 85% |
-| 全体 (`src/**`, ただし `src/rhi/**`, `src/shaders/**`, `src/devtools/**`, GPU パスファイルを除く) | 85% | 80% |
+| 範囲                                                                                              | lines | branches |
+| ------------------------------------------------------------------------------------------------- | ----- | -------- |
+| `src/core/**`                                                                                     | 95%   | 90%      |
+| `src/jobs/**`, `src/transform/**`, `src/animation/**`, `src/physics/**`                           | 90%   | 85%      |
+| 全体 (`src/**`, ただし `src/rhi/**`, `src/shaders/**`, `src/devtools/**`, GPU パスファイルを除く) | 85%   | 80%      |
 
 閾値の引き下げは禁止。
 
@@ -45,12 +45,12 @@
 
 ## 4. パリティテスト (必須)
 
-| 対象 | 比較 | タスク |
-|------|------|--------|
-| `SerialScheduler` vs `ThreadedScheduler` | 同じカーネル・同じ入力でカラムがビット一致 | T-2.3 |
-| GPU 駆動パス vs CPU 補助パス | 同じシーンのゴールデン画像が一致 (GPU Tier を含まないシーン) | T-4.6 |
-| GPU prefix-sum / radix-sort vs CPU 参照実装 | 結果が完全一致 (ランダム入力 10 種, サイズ 1〜2^20) | T-4.5 |
-| Stable Fluids WebGPU vs WebGL2 | 10 ステップ後の密度の最大誤差 ≤ 1e-3 | T-7.1 |
+| 対象                                        | 比較                                                         | タスク |
+| ------------------------------------------- | ------------------------------------------------------------ | ------ |
+| `SerialScheduler` vs `ThreadedScheduler`    | 同じカーネル・同じ入力でカラムがビット一致                   | T-2.3  |
+| GPU 駆動パス vs CPU 補助パス                | 同じシーンのゴールデン画像が一致 (GPU Tier を含まないシーン) | T-4.6  |
+| GPU prefix-sum / radix-sort vs CPU 参照実装 | 結果が完全一致 (ランダム入力 10 種, サイズ 1〜2^20)          | T-4.5  |
+| Stable Fluids WebGPU vs WebGL2              | 10 ステップ後の密度の最大誤差 ≤ 1e-3                         | T-7.1  |
 
 ## 5. ベンチマーク
 

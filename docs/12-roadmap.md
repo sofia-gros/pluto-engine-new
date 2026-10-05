@@ -12,6 +12,7 @@
 ## Phase 0 — リポジトリ基盤
 
 ### T-0.1 パッケージと TypeScript 設定
+
 - **作成ファイル**: `package.json`, `pnpm-lock.yaml`, `tsconfig.json`, `.gitignore`, `.editorconfig`, `.prettierrc.json`, `.prettierignore`
 - **参照**: `docs/11-build-and-release.md` §1〜4, `docs/03-coding-standards.md` §9
 - **手順**: `git init` (未初期化の場合) → package.json (name `pluto-engine`, version `0.0.0`, `"type": "module"`, `"sideEffects": false`, `engines`, `packageManager`, scripts は §3 の **全部** を記載) → 許可リストの devDependencies を `pnpm add -D` で追加。
@@ -23,6 +24,7 @@
   5. `pnpm check:structure` `pnpm check:boundaries` `pnpm check:rules` が成功
 
 ### T-0.2 ESLint
+
 - **作成ファイル**: `eslint.config.js`
 - **参照**: `docs/03-coding-standards.md` §8
 - **受け入れ条件**:
@@ -32,6 +34,7 @@
   4. `pnpm lint` が成功 (対象ファイルなしでも成功)
 
 ### T-0.3 Vite 2 ビルドとエントリ
+
 - **作成ファイル**: `vite.config.ts`, `tsconfig.build.json`, `src/build-flags.d.ts`, `src/index.ts`, `src/lowlevel.ts`, `tools/check-bundle.mjs`
 - **参照**: `docs/05-jobs-and-builds.md` §4〜5, `docs/11-build-and-release.md` §5〜6
 - **内容**: `src/index.ts` は `export const VERSION: string = __VERSION__;` のみ (JSDoc 付き)。`src/lowlevel.ts` は `@file` コメントと `export {};` のみ (Phase 1 以降で re-export を追加)。
@@ -41,6 +44,7 @@
   3. `pnpm typecheck` が成功
 
 ### T-0.4 Vitest と最初のコード
+
 - **作成ファイル**: `vitest.config.ts`, `src/core/debug/index.ts`, `src/core/debug/assert.ts`
 - **参照**: `docs/10-testing-strategy.md` §2, `docs/03-coding-standards.md` §5.2
 - **内容**: vitest の `define` で `__PARALLEL__=false`, `__DEBUG__=true`, `__VERSION__='test'`。カバレッジ閾値は §2 の表のとおり。`assert` は T-1.2 まで `Error` を投げる (T-1.2 で `PlutoError` に置換)。
@@ -50,6 +54,7 @@
   3. `pnpm verify` が成功
 
 ### T-0.5 Playwright ハーネス
+
 - **作成ファイル**: `playwright.config.ts`, `tests/browser/fixtures/harness.html`, `tests/browser/fixtures/harness.ts`, `tests/browser/helpers/golden.ts`, `tests/browser/smoke/harness.spec.ts`
 - **参照**: `docs/10-testing-strategy.md` §3
 - **内容**: プロジェクト `webgpu`, `webgl2`, `embed` を定義。`webServer` で vite dev server を起動。`golden.ts` に `expectGolden(page, name)` (pixelmatch + pngjs) を実装。
@@ -58,11 +63,13 @@
   2. `golden.ts` の比較ロジックにユニット的な検証 (同一画像 = 差分 0、1px 違い = 検出) がブラウザテスト内にある
 
 ### T-0.6 CI
+
 - **作成ファイル**: `.github/workflows/ci.yml`
 - **参照**: `docs/11-build-and-release.md` §7
 - **受け入れ条件**: YAML が §7 のジョブ構成どおり。ローカルで同じコマンド列が成功することを確認し記録。
 
 ### T-0.7 ベンチ基盤
+
 - **作成ファイル**: `bench/runner.html`, `bench/runner.ts`, `bench/bench-types.ts`, `bench/baseline.json` (空配列 `[]`), `bench/scenes/empty.ts`, `tools/run-bench.mjs`, `tools/compare-bench.mjs`
 - **参照**: `docs/10-testing-strategy.md` §5
 - **内容**: この時点ではエンジンが無いので `empty.ts` は `requestAnimationFrame` で空フレームを回すだけ (bench は src ではないので `requestAnimationFrame` 可)。
@@ -72,20 +79,21 @@
 
 ## Phase 1 — Core
 
-| ID | 内容 | 作成ファイル (src/ 配下。テストは対応パス) | 参照 |
-|----|------|-------------------------------------------|------|
-| T-1.1 | 数学 | `core/math/` の全ファイル | 03 §2, 02 §6 |
-| T-1.2 | エラー・ログ | `core/debug/pluto-error.ts`, `core/debug/logger.ts` (+ `assert` を `PlutoError` に置換) | 03 §5 |
-| T-1.3 | メモリ | `core/memory/` の全ファイル | 04 §1 |
-| T-1.4 | イベント | `core/events/` の全ファイル | 02 §8 |
-| T-1.5 | 時間 | `core/time/` の全ファイル | 02 §8 |
-| T-1.6 | エンティティ・コンポーネント | `core/ecs/index.ts`, `schema.ts`, `component.ts`, `entity.ts`, `entity-table.ts` | 04 §2〜3 |
-| T-1.7 | アーキタイプ | `core/ecs/column.ts`, `archetype.ts`, `archetype-graph.ts` | 04 §4 |
-| T-1.8 | クエリ・変更追跡 | `core/ecs/change-tracking.ts`, `chunk-view.ts`, `query.ts` | 04 §5〜6 |
-| T-1.9 | World | `core/ecs/command-buffer.ts`, `system.ts`, `world.ts` | 04 §7〜9 |
-| T-1.10 | ECS ベンチ | `bench/scenes/ecs-move.ts` (World を直接使う) | 04 §10 |
+| ID     | 内容                         | 作成ファイル (src/ 配下。テストは対応パス)                                              | 参照         |
+| ------ | ---------------------------- | --------------------------------------------------------------------------------------- | ------------ |
+| T-1.1  | 数学                         | `core/math/` の全ファイル                                                               | 03 §2, 02 §6 |
+| T-1.2  | エラー・ログ                 | `core/debug/pluto-error.ts`, `core/debug/logger.ts` (+ `assert` を `PlutoError` に置換) | 03 §5        |
+| T-1.3  | メモリ                       | `core/memory/` の全ファイル                                                             | 04 §1        |
+| T-1.4  | イベント                     | `core/events/` の全ファイル                                                             | 02 §8        |
+| T-1.5  | 時間                         | `core/time/` の全ファイル                                                               | 02 §8        |
+| T-1.6  | エンティティ・コンポーネント | `core/ecs/index.ts`, `schema.ts`, `component.ts`, `entity.ts`, `entity-table.ts`        | 04 §2〜3     |
+| T-1.7  | アーキタイプ                 | `core/ecs/column.ts`, `archetype.ts`, `archetype-graph.ts`                              | 04 §4        |
+| T-1.8  | クエリ・変更追跡             | `core/ecs/change-tracking.ts`, `chunk-view.ts`, `query.ts`                              | 04 §5〜6     |
+| T-1.9  | World                        | `core/ecs/command-buffer.ts`, `system.ts`, `world.ts`                                   | 04 §7〜9     |
+| T-1.10 | ECS ベンチ                   | `bench/scenes/ecs-move.ts` (World を直接使う)                                           | 04 §10       |
 
 **共通の受け入れ条件 (Phase 1 の全タスク)**:
+
 1. 仕様書のシグネチャ・定数名・値と完全一致 (レビュー記録に対応表を書く)
 2. ユニットテスト: 公開関数ごとに正常系・境界値・異常系
 3. カバレッジ `core/**` lines 95% / branches 90%
@@ -95,45 +103,48 @@
 
 ## Phase 2 — Jobs / Transform
 
-| ID | 内容 | 作成ファイル | 参照 |
-|----|------|-------------|------|
-| T-2.1 | カーネル・直列 | `jobs/index.ts`, `kernel.ts`, `kernel-registry.ts`, `scheduler.ts`, `serial-scheduler.ts` | 05 §2〜3.1 |
-| T-2.2 | 並列 | `jobs/sync.ts`, `worker-protocol.ts`, `worker-entry.ts`, `threaded-scheduler.ts` | 05 §3.2〜3.3 |
-| T-2.3 | 選択とパリティ | `jobs/create-scheduler.ts`, `tests/browser/jobs/parity.spec.ts` | 05 §3.4, 10 §4 |
-| T-2.4 | Transform | `transform/` の全ファイル | 02 §11 |
+| ID    | 内容           | 作成ファイル                                                                              | 参照           |
+| ----- | -------------- | ----------------------------------------------------------------------------------------- | -------------- |
+| T-2.1 | カーネル・直列 | `jobs/index.ts`, `kernel.ts`, `kernel-registry.ts`, `scheduler.ts`, `serial-scheduler.ts` | 05 §2〜3.1     |
+| T-2.2 | 並列           | `jobs/sync.ts`, `worker-protocol.ts`, `worker-entry.ts`, `threaded-scheduler.ts`          | 05 §3.2〜3.3   |
+| T-2.3 | 選択とパリティ | `jobs/create-scheduler.ts`, `tests/browser/jobs/parity.spec.ts`                           | 05 §3.4, 10 §4 |
+| T-2.4 | Transform      | `transform/` の全ファイル                                                                 | 02 §11         |
 
 受け入れ条件 (追加):
+
 - T-2.2: ブラウザテストで 4 Worker × 100 万エンティティのカーネル実行が完了し、Serial とビット一致 (T-2.3 のテストで検証)
 - T-2.3: `check-bundle.mjs` の parallel 側検査が有効になり成功
 - T-2.4: 深さ 8 の階層でワールド行列が参照実装 (`affine2d` の逐次乗算) と 1e-5 以内で一致
 
 ## Phase 3 — RHI
 
-| ID | 内容 | 作成ファイル | 参照 |
-|----|------|-------------|------|
-| T-3.1 | インターフェース | `rhi/index.ts`, `types.ts`, `device.ts`, `capabilities.ts`, `shader-source.ts` | 06 全体 |
-| T-3.2 | WebGPU 実装 | `rhi/webgpu/` の全ファイル | 06 §4〜9 |
-| T-3.3 | WebGL2 実装 | `rhi/webgl2/` の全ファイル | 06 §4〜9 |
-| T-3.4 | デバイス生成 | `rhi/create-device.ts`, `tests/browser/rhi/*.spec.ts` | 06 §2 |
+| ID    | 内容             | 作成ファイル                                                                   | 参照     |
+| ----- | ---------------- | ------------------------------------------------------------------------------ | -------- |
+| T-3.1 | インターフェース | `rhi/index.ts`, `types.ts`, `device.ts`, `capabilities.ts`, `shader-source.ts` | 06 全体  |
+| T-3.2 | WebGPU 実装      | `rhi/webgpu/` の全ファイル                                                     | 06 §4〜9 |
+| T-3.3 | WebGL2 実装      | `rhi/webgl2/` の全ファイル                                                     | 06 §4〜9 |
+| T-3.4 | デバイス生成     | `rhi/create-device.ts`, `tests/browser/rhi/*.spec.ts`                          | 06 §2    |
 
 受け入れ条件 (T-3.4 で一括検証):
+
 - 両バックエンドで: クリアカラー、vertex pulling による 1 つの四角形描画 (ゴールデン画像)、ストレージ (WebGL2 はデータテクスチャ) から色を読む四角形描画、`writeBuffer` の部分転送
 - WebGPU のみ: compute で配列を 2 倍にし `readBufferAsync` で検証、`drawIndirect`
 - `backend: 'webgl2'` 強制時に `caps.compute === false`
 
 ## Phase 4 — スプライトレンダラ (マイルストーン: 100 万スプライト)
 
-| ID | 内容 | 作成ファイル | 参照 |
-|----|------|-------------|------|
-| T-4.1 | シェーダ基盤 | `shaders/index.ts`, `raw.d.ts`, `preprocess.ts`, `shader-library.ts`, `common/constants.*`, `common/camera.*` | 07 §2, R4 |
-| T-4.2 | テクスチャ・アセット | `assets/index.ts`, `asset-types.ts`, `asset-cache.ts`, `loader.ts`, `loaders/image-loader.ts`, `loaders/atlas-loader.ts`, `render/texture/` の全ファイル | 07 §4〜5 |
-| T-4.3 | スプライトデータ | `render/index.ts`, `render-constants.ts`, `render/sprite/sprite-instance-layout.ts`, `sprite-components.ts`, `sprite-buffer.ts`, `sprite-pack-kernel.ts`, `sprite-pack-system.ts`, `shaders/common/sprite-instance.*`, `frame.*`, `storage-emulation.glsl` | 07 §3, §10〜11 |
-| T-4.4 | CPU 補助パス | `render/sprite/sprite-path-cpu-assisted.ts`, `sprite-cpu-cull-kernel.ts`, `sprite-renderer.ts`, `shaders/sprite/*` | 07 §7, §9 |
-| T-4.5 | GPU プリミティブ | `compute/index.ts`, `gpu-prefix-sum.ts`, `gpu-radix-sort.ts`, `shaders/scan/prefix-sum.wgsl`, `shaders/sort/radix-sort.wgsl` | 07 §8, 10 §4 |
-| T-4.6 | GPU 駆動パス | `render/sprite/sprite-path-gpu-driven.ts`, `shaders/cull/*` | 07 §8 |
-| T-4.7 | カメラ・グラフ・レンダラ | `render/camera/*`, `render/graph/*`, `render/renderer.ts`, `shaders/post/fullscreen.*`, `shaders/post/blit.frag.glsl`, `bench/scenes/static-sprites.ts` | 07 §6, §12〜13 |
+| ID    | 内容                     | 作成ファイル                                                                                                                                                                                                                                               | 参照           |
+| ----- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| T-4.1 | シェーダ基盤             | `shaders/index.ts`, `raw.d.ts`, `preprocess.ts`, `shader-library.ts`, `common/constants.*`, `common/camera.*`                                                                                                                                              | 07 §2, R4      |
+| T-4.2 | テクスチャ・アセット     | `assets/index.ts`, `asset-types.ts`, `asset-cache.ts`, `loader.ts`, `loaders/image-loader.ts`, `loaders/atlas-loader.ts`, `render/texture/` の全ファイル                                                                                                   | 07 §4〜5       |
+| T-4.3 | スプライトデータ         | `render/index.ts`, `render-constants.ts`, `render/sprite/sprite-instance-layout.ts`, `sprite-components.ts`, `sprite-buffer.ts`, `sprite-pack-kernel.ts`, `sprite-pack-system.ts`, `shaders/common/sprite-instance.*`, `frame.*`, `storage-emulation.glsl` | 07 §3, §10〜11 |
+| T-4.4 | CPU 補助パス             | `render/sprite/sprite-path-cpu-assisted.ts`, `sprite-cpu-cull-kernel.ts`, `sprite-renderer.ts`, `shaders/sprite/*`                                                                                                                                         | 07 §7, §9      |
+| T-4.5 | GPU プリミティブ         | `compute/index.ts`, `gpu-prefix-sum.ts`, `gpu-radix-sort.ts`, `shaders/scan/prefix-sum.wgsl`, `shaders/sort/radix-sort.wgsl`                                                                                                                               | 07 §8, 10 §4   |
+| T-4.6 | GPU 駆動パス             | `render/sprite/sprite-path-gpu-driven.ts`, `shaders/cull/*`                                                                                                                                                                                                | 07 §8          |
+| T-4.7 | カメラ・グラフ・レンダラ | `render/camera/*`, `render/graph/*`, `render/renderer.ts`, `shaders/post/fullscreen.*`, `shaders/post/blit.frag.glsl`, `bench/scenes/static-sprites.ts`                                                                                                    | 07 §6, §12〜13 |
 
 受け入れ条件 (追加):
+
 - T-4.3: レイアウトテストで TS のオフセットと WGSL/GLSL の構造体定義が一致することを文字列解析で検証
 - T-4.4: 両バックエンドでゴールデン画像 (layer/sortKey/flip/tint/opaque/additive を含む 64 スプライトのシーン)
 - T-4.5: 10 §4 のパリティテスト
@@ -144,14 +155,14 @@
 
 ## Phase 5 — 高レベル API v1 (詳細: タスク表のみ。着手前に受け入れ条件をユーザーと確定)
 
-| ID | 内容 |
-|----|------|
+| ID    | 内容                                                                                                       |
+| ----- | ---------------------------------------------------------------------------------------------------------- |
 | T-5.1 | Game / Scene / SceneManager / Factory (image, sprite, sprites) / CameraManager / Loader 統合 / json-loader |
-| T-5.2 | 入力 |
-| T-5.3 | トゥイーン・タイムライン |
-| T-5.4 | フレームアニメーション |
-| T-5.5 | タイマー・カメラエフェクト |
-| T-5.6 | Group / Container |
+| T-5.2 | 入力                                                                                                       |
+| T-5.3 | トゥイーン・タイムライン                                                                                   |
+| T-5.4 | フレームアニメーション                                                                                     |
+| T-5.5 | タイマー・カメラエフェクト                                                                                 |
+| T-5.6 | Group / Container                                                                                          |
 
 ## Phase 6 — GPU シミュレーション I (詳細: 未定義)
 

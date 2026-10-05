@@ -7,7 +7,9 @@ const srcFiles = getSourceFiles('src');
 let hasError = false;
 for (const file of srcFiles) {
   if (!allowedFiles.has(file)) {
-    console.error(`[ERROR] Unauthorized file found: ${file}. Please add it to docs/02-directory-structure.md first.`);
+    console.error(
+      `[ERROR] Unauthorized file found: ${file}. Please add it to docs/02-directory-structure.md first.`,
+    );
     hasError = true;
   }
 }

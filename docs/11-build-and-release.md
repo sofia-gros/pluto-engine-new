@@ -2,35 +2,35 @@
 
 ## 1. ツールチェーン (バージョン固定)
 
-| ツール | バージョン |
-|--------|-----------|
-| Node.js | 22 LTS 以上 (`engines.node: ">=22"`) |
-| pnpm | 10.x (`packageManager` フィールドで固定) |
-| TypeScript | 5.x 最新 |
-| モジュール形式 | ESM のみ (`"type": "module"`) |
+| ツール         | バージョン                               |
+| -------------- | ---------------------------------------- |
+| Node.js        | 22 LTS 以上 (`engines.node: ">=22"`)     |
+| pnpm           | 10.x (`packageManager` フィールドで固定) |
+| TypeScript     | 5.x 最新                                 |
+| モジュール形式 | ESM のみ (`"type": "module"`)            |
 
 ## 2. 依存 (許可リスト)
 
 > [!IMPORTANT]
 > **ランタイム依存 (`dependencies`) はゼロ**。下記以外の devDependencies を追加してはならない。追加が必要なら `pluto-escalate`。
 
-| パッケージ | 用途 |
-|-----------|------|
-| `typescript` | 型検査・型定義出力 |
-| `vite` | ビルド・dev server |
-| `vitest` | ユニットテスト |
-| `@vitest/coverage-v8` | カバレッジ |
-| `eslint` | Lint |
-| `@eslint/js` | ESLint 推奨設定 |
-| `typescript-eslint` | TS 用 ESLint |
-| `eslint-config-prettier` | Prettier との衝突回避 |
-| `prettier` | 整形 |
-| `@playwright/test` | ブラウザテスト・ベンチ |
-| `@webgpu/types` | WebGPU 型定義 |
-| `pixelmatch` | ゴールデン画像比較 |
-| `pngjs` | PNG 読み書き (ゴールデン) |
-| `@types/node` | tools / 設定ファイル用 |
-| `@types/pngjs` | 同上 |
+| パッケージ               | 用途                      |
+| ------------------------ | ------------------------- |
+| `typescript`             | 型検査・型定義出力        |
+| `vite`                   | ビルド・dev server        |
+| `vitest`                 | ユニットテスト            |
+| `@vitest/coverage-v8`    | カバレッジ                |
+| `eslint`                 | Lint                      |
+| `@eslint/js`             | ESLint 推奨設定           |
+| `typescript-eslint`      | TS 用 ESLint              |
+| `eslint-config-prettier` | Prettier との衝突回避     |
+| `prettier`               | 整形                      |
+| `@playwright/test`       | ブラウザテスト・ベンチ    |
+| `@webgpu/types`          | WebGPU 型定義             |
+| `pixelmatch`             | ゴールデン画像比較        |
+| `pngjs`                  | PNG 読み書き (ゴールデン) |
+| `@types/node`            | tools / 設定ファイル用    |
+| `@types/pngjs`           | 同上                      |
 
 ## 3. package.json の scripts (この名前と内容で作る)
 

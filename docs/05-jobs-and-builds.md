@@ -33,11 +33,11 @@ export function defineKernel(name: string, fn: KernelFn): KernelDef;
 
 /** 共有バッファの固定スロット番号 (追加はタスクの指示がある場合のみ)。 */
 export const KernelBufferSlot = {
-  SpriteStagingU32: 0,  // u32[0]: スプライトステージング (u32 ビュー)
-  SpriteStagingF32: 0,  // f32[0]: 同じバッファの f32 ビュー
-  SpriteDirtyBits: 0,   // i32[0]: 64 スロット単位の dirty ビット (Atomics.or で立てる)
-  CullOutput: 1,        // u32[1]: CPU カリング結果
-  CullCounters: 1,      // i32[1]: CPU カリングのビン別カウンタ (Atomics.add)
+  SpriteStagingU32: 0, // u32[0]: スプライトステージング (u32 ビュー)
+  SpriteStagingF32: 0, // f32[0]: 同じバッファの f32 ビュー
+  SpriteDirtyBits: 0, // i32[0]: 64 スロット単位の dirty ビット (Atomics.or で立てる)
+  CullOutput: 1, // u32[1]: CPU カリング結果
+  CullCounters: 1, // i32[1]: CPU カリングのビン別カウンタ (Atomics.add)
 } as const;
 ```
 
@@ -62,7 +62,11 @@ export interface Scheduler {
   /** ワーカーへ World の共有メモリ情報を同期する (アーキタイプ・クエリの新規作成後に World が呼ぶ)。 */
   syncWorld(world: World): void;
   /** カーネル用共有バッファを登録する (初期化時のみ)。 */
-  registerBuffer(kind: 'u32' | 'f32' | 'i32', slot: number, array: Uint32Array | Float32Array | Int32Array): void;
+  registerBuffer(
+    kind: 'u32' | 'f32' | 'i32',
+    slot: number,
+    array: Uint32Array | Float32Array | Int32Array,
+  ): void;
   /** クエリの全チャンクに対してカーネルを実行し、完了まで戻らない。 */
   runKernel(kernel: KernelDef, query: Query, params: Float32Array): void;
   /** ワーカーを終了する。 */
@@ -84,16 +88,16 @@ for chunk in 0 .. query.chunkCount()-1:
 - Worker 生成: `import WorkerCtor from './worker-entry?worker&inline';` (インライン化で配信の手間をなくす)。
 - 共有制御ブロック `Int32Array(SharedArrayBuffer)` のレイアウト (`sync.ts` に定数で定義):
 
-| index | 名前 | 内容 |
-|-------|------|------|
-| 0 | `CTRL_EPOCH` | ジョブ世代。メインが +1 して `Atomics.notify` |
-| 1 | `CTRL_KERNEL_ID` | 実行するカーネル ID |
-| 2 | `CTRL_QUERY_ID` | クエリ ID |
-| 3 | `CTRL_NEXT_CHUNK` | 次に取るチャンク番号 (`Atomics.add` で取得) |
-| 4 | `CTRL_TOTAL_CHUNKS` | 総チャンク数 |
-| 5 | `CTRL_DONE_CHUNKS` | 完了チャンク数 |
-| 6 | `CTRL_SHUTDOWN` | 1 で終了 |
-| 8〜71 | `CTRL_PARAMS` | パラメータ (Float32 として再解釈) |
+| index | 名前                | 内容                                          |
+| ----- | ------------------- | --------------------------------------------- |
+| 0     | `CTRL_EPOCH`        | ジョブ世代。メインが +1 して `Atomics.notify` |
+| 1     | `CTRL_KERNEL_ID`    | 実行するカーネル ID                           |
+| 2     | `CTRL_QUERY_ID`     | クエリ ID                                     |
+| 3     | `CTRL_NEXT_CHUNK`   | 次に取るチャンク番号 (`Atomics.add` で取得)   |
+| 4     | `CTRL_TOTAL_CHUNKS` | 総チャンク数                                  |
+| 5     | `CTRL_DONE_CHUNKS`  | 完了チャンク数                                |
+| 6     | `CTRL_SHUTDOWN`     | 1 で終了                                      |
+| 8〜71 | `CTRL_PARAMS`       | パラメータ (Float32 として再解釈)             |
 
 - 実行手順:
   1. メイン: params 書込 → NEXT=0, DONE=0, TOTAL 設定 → EPOCH+1 → `Atomics.notify(ctrl, CTRL_EPOCH)`
@@ -105,13 +109,13 @@ for chunk in 0 .. query.chunkCount()-1:
 
 `postMessage` はコールドパスのみ:
 
-| メッセージ | 方向 | 内容 |
-|-----------|------|------|
-| `init` | メイン→Worker | 制御ブロック SAB |
-| `archetype` | メイン→Worker | アーキタイプ ID、フィールド ID → カラム SAB の対応、entities SAB |
-| `query` | メイン→Worker | クエリ ID → 対象アーキタイプ ID 列 |
-| `buffer` | メイン→Worker | `registerBuffer` された共有バッファ (kind, slot, SAB, byteOffset, length) |
-| `ready` | Worker→メイン | 初期化完了 |
+| メッセージ  | 方向          | 内容                                                                      |
+| ----------- | ------------- | ------------------------------------------------------------------------- |
+| `init`      | メイン→Worker | 制御ブロック SAB                                                          |
+| `archetype` | メイン→Worker | アーキタイプ ID、フィールド ID → カラム SAB の対応、entities SAB          |
+| `query`     | メイン→Worker | クエリ ID → 対象アーキタイプ ID 列                                        |
+| `buffer`    | メイン→Worker | `registerBuffer` された共有バッファ (kind, slot, SAB, byteOffset, length) |
+| `ready`     | Worker→メイン | 初期化完了                                                                |
 
 - growable SAB の伸長は他スレッドから見える (再送不要)。アーキタイプ・クエリの **新規作成** 時のみ `syncWorld` で送る。
 - Worker 側は受け取った情報で `Archetype` の読み取り専用ミラーを作り、`ChunkView` を構築する。
@@ -123,7 +127,10 @@ export function createScheduler(config: { maxWorkers?: number }): Scheduler {
   if (__PARALLEL__ && globalThis.crossOriginIsolated === true) {
     return new ThreadedScheduler(config);
   }
-  if (__PARALLEL__) logger.warn('crossOriginIsolated ではないため直列実行に縮退します。COOP/COEP ヘッダを設定してください。');
+  if (__PARALLEL__)
+    logger.warn(
+      'crossOriginIsolated ではないため直列実行に縮退します。COOP/COEP ヘッダを設定してください。',
+    );
   return new SerialScheduler();
 }
 ```
@@ -134,32 +141,32 @@ export function createScheduler(config: { maxWorkers?: number }): Scheduler {
 
 ```ts
 declare const __PARALLEL__: boolean; // parallel ビルドで true
-declare const __DEBUG__: boolean;    // 開発・テストで true、本番ビルドで false
-declare const __VERSION__: string;   // package.json の version
+declare const __DEBUG__: boolean; // 開発・テストで true、本番ビルドで false
+declare const __VERSION__: string; // package.json の version
 ```
 
-| 実行環境 | `__PARALLEL__` | `__DEBUG__` |
-|----------|----------------|-------------|
-| `vite build --mode parallel` | true | false |
-| `vite build --mode embed` | false | false |
-| `vite build --mode parallel-debug` | true | true |
-| `vite build --mode embed-debug` | false | true |
-| vitest | false | true |
-| `vite` dev server (ブラウザテスト) | true (dev server は COOP/COEP ヘッダを送る) | true |
-| `vite preview` (ベンチ、ビルド成果物を配信) | ビルドに従う | false |
+| 実行環境                                    | `__PARALLEL__`                              | `__DEBUG__` |
+| ------------------------------------------- | ------------------------------------------- | ----------- |
+| `vite build --mode parallel`                | true                                        | false       |
+| `vite build --mode embed`                   | false                                       | false       |
+| `vite build --mode parallel-debug`          | true                                        | true        |
+| `vite build --mode embed-debug`             | false                                       | true        |
+| vitest                                      | false                                       | true        |
+| `vite` dev server (ブラウザテスト)          | true (dev server は COOP/COEP ヘッダを送る) | true        |
+| `vite preview` (ベンチ、ビルド成果物を配信) | ビルドに従う                                | false       |
 
 > [!NOTE]
 > embed 版の動作確認は dev server ではなく **embed ビルドの成果物** に対して行う (`pnpm test:browser:embed`)。
 
 ## 5. 出力
 
-| ファイル | 内容 |
-|----------|------|
-| `dist/parallel/pluto.js` | parallel リリース (ESM) |
-| `dist/parallel/pluto.debug.js` | parallel デバッグ |
-| `dist/embed/pluto.js` | embed リリース (ESM) |
-| `dist/embed/pluto.debug.js` | embed デバッグ |
-| `dist/types/` | 型定義 (`tsc --emitDeclarationOnly`) |
+| ファイル                       | 内容                                 |
+| ------------------------------ | ------------------------------------ |
+| `dist/parallel/pluto.js`       | parallel リリース (ESM)              |
+| `dist/parallel/pluto.debug.js` | parallel デバッグ                    |
+| `dist/embed/pluto.js`          | embed リリース (ESM)                 |
+| `dist/embed/pluto.debug.js`    | embed デバッグ                       |
+| `dist/types/`                  | 型定義 (`tsc --emitDeclarationOnly`) |
 
 `package.json` の `exports`:
 
@@ -168,7 +175,10 @@ declare const __VERSION__: string;   // package.json の version
   ".": { "types": "./dist/types/index.d.ts", "default": "./dist/embed/pluto.js" },
   "./parallel": { "types": "./dist/types/index.d.ts", "default": "./dist/parallel/pluto.js" },
   "./embed": { "types": "./dist/types/index.d.ts", "default": "./dist/embed/pluto.js" },
-  "./lowlevel": { "types": "./dist/types/lowlevel.d.ts", "default": "./dist/embed/pluto-lowlevel.js" }
+  "./lowlevel": {
+    "types": "./dist/types/lowlevel.d.ts",
+    "default": "./dist/embed/pluto-lowlevel.js"
+  }
 }
 ```
 

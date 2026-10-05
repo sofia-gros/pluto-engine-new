@@ -8,7 +8,7 @@ const scripts = [
   'typecheck',
   'lint',
   'format:check',
-  'test:coverage'
+  'test:coverage',
 ];
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));

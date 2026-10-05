@@ -9,11 +9,13 @@ let hasError = false;
 for (const file of srcFiles) {
   const meta = allowedFiles.get(file);
   if (!meta) continue;
-  
+
   const content = readFileSync(file, 'utf8');
   if (meta.hot) {
     if (!content.includes('// @pluto-hot')) {
-      console.error(`[ERROR] ${file} is marked as HOT in docs but missing '// @pluto-hot' in line 1.`);
+      console.error(
+        `[ERROR] ${file} is marked as HOT in docs but missing '// @pluto-hot' in line 1.`,
+      );
       hasError = true;
     }
   }
