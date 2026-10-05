@@ -13,11 +13,13 @@ let nextFieldId = 0;
 
 export type ComponentSchema = Record<string, ScalarType>;
 
-export type ComponentDef<S extends ComponentSchema> = {
+export interface AnyComponentDef {
   readonly id: number;
   readonly name: string;
   readonly fields: readonly FieldToken[];
-} & {
+}
+
+export type ComponentDef<S extends ComponentSchema> = AnyComponentDef & {
   readonly [K in keyof S]: FieldToken<S[K]>;
 };
 

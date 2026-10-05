@@ -6,7 +6,7 @@
 
 ## 現在のタスク
 
-**T-1.7** アーキタイプ (状態: TODO)
+**T-1.8** クエリ・変更追跡 (状態: TODO)
 
 ## タスク状態表
 
@@ -25,7 +25,7 @@
 | T-1.4  | イベント                         | DONE | [T-1.4.md](./reviews/T-1.4.md) | [abd00f9](https://github.com/sofia-gros/pluto-engine-new/commit/abd00f9) |
 | T-1.5  | 時間                             | DONE | [T-1.5.md](./reviews/T-1.5.md) | [f953359](https://github.com/sofia-gros/pluto-engine-new/commit/f953359) |
 | T-1.6  | エンティティ・コンポーネント     | DONE | [T-1.6.md](./reviews/T-1.6.md) | [2411499](https://github.com/sofia-gros/pluto-engine-new/commit/2411499) |
-| T-1.7  | アーキタイプ                     | TODO |                                |                                                                          |
+| T-1.7  | アーキタイプ                     | DONE | [T-1.7.md](./reviews/T-1.7.md) |          |
 | T-1.8  | クエリ・変更追跡                 | TODO |                                |                                                                          |
 | T-1.9  | World                            | TODO |                                |                                                                          |
 | T-1.10 | ECS ベンチ                       | TODO |                                |                                                                          |
@@ -49,7 +49,13 @@ Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後に�
 
 ## 作業ログ (新しいものを上に追記)
 
+### 2026-10-05 T-1.7
+- やったこと: コンポーネント構成ごとにデータをSoA形式で格納するバッファ管理 (`Column`, `Archetype`) と、コンポーネント追加/削除時のアーキタイプ遷移グラフ (`ArchetypeGraph`) を実装。
+- 証拠: `pnpm verify` がエラー0、テストカバレッジ `ecs/` で 98.26% (lines) / 92.30% (branches) を達成。
+- 未解決: なし
+
 ### 2026-10-05 T-1.6
+
 - やったこと: ECS の基本単位である `Entity` 型とそのビット演算、SoA管理テーブル `EntityTable`、および `defineComponent` によるコンポーネント定義基盤を作成。
 - 証拠: `pnpm verify` がエラー0、テストカバレッジ `ecs/` で 100% (lines) / 100% (branches) を達成。
 - 未解決: なし

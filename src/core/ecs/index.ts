@@ -6,3 +6,6 @@ export * from './entity';
 export * from './entity-table';
 export * from './schema';
 export * from './component';
+export * from './column';
+export * from './archetype';
+export * from './archetype-graph';

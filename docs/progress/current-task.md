@@ -1,48 +1,44 @@
-# T-1.6: エンティティ・コンポーネント
+# T-1.7: アーキタイプ
 
 ## 目的
 
-SoA ECS (Entity Component System) の最も基礎となるエンティティの表現、エンティティの生存状態を管理するテーブル、およびコンポーネント（スキーマ）定義の仕組みを実装する。
+エンティティのコンポーネント構成（アーキタイプ）ごとにデータをSoA形式で格納するバッファの管理（Column, Archetype）と、コンポーネント追加/削除時のアーキタイプ遷移を管理するグラフ（ArchetypeGraph）を実装する。
 
 ## 編集・作成するファイル
 
-- `src/core/ecs/index.ts`
-- `src/core/ecs/entity.ts`
-- `src/core/ecs/entity-table.ts`
-- `src/core/ecs/schema.ts`
-- `src/core/ecs/component.ts`
-- ユニットテスト (`tests/unit/core/ecs/entity.test.ts`, `entity-table.test.ts`, `component.test.ts`)
+- `src/core/ecs/column.ts`
+- `src/core/ecs/archetype.ts`
+- `src/core/ecs/archetype-graph.ts`
+- `tests/unit/core/ecs/column.test.ts`
+- `tests/unit/core/ecs/archetype.test.ts`
+- `tests/unit/core/ecs/archetype-graph.test.ts`
 
 ## 実装ステップ
 
-1. **entity.ts**
-   - `Entity` 型 (`number & { readonly __brand: 'Entity' }`)
-   - `ENTITY_INDEX_BITS`, `ENTITY_INDEX_MASK`, `ENTITY_GENERATION_MASK`, `MAX_ENTITIES`, `NULL_ENTITY`
-   - `makeEntity(index, generation)`, `entityIndex(e)`, `entityGeneration(e)`
-   - （ビット演算には `>>> 0` や `| 0` を使用し符号なし32bit整数として扱うこと）
-2. **entity-table.ts**
-   - `EntityTable` クラス
-   - `archetypeIds`, `rows`, `generations` の `Uint16Array` / `Uint32Array` を持つ
-   - `core/memory/free-list` または同等の仕組みを使って index をリサイクルする
-   - `create()`: 新しい Entity を発行 (generation を進めるか、新規インデックスを発行)
-   - `destroy(e)`: Entity を破棄 (インデックスをフリーリストに戻し、generation を `+1 & mask` する)
-   - `isAlive(e)`: `index < capacity` かつ `generations[index] === entityGeneration(e)` かつ `archetypeIds[index] !== 0xFFFF` (または同等の生存フラグ) を確認
-   - `getArchetype(e)`, `getRow(e)`, `update(e, archetypeId, row)` などの操作
-3. **schema.ts / component.ts**
-   - `FieldToken<T>` インターフェースの定義 (フィールドに一意の `fieldId` を振る)
-   - `defineComponent(name, schema)`: MAX_COMPONENTS = 256
-   - 内部で `ComponentId` をグローバルに採番 (0から始まり255まで)
-   - タグコンポーネント (フィールドなし) にも対応
+1. **column.ts**
+   - `INITIAL_ARCHETYPE_ROWS = 1024`
+   - `Column<T extends ScalarType>` クラスの実装。
+   - `buffer-factory` の `createBackingBuffer` を使用して `TypedArray` を作成。
+   - `grow(newRows)` メソッドでバッファを拡張（SharedArrayBuffer の場合はリサイズ不可なので初期最大サイズで確保される仕組みに合わせる。通常の ArrayBuffer なら作り直してコピー）。
+2. **archetype.ts**
+   - `Archetype` クラスの実装。
+   - `id`, `mask` (Bitset 256bit), `entities` (Uint32Array), `count` の保持。
+   - 初期化時に指定されたフィールド(FieldToken)に基づき `Column` を作成・保持。
+   - `pushRow(entity)`: 容量を超えそうならすべての Column と `entities` を `grow()` して新規行番号を返す。
+   - `swapRemove(row)`: `count - 1` 番目のデータを `row` 番目に移動させ `count--` する (O(1) 削除)。移動した Entity を返す（空になったら `NULL_ENTITY`）。
+   - `copyRowTo(row, dstArchetype, dstRow)`: 共通するコンポーネントのフィールドデータをコピーする。
+3. **archetype-graph.ts**
+   - `ArchetypeGraph` クラス。
+   - アーキタイプのID採番と保持 (`Map<string, Archetype>`)。キーは `Bitset` の 16進数文字列表現 (`mask.toString()` など)。
+   - `(archetypeId, componentId, add|remove) -> nextArchetypeId` のエッジ遷移を `Map<number, number>` でキャッシュ (キー: `archetypeId * 512 + componentId * 2 + (add ? 1 : 0)`)。
 4. **テスト作成**
-   - ビット演算が境界値で正しく動くか (index 0, index max, gen 0, gen max)
-   - `EntityTable` の生成と破棄、再利用時の generation インクリメントと `isAlive` 判定
-   - コンポーネント定義と ID 割り当ての仕様確認
-5. カバレッジとLintチェック。
+   - Column: `grow` 時に既存データが保持されること。
+   - Archetype: `pushRow`, `swapRemove` で要素が正しく移動・削除されること。`copyRowTo` の共通フィールドコピ－の確認。
+   - ArchetypeGraph: コンポーネント追加・削除で正しいアーキタイプが取得・生成されること。エッジキャッシュの動作。
 
 ## 完了条件
 
-1. 仕様書の定数名・値・型と完全一致すること（`Entity`, `ENTITY_INDEX_BITS`, `makeEntity` 等）。
-2. `EntityTable` が SoA 形式の TypedArray でデータ管理し、ガベージコレクションを発生させないこと。
-3. ユニットテストにより正常系・境界値・異常系が網羅されていること。
-4. カバレッジ `core/ecs/**` が lines 95% / branches 90% 以上であること。
-5. HOT ファイル指定（あれば）のルールに従っていること。
+1. `Column` と `Archetype` がデータ再配置 (grow) および `swapRemove` を正しく行えること。
+2. GCを最小限に抑えるため、要素追加・削除時のバッファアロケーションが必要な `grow` 時以外に発生しないこと。
+3. カバレッジ `core/ecs/**` 全体で lines 95% / branches 90% 以上であること。
+4. ホットパスのルールに準拠していること。
