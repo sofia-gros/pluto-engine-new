@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import { readFileSync } from 'node:fs';
 
-const pkg = JSON.parse(readFileSync('./package.json', 'utf8'));
+const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
 
 export default defineConfig(({ mode }) => {
   // mode can be: 'parallel', 'embed', 'parallel-debug', 'embed-debug'
@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
       lib: {
         entry: {
           pluto: 'src/index.ts',
-          'pluto-lowlevel': 'src/lowlevel.ts'
+          'pluto-lowlevel': 'src/lowlevel.ts',
         },
         formats: ['es'],
         fileName: (_f, entryName) => `${entryName}${outExt}`,

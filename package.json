@@ -7,10 +7,22 @@
     "node": ">=22"
   },
   "exports": {
-    ".": { "types": "./dist/types/index.d.ts", "default": "./dist/embed/pluto.js" },
-    "./parallel": { "types": "./dist/types/index.d.ts", "default": "./dist/parallel/pluto.js" },
-    "./embed": { "types": "./dist/types/index.d.ts", "default": "./dist/embed/pluto.js" },
-    "./lowlevel": { "types": "./dist/types/lowlevel.d.ts", "default": "./dist/embed/pluto-lowlevel.js" }
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/embed/pluto.js"
+    },
+    "./parallel": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/parallel/pluto.js"
+    },
+    "./embed": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/embed/pluto.js"
+    },
+    "./lowlevel": {
+      "types": "./dist/types/lowlevel.d.ts",
+      "default": "./dist/embed/pluto-lowlevel.js"
+    }
   },
   "packageManager": "pnpm@10.0.0",
   "scripts": {

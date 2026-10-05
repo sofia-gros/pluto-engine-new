@@ -4,7 +4,15 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'bench/results/**', 'playwright-report/**', 'tools/**', 'eslint.config.js'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      'bench/results/**',
+      'playwright-report/**',
+      'tools/**',
+      'eslint.config.js',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
@@ -29,16 +37,31 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
-      '@typescript-eslint/ban-ts-comment': ['error', { 'ts-ignore': true, 'ts-expect-error': true, 'ts-nocheck': true }],
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        { 'ts-ignore': true, 'ts-expect-error': true, 'ts-nocheck': true },
+      ],
       '@typescript-eslint/naming-convention': [
         'error',
         { selector: 'default', format: ['camelCase'] },
         { selector: 'property', format: null },
+        {
+          selector: 'variable',
+          format: null,
+          filter: {
+            regex: '^__.*__$',
+            match: true,
+          },
+        },
         { selector: 'variable', format: ['camelCase', 'UPPER_CASE'] },
         { selector: 'parameter', format: ['camelCase'], leadingUnderscore: 'allow' },
         { selector: 'memberLike', modifiers: ['private'], format: ['camelCase'] },
         { selector: 'typeLike', format: ['PascalCase'] },
-        { selector: 'interface', format: ['PascalCase'], custom: { regex: '^I[A-Z]', match: false } },
+        {
+          selector: 'interface',
+          format: ['PascalCase'],
+          custom: { regex: '^I[A-Z]', match: false },
+        },
         { selector: 'enumMember', format: ['UPPER_CASE'] },
       ],
       'no-restricted-syntax': [
@@ -50,12 +73,12 @@ export default tseslint.config(
         { selector: 'PrivateIdentifier', message: '#private 禁止。private 修飾子を使う' },
       ],
       'no-console': 'error',
-      'eqeqeq': ['error', 'always'],
+      eqeqeq: ['error', 'always'],
       'no-var': 'error',
       'prefer-const': 'error',
       'max-lines': ['error', { max: 400, skipBlankLines: false, skipComments: false }],
       'max-params': ['error', 6],
-      'complexity': ['error', 20],
+      complexity: ['error', 20],
       'no-restricted-globals': ['error', 'event', 'name'],
     },
   },
@@ -72,20 +95,20 @@ export default tseslint.config(
     },
   },
   {
-    files: ['*.config.js', 'tools/*.mjs', 'tools/lib/*.mjs'],
+    files: ['*.config.js', '*.config.ts', 'tools/*.mjs', 'tools/lib/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       globals: {
         console: 'readonly',
-        process: 'readonly'
-      }
+        process: 'readonly',
+      },
     },
     rules: {
       'no-restricted-syntax': 'off',
       'no-undef': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-deprecated': 'off'
-    }
+      '@typescript-eslint/no-deprecated': 'off',
+    },
   },
-  prettier
+  prettier,
 );
