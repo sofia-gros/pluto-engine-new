@@ -8,6 +8,7 @@ import { Bitset } from '../memory/bitset';
 import { MAX_COMPONENTS } from './component';
 import { Column, INITIAL_ARCHETYPE_ROWS } from './column';
 import type { ScalarType, TypedArrayOf } from '../memory/scalar-type';
+import type { AnyTypedArray } from '../memory/ring-buffer';
 import type { FieldToken } from './schema';
 import type { AnyComponentDef } from './component';
 import type { Entity } from './entity';
@@ -66,6 +67,10 @@ export class Archetype {
     const col = this.columns.get(field.fieldId);
     assert(col !== undefined, 'Archetype: 指定されたフィールドが存在しません');
     return col.data as TypedArrayOf<T>;
+  }
+
+  public getColumnByFieldId(fieldId: number): AnyTypedArray | undefined {
+    return this.columns.get(fieldId)?.data;
   }
 
   /**

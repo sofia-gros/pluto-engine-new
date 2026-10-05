@@ -39,13 +39,13 @@
 
 実装タスクは必ず以下のスキルを **この順で** 使用する。スキップ禁止。
 
-| 段階 | スキル | 目的 |
-|------|--------|------|
-| 1 | `pluto-task-start` | タスク特定・ドキュメント読込・計画作成 (`docs/progress/current-task.md`) |
-| 2 | `pluto-implement` | 計画に沿ってテスト先行で実装 |
-| 3 | `pluto-test` | `pnpm verify` とテストを実行し、全て緑にする |
-| 4 | `pluto-review` | 自己レビュー。レビュー記録を `docs/progress/reviews/` に保存 |
-| 5 | `pluto-task-finish` | 完了条件確認・PROGRESS 更新・コミット |
+| 段階 | スキル              | 目的                                                                     |
+| ---- | ------------------- | ------------------------------------------------------------------------ |
+| 1    | `pluto-task-start`  | タスク特定・ドキュメント読込・計画作成 (`docs/progress/current-task.md`) |
+| 2    | `pluto-implement`   | 計画に沿ってテスト先行で実装                                             |
+| 3    | `pluto-test`        | `pnpm verify` とテストを実行し、全て緑にする                             |
+| 4    | `pluto-review`      | 自己レビュー。レビュー記録を `docs/progress/reviews/` に保存             |
+| 5    | `pluto-task-finish` | 完了条件確認・PROGRESS 更新・コミット                                    |
 
 追加スキル (該当時は必須):
 
@@ -113,18 +113,18 @@
 
 `docs/README.md` を参照。主要なもの:
 
-| ファイル | 内容 |
-|----------|------|
-| `docs/00-vision.md` | ビジョン・目標・非目標 |
-| `docs/01-architecture.md` | レイヤー構造と依存規則 |
-| `docs/02-directory-structure.md` | **全ファイルの責務一覧 (唯一の正)** |
-| `docs/03-coding-standards.md` | コーディング規約 |
-| `docs/04-memory-and-ecs.md` | SoA ECS 仕様 |
-| `docs/05-jobs-and-builds.md` | ジョブシステムと parallel/embed ビルド |
-| `docs/06-rhi.md` | GPU 抽象層 |
-| `docs/07-renderer.md` | レンダラ仕様 |
-| `docs/08-simulation.md` | 群衆・流体・パーティクル・物理 |
-| `docs/09-api-design.md` | 高レベル API 設計規約とカタログ |
-| `docs/10-testing-strategy.md` | テスト戦略 |
-| `docs/11-build-and-release.md` | ビルド・依存・CI |
-| `docs/12-roadmap.md` | タスク一覧と受け入れ条件 |
+| ファイル                         | 内容                                   |
+| -------------------------------- | -------------------------------------- |
+| `docs/00-vision.md`              | ビジョン・目標・非目標                 |
+| `docs/01-architecture.md`        | レイヤー構造と依存規則                 |
+| `docs/02-directory-structure.md` | **全ファイルの責務一覧 (唯一の正)**    |
+| `docs/03-coding-standards.md`    | コーディング規約                       |
+| `docs/04-memory-and-ecs.md`      | SoA ECS 仕様                           |
+| `docs/05-jobs-and-builds.md`     | ジョブシステムと parallel/embed ビルド |
+| `docs/06-rhi.md`                 | GPU 抽象層                             |
+| `docs/07-renderer.md`            | レンダラ仕様                           |
+| `docs/08-simulation.md`          | 群衆・流体・パーティクル・物理         |
+| `docs/09-api-design.md`          | 高レベル API 設計規約とカタログ        |
+| `docs/10-testing-strategy.md`    | テスト戦略                             |
+| `docs/11-build-and-release.md`   | ビルド・依存・CI                       |
+| `docs/12-roadmap.md`             | タスク一覧と受け入れ条件               |

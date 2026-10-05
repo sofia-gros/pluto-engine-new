@@ -1,46 +1,39 @@
-# T-1.8: クエリ・変更追跡
+# T-1.9: World
 
 ## 目的
 
-エンティティデータに対するバッチ処理の単位であるチャンク (`ChunkView`)、条件に合致するアーキタイプを検索・キャッシュしてイテレーションする `Query`、およびコンポーネントデータの変更(dirty)を64行単位で追跡する `ChangeTracker` を実装する。
+ECSのコアを統合する最重要クラス `World` と、システム(ゲームロジック)の定義基盤である `System` およびフェーズ(`Phase`)、さらに構造変更を遅延評価するための `CommandBuffer` を実装する。
 
 ## 編集・作成するファイル
 
-- `src/core/ecs/chunk-view.ts`
-- `src/core/ecs/query.ts`
-- `src/core/ecs/change-tracking.ts`
+- `src/core/ecs/command-buffer.ts` (作成済)
+- `src/core/ecs/system.ts` (作成済)
+- `src/core/ecs/world.ts`
 - `src/core/ecs/index.ts`
-- `tests/unit/core/ecs/chunk-view.test.ts`
-- `tests/unit/core/ecs/query.test.ts`
-- `tests/unit/core/ecs/change-tracking.test.ts`
+- `tests/unit/core/ecs/world.test.ts`
+- `tests/unit/core/ecs/command-buffer.test.ts`
 
 ## 実装ステップ
 
-1. **chunk-view.ts**
-   - 定数 `CHUNK_ROWS = 16384`。
-   - `ChunkView` クラスの実装。
-   - プロパティ: `archetype`, `start`, `end`, `chunkIndex` (全アーキタイプ通しのインデックスではなく、そのアーキタイプ内でのチャンクインデックスとして管理するか、ジョブシステム側の要求に従うが、ここではアーキタイプ内のインデックスと見なすか後で確認。とりあえず引数で渡せるようにする)。
-   - メソッド: `column(field)`, `entity(row)`。
-   - `markDirty(field)`: このチャンク範囲全体をdirtyとしてマークする(ChangeTracker連携)。
-2. **change-tracking.ts**
-   - 定数 `DIRTY_BLOCK_ROWS = 64`。
-   - `ChangeTracker` クラスの実装。
-   - 各フィールド(列)ごとに、`Math.ceil(maxRows / 64)` ビット（つまり `Uint32Array` で管理。1要素 = 32ビット = 2048行）を保持。
-   - メソッド: `markRange(fieldId, startRow, endRow)`、`forEachDirtyRange(fieldId, cb(startRow, endRow))`、`clear(fieldId)`。
-   - ※Archetype内にフィールドごとのChangeTrackerを持たせるか、独立させるか。ドキュメントには `Archetypeのフィールドごとに Uint32Arrayの dirty ビット` とあるため、Archetypeと連携させる。
-3. **query.ts**
-   - 抽出条件 `QueryDesc` (`all?: AnyComponentDef[]`, `none?: AnyComponentDef[]`)。
-   - `Query` クラスの実装。
-   - マッチする `Archetype` の配列をキャッシュ。
-   - `forEachChunk(cb)`: 内部で `ChunkView` インスタンスを使い回し、各アーキタイプの要素数に応じて `CHUNK_ROWS` ごとにチャンクを切り出しコールバックを呼ぶ (アロケーション0)。
+1. **コンポーネント定義のレジストリ対応** (対応済)
+   - `component.ts` で `defineComponent` された全コンポーネントを保持する `COMPONENT_REGISTRY` を追加し、グローバルIDで引けるようにした。
+2. **command-buffer.ts と system.ts の実装** (対応済)
+   - `CommandBuffer`: `Uint32Array` と `Float32Array` / `Int32Array` のビューを用いて、エンティティの構造変更やデータ更新コマンドをアロケーション無しでストリームとして蓄積する。
+   - `SystemDef` および `Phase`: システムの実行順序や依存関係を定義。
+3. **world.ts の実装**
+   - 内部に `EntityTable`, `ArchetypeGraph`, `CommandBuffer` を保持。
+   - `query` による抽出とキャッシュの管理。
+   - `spawn`, `despawn`, `addComponent`, `removeComponent`, `get`, `set` の即時APIの提供。
+   - `isIterating` 中の即時構造変更に対するアサーション。
+   - `flush` の実装。コマンドバッファのストリームをループして実際の構造変更(Archetype遷移等)を反映。
+   - システム群 (`SystemDef`) をフェーズおよび `order` に従ってソートして登録し、`runPhase` で逐次実行する。
 4. **テスト作成**
-   - 変更追跡ビットの正常なセット、クリア、範囲走査の確認。
-   - クエリ条件によるアーキタイプのマッチングと、チャンクごとの正確な行分割の確認。
-   - ホットパスにおけるオブジェクトアロケーション回避の確認。
+   - `command-buffer.test.ts`: コマンドストリームの正常記録のテスト。
+   - `world.test.ts`: 全体のインテグレーションテスト。`spawn`, コンポーネント付与、クエリ取得、`flush` による遅延適用の確認。システムのフェーズ単位実行の確認。
 
 ## 完了条件
 
-1. `Query` が要求されたコンポーネント構成を持つアーキタイプを正しく抽出し、`ChunkView` を用いて GC を発生させずにループできること。
-2. `ChangeTracker` が64行単位でのdirty区間を正確に追跡・反復できること。
-3. カバレッジ `core/ecs/**` で lines 95% / branches 90% 以上を維持していること。
-4. ホットパスのルールに準拠していること (`forEachChunk` 等)。
+1. `World` クラスが仕様どおりのAPIを提供し、正しく動作すること。
+2. `CommandBuffer` による構造変更のバッチ化と `flush` がアロケーションなしで正常に行われること。
+3. カバレッジ `core/ecs/**` が lines 95% / branches 90% 以上であること。
+4. ホットパスのルールに準拠していること。

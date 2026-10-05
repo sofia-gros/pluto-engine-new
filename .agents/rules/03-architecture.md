@@ -10,32 +10,33 @@ trigger: always_on
 
 `core/*` = `core/debug, core/math, core/memory, core/events, core/time, core/ecs`
 
-| モジュール (src/ 配下) | import してよいモジュール |
-|---|---|
-| `core/debug` | なし |
-| `core/math` | `core/debug` |
-| `core/memory` | `core/debug`, `core/math` |
-| `core/events` | `core/debug` |
-| `core/time` | `core/debug`, `core/math` |
-| `core/ecs` | `core/debug`, `core/math`, `core/memory`, `core/events` |
-| `jobs` | `core/*` |
-| `rhi` | `core/debug`, `core/math`, `core/memory`, `core/events` |
-| `assets` | `core/*` |
-| `input` | `core/*` |
-| `audio` | `core/*`, `assets` |
-| `transform` | `core/*`, `jobs` |
-| `shaders` | `core/debug` |
-| `compute` | `core/*`, `jobs`, `rhi`, `shaders` |
-| `render` | `core/*`, `jobs`, `rhi`, `assets`, `transform`, `shaders`, `compute` |
-| `sim` | `core/*`, `jobs`, `rhi`, `transform`, `shaders`, `compute`, `render` |
-| `physics` | `core/*`, `jobs`, `rhi`, `transform`, `shaders`, `compute` |
-| `animation` | `core/*`, `transform`, `render` |
-| `devtools` | `core/*`, `jobs`, `rhi`, `render` |
-| `scene` | 上記すべて |
-| `src/index.ts` | `scene` のみ |
-| `src/lowlevel.ts` | すべて |
+| モジュール (src/ 配下) | import してよいモジュール                                            |
+| ---------------------- | -------------------------------------------------------------------- |
+| `core/debug`           | なし                                                                 |
+| `core/math`            | `core/debug`                                                         |
+| `core/memory`          | `core/debug`, `core/math`                                            |
+| `core/events`          | `core/debug`                                                         |
+| `core/time`            | `core/debug`, `core/math`                                            |
+| `core/ecs`             | `core/debug`, `core/math`, `core/memory`, `core/events`              |
+| `jobs`                 | `core/*`                                                             |
+| `rhi`                  | `core/debug`, `core/math`, `core/memory`, `core/events`              |
+| `assets`               | `core/*`                                                             |
+| `input`                | `core/*`                                                             |
+| `audio`                | `core/*`, `assets`                                                   |
+| `transform`            | `core/*`, `jobs`                                                     |
+| `shaders`              | `core/debug`                                                         |
+| `compute`              | `core/*`, `jobs`, `rhi`, `shaders`                                   |
+| `render`               | `core/*`, `jobs`, `rhi`, `assets`, `transform`, `shaders`, `compute` |
+| `sim`                  | `core/*`, `jobs`, `rhi`, `transform`, `shaders`, `compute`, `render` |
+| `physics`              | `core/*`, `jobs`, `rhi`, `transform`, `shaders`, `compute`           |
+| `animation`            | `core/*`, `transform`, `render`                                      |
+| `devtools`             | `core/*`, `jobs`, `rhi`, `render`                                    |
+| `scene`                | 上記すべて                                                           |
+| `src/index.ts`         | `scene` のみ                                                         |
+| `src/lowlevel.ts`      | すべて                                                               |
 
 ## 追加の封印ルール
+
 - `rhi/webgpu/**` と `rhi/webgl2/**` を import してよいのは `rhi/` 内部のみ。外部はバックエンドを意識しない。
 - `jobs/threaded-scheduler.ts` を import してよいのは `jobs/create-scheduler.ts` のみ。`jobs/worker-entry.ts` を import してよいのは `jobs/threaded-scheduler.ts` のみ (`?worker&inline`)。
 - `*.wgsl` / `*.glsl` を `?raw` で import してよいのは `src/shaders/` 内部のみ。

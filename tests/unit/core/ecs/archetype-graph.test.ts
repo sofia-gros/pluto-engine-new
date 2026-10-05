@@ -41,9 +41,9 @@ describe('ArchetypeGraph', () => {
 
   it('handles transitions (add and remove) with edge caching', () => {
     const graph = new ArchetypeGraph(10000);
-    const allComponents = new Map<number, AnyComponentDef>();
-    allComponents.set(CompA.id, CompA);
-    allComponents.set(CompB.id, CompB);
+    const allComponents: AnyComponentDef[] = [];
+    allComponents[CompA.id] = CompA;
+    allComponents[CompB.id] = CompB;
 
     const emptyArch = graph.getArchetypeById(0);
     if (!emptyArch) throw new Error('emptyArch not found');

@@ -23,6 +23,8 @@ export type ComponentDef<S extends ComponentSchema> = AnyComponentDef & {
   readonly [K in keyof S]: FieldToken<S[K]>;
 };
 
+export const COMPONENT_REGISTRY: AnyComponentDef[] = [];
+
 /**
  * 新しいコンポーネントを定義する。
  * @param name コンポーネント名
@@ -59,5 +61,7 @@ export function defineComponent<S extends ComponentSchema>(
     fields,
   };
 
-  return Object.assign(base, tokens);
+  const comp = Object.assign(base, tokens);
+  COMPONENT_REGISTRY[componentId] = comp;
+  return comp;
 }

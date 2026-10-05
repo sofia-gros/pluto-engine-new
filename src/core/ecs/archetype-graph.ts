@@ -98,7 +98,7 @@ export class ArchetypeGraph {
     current: Archetype,
     component: AnyComponentDef,
     isAdd: boolean,
-    allComponents: Map<number, AnyComponentDef>,
+    allComponents: readonly (AnyComponentDef | undefined)[],
   ): Archetype {
     const edgeKey = current.id * 512 + component.id * 2 + (isAdd ? 1 : 0);
     const cachedId = this.edges.get(edgeKey);
@@ -119,7 +119,7 @@ export class ArchetypeGraph {
         if (!isAdd && i === component.id) {
           continue; // 削除
         }
-        const comp = allComponents.get(i);
+        const comp = allComponents[i];
         if (comp) nextComponents.push(comp);
       }
     }

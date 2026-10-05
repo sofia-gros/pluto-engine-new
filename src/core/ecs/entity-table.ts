@@ -49,18 +49,31 @@ export class EntityTable {
   }
 
   /**
-   * 新しいエンティティを生成する。
+   * エンティティを確保するが、まだアーキタイプを割り当てない (isAlive = false)。
+   * CommandBufferでの事前割り当て用。
+   * @hot
+   * @returns 割り当てられたエンティティ
+   */
+  public allocate(): Entity {
+    assert(!this.freeList.isEmpty(), 'エンティティの最大数に達しました');
+    const index = this.freeList.pop();
+
+    this.archetypeIds[index] = NULL_ARCHETYPE;
+    this.rows[index] = 0;
+
+    return makeEntity(index, this.generations[index]);
+  }
+
+  /**
+   * 新しいエンティティを生成する(即時)。
    * @hot
    * @returns 生成されたエンティティ
    */
   public create(): Entity {
-    assert(!this.freeList.isEmpty(), 'エンティティの最大数に達しました');
-    const index = this.freeList.pop();
-
+    const e = this.allocate();
+    const index = entityIndex(e);
     this.archetypeIds[index] = 0; // アーキタイプ0 (空アーキタイプ)
-    this.rows[index] = 0;
-
-    return makeEntity(index, this.generations[index]);
+    return e;
   }
 
   /**

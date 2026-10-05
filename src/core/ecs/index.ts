@@ -12,3 +12,6 @@ export * from './archetype-graph';
 export * from './change-tracking';
 export * from './chunk-view';
 export * from './query';
+export * from './command-buffer';
+export * from './system';
+export * from './world';
