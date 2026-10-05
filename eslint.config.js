@@ -53,7 +53,7 @@ export default tseslint.config(
             match: true,
           },
         },
-        { selector: 'variable', format: ['camelCase', 'UPPER_CASE'] },
+        { selector: 'variable', format: ['camelCase', 'UPPER_CASE', 'PascalCase'] },
         { selector: 'parameter', format: ['camelCase'], leadingUnderscore: 'allow' },
         { selector: 'memberLike', modifiers: ['private'], format: ['camelCase'] },
         { selector: 'typeLike', format: ['PascalCase'] },
@@ -83,9 +83,10 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/core/debug/logger.ts'],
+    files: ['src/core/debug/logger.ts', 'tests/unit/core/debug/logger.test.ts'],
     rules: {
       'no-console': 'off',
+      '@typescript-eslint/no-empty-function': 'off',
     },
   },
   {

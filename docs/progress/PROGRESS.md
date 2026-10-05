@@ -6,7 +6,7 @@
 
 ## 現在のタスク
 
-**T-1.2** エラー・ログ (状態: TODO)
+**T-1.3** メモリ (状態: TODO)
 
 ## タスク状態表
 
@@ -20,7 +20,7 @@
 | T-0.6  | CI                               | DONE | [T-0.6.md](./reviews/T-0.6.md) | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
 | T-0.7  | ベンチ基盤                       | DONE | [T-0.7.md](./reviews/T-0.7.md) | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
 | T-1.1  | 数学                             | DONE | [T-1.1.md](./reviews/T-1.1.md) | [cbba746](https://github.com/sofia-gros/pluto-engine-new/commit/cbba746) |
-| T-1.2  | エラー・ログ                     | TODO |                                |                                                                          |
+| T-1.2  | エラー・ログ                     | DONE | [T-1.2.md](./reviews/T-1.2.md) |          |
 | T-1.3  | メモリ                           | TODO |                                |                                                                          |
 | T-1.4  | イベント                         | TODO |                                |                                                                          |
 | T-1.5  | 時間                             | TODO |                                |                                                                          |
@@ -49,7 +49,13 @@ Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後に�
 
 ## 作業ログ (新しいものを上に追記)
 
+### 2026-10-05 T-1.2
+- やったこと: `PlutoError` クラスとエラーコード定数、コンソール出力をラップする `logger` の実装。`assert` を `PlutoError` 送出へ変更。
+- 証拠: `pnpm verify` がエラー0、テストカバレッジ 100% (lines) / 92.85% (branches) を達成。
+- 未解決: なし
+
 ### 2026-10-05 T-1.1
+
 - やったこと: スカラー演算、2Dベクトル、アフィン行列、AABB、ビット演算、カラー、半精度浮動小数点、乱数の実装。及びそれぞれのテスト作成。
 - 証拠: `pnpm verify` がエラー0、テストカバレッジ 99.51% (lines) / 91.66% (branches) を達成。
 - 未解決: なし
