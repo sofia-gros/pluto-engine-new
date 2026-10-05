@@ -1,33 +1,38 @@
-# T-1.4: イベント
+# T-1.5: 時間
 
 ## 目的
 
-型安全な `EventEmitter<EventMap>` を実装し、エンジン内の様々なサブシステム (RHI, ECS等) の間でイベントをやり取りできるようにする。
+エンジン内の時間を管理する仕組みを構築する。決定的なテストやシミュレーションを可能にするため、生の `performance.now()` 使用を封じ、`Clock` インターフェースを通して時間を取得する。また、物理演算など固定フレームレートで更新が必要なシステム向けに `FixedStepper` を実装する。
 
 ## 編集・作成するファイル
 
-- `src/core/events/index.ts` (公開窓口)
-- `src/core/events/event-emitter.ts` (`EventEmitter` クラス)
-- 対応するテストコード (`tests/unit/core/events/event-emitter.test.ts`)
+- `src/core/time/index.ts`
+- `src/core/time/clock.ts`
+- `src/core/time/fixed-step.ts`
+- 対応するテスト (`tests/unit/core/time/clock.test.ts`, `fixed-step.test.ts`)
 
 ## 実装ステップ
 
-1. **event-emitter.ts の実装**
-   - `EventMap` 型（イベント名からペイロードへのマッピング）を受け取るジェネリックな `EventEmitter` クラスを実装する。
-   - `on(event, listener)`: イベントリスナーを登録する。
-   - `once(event, listener)`: 一度だけ実行されるイベントリスナーを登録する。内部で元のリスナーをラップするか、専用のフラグを持たせて実現する。
-   - `off(event, listener)`: 登録済みのイベントリスナーを解除する。「リスナー配列は再利用」の制約により、`filter` による新規配列生成を行わず、`splice` などを利用してインプレースで要素を削除する。また、イベント発火中に `off` が呼ばれた場合のイテレーション破壊を防ぐための仕組み（コピー配列上でのループなど）を設ける。
-   - `emit(event, payload)`: イベントを発火し、リスナーを同期的に呼び出す。
-2. **テストの作成・実行**
-   - `on`, `once`, `off`, `emit` が正しく動作すること。
-   - 同じイベントに複数リスナーを登録したときの順序。
-   - `emit` のコールバック内で `off` や `on` が呼ばれてもクラッシュや無限ループしないこと。
-   - カバレッジ (lines 95%, branches 90%) を満たすことを確認。
+1. **clock.ts の実装**
+   - `Clock` インターフェース: `now(): number` を定義 (返すのはミリ秒)。
+   - `PerformanceClock` クラス: 内部で `globalThis.performance.now()` を呼び出す。
+   - `ManualClock` クラス: テスト用に任意の時間を設定できる `advance(ms: number)` メソッドなどを持つ。
+2. **fixed-step.ts の実装**
+   - `FixedStepper` クラス (HOTファイル):
+     - `stepMs`: 1回の固定ステップの時間 (ミリ秒)。
+     - `maxSteps`: スパイラル・オブ・デス (Spiral of Death) を防ぐため、1フレームで実行できる最大ステップ数。
+     - `accumulator`: 蓄積時間。
+     - `update(dtMs: number, callback: (dt: number) => void)` メソッド: `accumulator += dtMs` とし、`accumulator >= stepMs` の間ループして `callback` を実行する。ただし、ループ回数が `maxSteps` を超えた場合は警告ログなどを出し、`accumulator` の残りを捨てる（あるいは `accumulator %= stepMs` するなど適宜）。
+3. **テストの作成**
+   - `PerformanceClock`: `now()` が数値を返すか確認（`performance.now` をモック）。
+   - `ManualClock`: `advance()` によって正しく時間が進むか確認。
+   - `FixedStepper`: `update` により正確にステップが踏まれるか、また `maxSteps` を超過した際にループが中断されアキュムレータが適切に処理されるかを確認。
+4. カバレッジを満たすことの確認。
 
 ## 完了条件（受け入れ条件）
 
-1. 仕様書のシグネチャ・定数名・値と完全一致すること（レビュー記録に対応表を書く）。
-2. `EventEmitter` が `EventMap` を型引数に取り、各メソッドが型安全にペイロードを受け渡しできること。
-3. リスナーの配列が再利用される（毎回新しい配列を作らない）実装になっていること。
-4. ユニットテスト: 公開関数ごとに正常系・境界値・異常系が存在すること。
-5. カバレッジ `core/events/**` が lines 95% / branches 90% 以上であること。
+1. `PerformanceClock`、`ManualClock` の実装が正しく行われている。
+2. `FixedStepper` が `dt` の蓄積と最大ステップ制約（スパイラル回避）を正しく実装している。
+3. ユニットテスト: 各クラスのメソッドにつき正常系・異常系・境界値が存在すること。
+4. カバレッジ `core/time/**` が lines 95% / branches 90% 以上であること。
+5. HOT ファイル (`fixed-step.ts`) は `pnpm check:rules` を通過すること。
