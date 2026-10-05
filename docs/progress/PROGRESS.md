@@ -6,7 +6,7 @@
 
 ## 現在のタスク
 
-**T-0.6** CI (状態: TODO)
+**T-0.7** ベンチ基盤 (状態: TODO)
 
 ## タスク状態表
 
@@ -17,7 +17,7 @@
 | T-0.3  | Vite 2 ビルドとエントリ          | DONE | [T-0.3.md](./reviews/T-0.3.md) | [2e2b360](https://github.com/sofia-gros/pluto-engine-new/commit/2e2b360) |
 | T-0.4  | Vitest と最初のコード            | DONE | [T-0.4.md](./reviews/T-0.4.md) | [c537423](https://github.com/sofia-gros/pluto-engine-new/commit/c537423) |
 | T-0.5  | Playwright ハーネス              | DONE | [T-0.5.md](./reviews/T-0.5.md) | [d4bb4f6](https://github.com/sofia-gros/pluto-engine-new/commit/d4bb4f6) |
-| T-0.6  | CI                               | TODO |                                |                                                                          |
+| T-0.6  | CI                               | DONE | [T-0.6.md](./reviews/T-0.6.md) | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
 | T-0.7  | ベンチ基盤                       | TODO |                                |                                                                          |
 | T-1.1  | 数学                             | TODO |                                |                                                                          |
 | T-1.2  | エラー・ログ                     | TODO |                                |                                                                          |
@@ -49,7 +49,13 @@ Phase 5 以降は詳細未定義 (`docs/12-roadmap.md`)。Phase 4 完了後に�
 
 ## 作業ログ (新しいものを上に追記)
 
+### 2026-10-05 T-0.6
+- やったこと: GitHub Actions 用の `ci.yml` の作成。
+- 証拠: 要求された `verify` ジョブと `browser` ジョブをローカルでシミュレートし (`pnpm verify && pnpm build && pnpm test:browser --project=webgl2`)、すべて成功。
+- 未解決: なし
+
 ### 2026-10-05 T-0.5
+
 - やったこと: Playwright テスト環境の構築、テストハーネスの作成、画像差分比較 (`golden.ts`) の実装。
 - 証拠: `pnpm test:browser --project=webgl2` および `pnpm verify` が全て成功。
 - 未解決: なし
