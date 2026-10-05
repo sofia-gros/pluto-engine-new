@@ -25,7 +25,7 @@
 | T-1.4  | イベント                         | DONE | [T-1.4.md](./reviews/T-1.4.md) | [abd00f9](https://github.com/sofia-gros/pluto-engine-new/commit/abd00f9) |
 | T-1.5  | 時間                             | DONE | [T-1.5.md](./reviews/T-1.5.md) | [f953359](https://github.com/sofia-gros/pluto-engine-new/commit/f953359) |
 | T-1.6  | エンティティ・コンポーネント     | DONE | [T-1.6.md](./reviews/T-1.6.md) | [2411499](https://github.com/sofia-gros/pluto-engine-new/commit/2411499) |
-| T-1.7  | アーキタイプ                     | DONE | [T-1.7.md](./reviews/T-1.7.md) |          |
+| T-1.7  | アーキタイプ                     | DONE | [T-1.7.md](./reviews/T-1.7.md) | [761cb70](https://github.com/sofia-gros/pluto-engine-new/commit/761cb70) |
 | T-1.8  | クエリ・変更追跡                 | TODO |                                |                                                                          |
 | T-1.9  | World                            | TODO |                                |                                                                          |
 | T-1.10 | ECS ベンチ                       | TODO |                                |                                                                          |
