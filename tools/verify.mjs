@@ -1,7 +1,11 @@
-import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+/**
+ * @file 全静的検査を順に実行し、最後に要約表を表示する (docs/11-build-and-release.md §3)。
+ * すべての段階を実行し、1 つでも失敗したら非 0 で終了する。
+ */
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 
-const scripts = [
+const STEPS = [
   'check:structure',
   'check:boundaries',
   'check:rules',
@@ -11,22 +15,24 @@ const scripts = [
   'test:coverage',
 ];
 
-const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-
-let hasError = false;
-for (const script of scripts) {
-  console.log(`\n--- Running pnpm ${script} ---`);
-  if (!pkg.scripts[script]) {
-    console.log(`Skipping (not defined)`);
+const scripts = existsSync('package.json')
+  ? (JSON.parse(readFileSync('package.json', 'utf8')).scripts ?? {})
+  : {};
+const results = [];
+for (const step of STEPS) {
+  if (scripts[step] === undefined) {
+    results.push([step, 'スキップ (未作成)']);
     continue;
   }
-  try {
-    execSync(`pnpm ${script}`, { stdio: 'inherit' });
-  } catch (err) {
-    console.error(`\n[ERROR] pnpm ${script} failed.`);
-    // Don't exit immediately, let user see all failures if we wanted, but verify usually stops.
-    process.exit(1);
-  }
+  console.log(`\n--- pnpm ${step} ---`);
+  const r = spawnSync('pnpm', [step], { stdio: 'inherit', shell: process.platform === 'win32' });
+  results.push([step, r.status === 0 ? '成功' : `失敗 (exit ${r.status ?? 'signal'})`]);
 }
 
-console.log('\nAll verify checks passed.');
+console.log('\n## pnpm verify 要約\n');
+console.log('| 段階 | 結果 |');
+console.log('| ---- | ---- |');
+for (const [step, result] of results) console.log(`| ${step} | ${result} |`);
+const failed = results.filter(([, r]) => r.startsWith('失敗')).length;
+console.log(failed === 0 ? '\nverify: すべて成功' : `\nverify: ${failed} 段階が失敗`);
+process.exit(failed === 0 ? 0 : 1);

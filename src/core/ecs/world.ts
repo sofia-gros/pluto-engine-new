@@ -1,310 +1,396 @@
 /**
- * @file ECSのコア。エンティティ、アーキタイプ、クエリ、システムを統括する。
+ * @file World: エンティティ・アーキタイプ・クエリ・システム・同期点をまとめる (docs/04-memory-and-ecs.md §7〜9)。
  */
-
-import { assert } from '../debug/assert';
-import { EntityTable } from './entity-table';
+import { assert, ErrorCode, PlutoError } from '../debug';
+import { ScalarType } from '../memory';
+import type { Archetype } from './archetype';
 import { ArchetypeGraph } from './archetype-graph';
 import {
-  CommandBuffer,
-  CMD_SPAWN,
-  CMD_DESPAWN,
   CMD_ADD_COMPONENT,
+  CMD_DESPAWN,
   CMD_REMOVE_COMPONENT,
   CMD_SET,
+  CMD_SPAWN,
+  CommandBuffer,
 } from './command-buffer';
-import { Query, type QueryDesc } from './query';
-import type { AnyComponentDef } from './component';
 import { COMPONENT_REGISTRY } from './component';
-import { type Entity, MAX_ENTITIES } from './entity';
+import type { AnyComponentDef } from './component';
+import { MAX_ENTITIES, NULL_ENTITY } from './entity';
+import type { Entity } from './entity';
+import { EntityTable } from './entity-table';
+import { Query, queryKey } from './query';
+import type { QueryDesc } from './query';
 import type { FieldToken } from './schema';
-import { ScalarType } from '../memory/scalar-type';
-import type { SystemDef, Phase } from './system';
+import { defineSystem } from './system';
+import type { KernelExecutor, Phase, SystemDef } from './system';
 
+/** `WorldConfig.maxEntities` の既定値。 */
+export const DEFAULT_MAX_ENTITIES = 1_048_576;
+/** `WorldConfig.commandCapacity` の既定値 (u32 語数)。 */
+export const DEFAULT_COMMAND_CAPACITY = 1_048_576;
+
+/** World の設定。 */
 export interface WorldConfig {
+  /** 最大エンティティ数 (既定 1,048,576、上限 MAX_ENTITIES)。 */
   maxEntities?: number;
+  /** 1 アーキタイプの最大行数 (既定 = maxEntities)。 */
   maxRowsPerArchetype?: number;
+  /** コマンドバッファの容量 (u32 語数、既定 1,048,576)。 */
   commandCapacity?: number;
 }
 
+/** 登録済みシステムの内部表現。 */
+interface SystemEntry {
+  readonly def: SystemDef;
+  readonly query: Query;
+  readonly params: Float32Array;
+  readonly order: number;
+  readonly seq: number;
+}
+
+/**
+ * SoA ECS の中心。即時 API (spawn 等) はシステム実行外でのみ使い、システム内では `commands` に積む。
+ */
 export class World {
-  private readonly entityTable: EntityTable;
-  public readonly graph: ArchetypeGraph;
+  /** 遅延コマンド (同期点 `flush()` で適用)。 */
   public readonly commands: CommandBuffer;
+  /** アーキタイプの集合と遷移。 */
+  public readonly graph: ArchetypeGraph;
+  private readonly entityTable: EntityTable;
+  private readonly queryList: Query[] = [];
+  private readonly queryCache = new Map<string, Query>();
+  private readonly systemsByPhase: SystemEntry[][] = [[], [], [], [], []];
+  private iterating = false;
+  private version = 0;
+  private syncedVersion = -1;
+  private executor: KernelExecutor | null = null;
+  private systemSeq = 0;
+  /** 新しいアーキタイプを全クエリに登録する (ArchetypeGraph から 1 回だけ呼ばれる)。 */
+  private readonly onArchetypeCreated = (arch: Archetype): void => {
+    for (const q of this.queryList) q.tryRegister(arch);
+    this.version++;
+  };
+  /** バッファが作り直されたら版を進め、jobs に Worker へ送り直させる (E-002)。 */
+  private readonly onArchetypeGrown = (): void => {
+    this.version++;
+  };
 
-  public readonly queries: Query[] = [];
-
-  // システムリスト: フェーズごとに配列で保持
-  private readonly systems = new Map<Phase, SystemDef[]>();
-
-  public isIterating = false;
-
+  /**
+   * @param config 設定 (省略時は既定値)
+   */
   public constructor(config?: WorldConfig) {
-    const maxEntities = config?.maxEntities ?? MAX_ENTITIES;
-    const maxRowsPerArchetype = config?.maxRowsPerArchetype ?? maxEntities;
-    const commandCapacity = config?.commandCapacity ?? 1_048_576;
-
+    const maxEntities = config?.maxEntities ?? DEFAULT_MAX_ENTITIES;
+    if (!Number.isInteger(maxEntities) || maxEntities < 1 || maxEntities > MAX_ENTITIES) {
+      throw new PlutoError(
+        ErrorCode.InvalidArgument,
+        'WorldConfig.maxEntities は 1 以上 4194303 (MAX_ENTITIES) 以下の整数にしてください。',
+      );
+    }
     this.entityTable = new EntityTable(maxEntities);
-    this.graph = new ArchetypeGraph(maxRowsPerArchetype);
-    this.commands = new CommandBuffer(commandCapacity, this.entityTable);
+    const rows = config?.maxRowsPerArchetype ?? maxEntities;
+    this.graph = new ArchetypeGraph(rows, this.onArchetypeCreated, this.onArchetypeGrown);
+    this.commands = new CommandBuffer(
+      config?.commandCapacity ?? DEFAULT_COMMAND_CAPACITY,
+      this.entityTable,
+    );
+  }
+
+  /** システム実行中か (実行中は即時 API を使えない)。 */
+  public get isIterating(): boolean {
+    return this.iterating;
+  }
+
+  /** アーキタイプ・クエリの新規作成、クエリへの登録、アーキタイプのバッファ作り直しで増える版番号 (jobs の同期判定に使う)。 */
+  public get structureVersion(): number {
+    return this.version;
+  }
+
+  /** 作成済みのクエリ (作成順)。 */
+  public get queries(): readonly Query[] {
+    return this.queryList;
   }
 
   /**
-   * エンティティを即時生成する。
-   * (システム実行中(isIterating=true)はアサーションエラー)
+   * カーネルシステムの実行者 (jobs の Scheduler) を設定する。
+   * @param executor 実行者
+   */
+  public setExecutor(executor: KernelExecutor): void {
+    this.executor = executor;
+    this.syncedVersion = -1;
+  }
+
+  /**
+   * エンティティを即時に生成する (システム実行外でのみ)。
+   * @param components コンポーネント
+   * @returns 生成したエンティティ
    */
   public spawn(...components: AnyComponentDef[]): Entity {
     assert(
-      !this.isIterating,
-      'World: イテレーション中の即時spawnは禁止です。CommandBufferを使用してください',
+      !this.iterating,
+      'World: システム実行中は即時 spawn できません。commands を使ってください',
     );
-
-    const entity = this.entityTable.allocate();
-    const archetype = this.graph.getOrCreateArchetype(components);
-    const row = archetype.pushRow(entity);
-    this.entityTable.update(entity, archetype.id, row);
-
-    // 新しいアーキタイプが生成された可能性があるので、クエリのマッチングを更新
-    for (const q of this.queries) {
-      q.tryRegister(archetype);
-    }
-
-    return entity;
+    let arch = this.emptyArchetype();
+    const n = components.length;
+    for (let i = 0; i < n; i++) arch = this.graph.transition(arch, components[i], true);
+    const e = this.entityTable.allocate();
+    this.entityTable.update(e, arch.id, arch.pushRow(e));
+    return e;
   }
 
   /**
-   * エンティティを即時破棄する。
+   * エンティティを即時に破棄する。生存していなければ何もしない。
+   * @param e エンティティ
    */
   public despawn(e: Entity): void {
-    assert(!this.isIterating, 'World: イテレーション中の即時despawnは禁止です');
+    assert(!this.iterating, 'World: システム実行中は即時 despawn できません');
     if (!this.entityTable.isAlive(e)) return;
-
-    const archId = this.entityTable.getArchetype(e);
-    const row = this.entityTable.getRow(e);
-    const arch = this.graph.getArchetypeById(archId);
-
-    if (arch) {
-      const movedEntity = arch.swapRemove(row);
-      if (movedEntity !== 0) {
-        this.entityTable.update(movedEntity, arch.id, row);
-      }
-    }
+    this.removeRow(e, this.archetypeOf(e));
     this.entityTable.destroy(e);
   }
 
   /**
-   * コンポーネントを即時追加する。
+   * コンポーネントを即時に追加する (既に持っていれば何もしない)。
+   * @param e エンティティ
+   * @param c コンポーネント
    */
   public addComponent(e: Entity, c: AnyComponentDef): void {
-    assert(!this.isIterating, 'World: イテレーション中の構造変更は禁止です');
-    if (!this.entityTable.isAlive(e)) return;
-
-    const archId = this.entityTable.getArchetype(e);
-    const arch = this.graph.getArchetypeById(archId);
-    assert(arch !== undefined, 'World: アーキタイプが存在しません');
-
-    if (arch.hasComponent(c.id)) return;
-
-    const row = this.entityTable.getRow(e);
-    const nextArch = this.graph.transition(arch, c, true, COMPONENT_REGISTRY);
-    const nextRow = nextArch.pushRow(e);
-
-    arch.copyRowTo(row, nextArch, nextRow);
-    const movedEntity = arch.swapRemove(row);
-    if (movedEntity !== 0) {
-      this.entityTable.update(movedEntity, arch.id, row);
-    }
-    this.entityTable.update(e, nextArch.id, nextRow);
-
-    for (const q of this.queries) {
-      q.tryRegister(nextArch);
-    }
+    this.move(e, c, true);
   }
 
   /**
-   * コンポーネントを即時削除する。
+   * コンポーネントを即時に削除する (持っていなければ何もしない)。
+   * @param e エンティティ
+   * @param c コンポーネント
    */
   public removeComponent(e: Entity, c: AnyComponentDef): void {
-    assert(!this.isIterating, 'World: イテレーション中の構造変更は禁止です');
-    if (!this.entityTable.isAlive(e)) return;
-
-    const archId = this.entityTable.getArchetype(e);
-    const arch = this.graph.getArchetypeById(archId);
-    assert(arch !== undefined, 'World: アーキタイプが存在しません');
-
-    if (!arch.hasComponent(c.id)) return;
-
-    const row = this.entityTable.getRow(e);
-    const nextArch = this.graph.transition(arch, c, false, COMPONENT_REGISTRY);
-    const nextRow = nextArch.pushRow(e);
-
-    arch.copyRowTo(row, nextArch, nextRow);
-    const movedEntity = arch.swapRemove(row);
-    if (movedEntity !== 0) {
-      this.entityTable.update(movedEntity, arch.id, row);
-    }
-    this.entityTable.update(e, nextArch.id, nextRow);
-
-    for (const q of this.queries) {
-      q.tryRegister(nextArch);
-    }
+    this.move(e, c, false);
   }
 
   /**
-   * コンポーネントを持っているか確認する。
+   * コンポーネントを持つか。
+   * @param e エンティティ
+   * @param c コンポーネント
+   * @returns 生存していて持っていれば true
    */
   public hasComponent(e: Entity, c: AnyComponentDef): boolean {
-    if (!this.entityTable.isAlive(e)) return false;
-    const archId = this.entityTable.getArchetype(e);
-    const arch = this.graph.getArchetypeById(archId);
-    return arch ? arch.hasComponent(c.id) : false;
+    return this.entityTable.isAlive(e) && this.archetypeOf(e).hasComponent(c.id);
   }
 
+  /**
+   * エンティティが生存しているか。
+   * @param e エンティティ
+   * @returns 生存していれば true
+   */
   public isAlive(e: Entity): boolean {
     return this.entityTable.isAlive(e);
   }
 
   /**
-   * コンポーネントのフィールド値を取得する。
+   * フィールドの値を読む (コールドパス用)。
+   * @param e 生存しているエンティティ
+   * @param field フィールド
+   * @returns 値
    */
   public get<T extends ScalarType>(e: Entity, field: FieldToken<T>): number {
-    assert(this.isAlive(e), 'World: 死んだエンティティにアクセスしました');
-    const archId = this.entityTable.getArchetype(e);
-    const row = this.entityTable.getRow(e);
-    const arch = this.graph.getArchetypeById(archId);
-    assert(arch !== undefined, 'World: アーキタイプが存在しません');
-    return arch.getColumn(field)[row];
+    assert(this.entityTable.isAlive(e), 'World: 生存していないエンティティです');
+    return this.archetypeOf(e).getColumn(field)[this.entityTable.getRow(e)];
   }
 
   /**
-   * コンポーネントのフィールド値を設定し、dirtyを立てる。
+   * フィールドの値を書き、dirty を立てる (コールドパス用)。
+   * @param e 生存しているエンティティ
+   * @param field フィールド
+   * @param value 値
    */
-  public set<T extends ScalarType>(e: Entity, field: FieldToken<T>, v: number): void {
-    assert(this.isAlive(e), 'World: 死んだエンティティにアクセスしました');
-    const archId = this.entityTable.getArchetype(e);
+  public set<T extends ScalarType>(e: Entity, field: FieldToken<T>, value: number): void {
+    assert(this.entityTable.isAlive(e), 'World: 生存していないエンティティです');
+    const arch = this.archetypeOf(e);
     const row = this.entityTable.getRow(e);
-    const arch = this.graph.getArchetypeById(archId);
-    assert(arch !== undefined, 'World: アーキタイプが存在しません');
-    arch.getColumn(field)[row] = v;
+    arch.getColumn(field)[row] = value;
     arch.changeTracker.markRange(field.fieldId, row, row + 1);
   }
 
-  private readonly queryCache = new Map<string, Query>();
-
   /**
-   * 指定した条件のQueryを取得する（キャッシュ付き）
+   * クエリを取得する。同じ条件 (順序によらない) なら同じインスタンスを返す。
+   * @param desc 条件
+   * @returns クエリ
    */
   public query(desc: QueryDesc): Query {
-    // 簡易的にJSONをキーにしてキャッシュする
-    const key = JSON.stringify(desc);
-    let q = this.queryCache.get(key);
-    if (!q) {
-      q = new Query(desc);
-      this.queries.push(q);
-      for (const arch of this.graph.getArchetypes()) {
-        q.tryRegister(arch);
-      }
-      this.queryCache.set(key, q);
-    }
+    const key = queryKey(desc);
+    const cached = this.queryCache.get(key);
+    if (cached !== undefined) return cached;
+    const q = new Query(desc);
+    for (const arch of this.graph.getArchetypes()) q.tryRegister(arch);
+    this.queryList.push(q);
+    this.queryCache.set(key, q);
+    this.version++;
     return q;
   }
 
-  public addSystem(s: SystemDef): void {
-    let list = this.systems.get(s.phase);
-    if (!list) {
-      list = [];
-      this.systems.set(s.phase, list);
-    }
-    list.push(s);
-    list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  /**
+   * システムを登録する。
+   * @param def システム記述子
+   */
+  public addSystem(def: SystemDef): void {
+    defineSystem(def);
+    const entry: SystemEntry = {
+      def,
+      query: this.query(def.query),
+      params: def.params ?? new Float32Array(1),
+      order: def.order ?? 0,
+      seq: this.systemSeq++,
+    };
+    const list = this.systemsByPhase[def.phase];
+    list.push(entry);
+    list.sort((a, b) => a.order - b.order || a.seq - b.seq);
   }
 
   /**
-   * 特定のフェーズのシステムを逐次実行する。
+   * フェーズのシステムを順に実行する。kernel システムは実行者 (Scheduler) でチャンク並列に動かす。
+   * @param phase フェーズ
+   * @param dt 経過時間 (秒)
    */
   public runPhase(phase: Phase, dt: number): void {
-    const list = this.systems.get(phase);
-    if (!list) return;
-
-    this.isIterating = true;
-    const len = list.length;
-    for (let i = 0; i < len; i++) {
-      const s = list[i];
-      if (s.run) {
-        s.run(this, dt);
-      }
+    const list = this.systemsByPhase[phase];
+    this.iterating = true;
+    try {
+      const n = list.length;
+      for (let i = 0; i < n; i++) this.runSystem(list[i], dt);
+    } finally {
+      this.iterating = false;
     }
-    this.isIterating = false;
   }
 
   /**
-   * コマンドバッファに蓄積された構造変更と値更新を適用する。
+   * コマンドバッファの構造変更と値設定を適用する (同期点)。
    */
   public flush(): void {
     const data = this.commands.data;
-    const len = data.length;
+    const isNested = this.iterating;
+    this.iterating = false;
     let i = 0;
-
-    // isIterating フラグを降ろして即時APIを使用可能にする
-    const wasIterating = this.isIterating;
-    this.isIterating = false;
-
-    while (i < len) {
-      const op = data[i++];
+    while (i < data.length) {
+      const op = data[i];
+      const e = data[i + 1] as Entity;
       if (op === CMD_SPAWN) {
-        const entity = data[i++] as Entity;
-        const count = data[i++];
-        const components: AnyComponentDef[] = [];
-        for (let j = 0; j < count; j++) {
-          const compId = data[i++];
-          components.push(COMPONENT_REGISTRY[compId]);
-        }
-        const archetype = this.graph.getOrCreateArchetype(components);
-        const row = archetype.pushRow(entity);
-        this.entityTable.update(entity, archetype.id, row);
-
-        const qLen = this.queries.length;
-        for (let q = 0; q < qLen; q++) {
-          this.queries[q].tryRegister(archetype);
-        }
+        const n = data[i + 2];
+        let arch = this.emptyArchetype();
+        for (let k = 0; k < n; k++)
+          arch = this.graph.transition(arch, COMPONENT_REGISTRY[data[i + 3 + k]], true);
+        this.entityTable.update(e, arch.id, arch.pushRow(e));
+        i += 3 + n;
       } else if (op === CMD_DESPAWN) {
-        const entity = data[i++] as Entity;
-        this.despawn(entity);
-      } else if (op === CMD_ADD_COMPONENT) {
-        const entity = data[i++] as Entity;
-        const compId = data[i++];
-        this.addComponent(entity, COMPONENT_REGISTRY[compId]);
-      } else if (op === CMD_REMOVE_COMPONENT) {
-        const entity = data[i++] as Entity;
-        const compId = data[i++];
-        this.removeComponent(entity, COMPONENT_REGISTRY[compId]);
+        this.despawn(e);
+        i += 2;
+      } else if (op === CMD_ADD_COMPONENT || op === CMD_REMOVE_COMPONENT) {
+        this.move(e, COMPONENT_REGISTRY[data[i + 2]], op === CMD_ADD_COMPONENT);
+        i += 3;
       } else if (op === CMD_SET) {
-        const entity = data[i++] as Entity;
-        const fieldId = data[i++];
-        const type = data[i++];
-        let value: number;
-        if (type === ScalarType.F32) {
-          value = this.commands.floatData[i++];
-        } else {
-          value = this.commands.int32Data[i++];
-        }
-
-        if (this.entityTable.isAlive(entity)) {
-          const archId = this.entityTable.getArchetype(entity);
-          const arch = this.graph.getArchetypeById(archId);
-          if (arch) {
-            const row = this.entityTable.getRow(entity);
-            const col = arch.getColumnByFieldId(fieldId); // 拡張が必要
-            if (col) {
-              col[row] = value;
-              arch.changeTracker.markRange(fieldId, row, row + 1);
-            }
-          }
-        }
+        const isFloat = data[i + 3] === ScalarType.F32;
+        this.applySet(
+          e,
+          data[i + 2],
+          isFloat ? this.commands.floatData[i + 4] : this.commands.int32Data[i + 4],
+        );
+        i += 5;
+      } else {
+        throw new PlutoError(ErrorCode.InvalidState, 'World.flush: 不明なコマンドです。');
       }
     }
-
     this.commands.clear();
-    this.isIterating = wasIterating;
+    this.iterating = isNested;
+  }
+
+  /**
+   * 1 つのシステムを実行する。
+   * @param s 登録済みシステム
+   * @param dt 経過時間 (秒)
+   */
+  private runSystem(s: SystemEntry, dt: number): void {
+    const kernel = s.def.kernel;
+    if (kernel === undefined) {
+      s.def.run?.(this, dt);
+      return;
+    }
+    const executor = this.executor;
+    if (executor === null) {
+      throw new PlutoError(
+        ErrorCode.NotInitialized,
+        `システム ${s.def.name}: カーネルの実行者が未設定です。World.setExecutor() でスケジューラを設定してください。`,
+      );
+    }
+    if (this.syncedVersion !== this.version) {
+      executor.syncWorld(this);
+      this.syncedVersion = this.version;
+    }
+    s.params[0] = dt;
+    executor.runKernel(kernel, s.query, s.params);
+  }
+
+  /**
+   * 空アーキタイプ (ID 0) を返す。
+   * @returns 空アーキタイプ
+   */
+  private emptyArchetype(): Archetype {
+    const arch = this.graph.getArchetypeById(0);
+    assert(arch !== undefined, 'World: 空アーキタイプがありません');
+    return arch;
+  }
+
+  /**
+   * 生存エンティティの所属アーキタイプを返す。
+   * @param e エンティティ
+   * @returns アーキタイプ
+   */
+  private archetypeOf(e: Entity): Archetype {
+    const arch = this.graph.getArchetypeById(this.entityTable.getArchetype(e));
+    assert(arch !== undefined, 'World: アーキタイプが存在しません');
+    return arch;
+  }
+
+  /**
+   * 行を swap-remove し、移動してきたエンティティの表を直す。
+   * @param e 取り除くエンティティ
+   * @param arch 所属アーキタイプ
+   */
+  private removeRow(e: Entity, arch: Archetype): void {
+    const row = this.entityTable.getRow(e);
+    const moved = arch.swapRemove(row);
+    if (moved !== NULL_ENTITY) this.entityTable.update(moved, arch.id, row);
+  }
+
+  /**
+   * コンポーネントの追加/削除でアーキタイプを移す。
+   * @param e エンティティ
+   * @param c コンポーネント
+   * @param isAdd 追加なら true
+   */
+  private move(e: Entity, c: AnyComponentDef, isAdd: boolean): void {
+    assert(!this.iterating, 'World: システム実行中は即時に構造変更できません');
+    if (!this.entityTable.isAlive(e)) return;
+    const from = this.archetypeOf(e);
+    const to = this.graph.transition(from, c, isAdd);
+    if (to === from) return;
+    const row = this.entityTable.getRow(e);
+    const newRow = to.pushRow(e);
+    from.copyRowTo(row, to, newRow);
+    this.removeRow(e, from);
+    this.entityTable.update(e, to.id, newRow);
+  }
+
+  /**
+   * CMD_SET を適用する (エンティティが生存していなければ無視)。
+   * @param e エンティティ
+   * @param fieldId フィールド ID
+   * @param value 値
+   */
+  private applySet(e: Entity, fieldId: number, value: number): void {
+    if (!this.entityTable.isAlive(e)) return;
+    const arch = this.archetypeOf(e);
+    const col = arch.getColumnByFieldId(fieldId);
+    if (col === undefined) return;
+    const row = this.entityTable.getRow(e);
+    col.data[row] = value;
+    arch.changeTracker.markRange(fieldId, row, row + 1);
   }
 }

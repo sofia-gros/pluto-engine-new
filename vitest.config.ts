@@ -11,11 +11,10 @@ export default defineConfig({
         'src/rhi/**',
         'src/shaders/**',
         'src/devtools/**',
+        // Worker + SharedArrayBuffer はブラウザテストで検証する (docs/10-testing-strategy.md §2)
         'src/jobs/threaded-scheduler.ts',
         'src/jobs/worker-entry.ts',
-        'src/jobs/worker-protocol.ts',
-        'src/jobs/create-scheduler.ts',
-        'src/jobs/sync.ts',
+        'src/worker-main.ts',
         'src/build-flags.d.ts',
         'src/index.ts',
         'src/lowlevel.ts',

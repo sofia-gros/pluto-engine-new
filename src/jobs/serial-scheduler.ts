@@ -1,80 +1,81 @@
 // @pluto-hot
 /**
- * @file 直列実行用スケジューラの実装。
+ * @file メインスレッドで全チャンクを順に実行するスケジューラ (docs/05-jobs-and-builds.md §3.1)。
  */
-
-import type { Scheduler } from './scheduler';
-
-import type { Query } from '../core/ecs/query';
-import type { World } from '../core/ecs/world';
-import type { KernelDef, KernelBuffers } from './kernel';
-import { ChunkView } from '../core/ecs/chunk-view';
+import { ChunkView, MAX_KERNEL_PARAMS } from '../core/ecs';
+import type { KernelRef, Query } from '../core/ecs';
+import { ErrorCode, PlutoError } from '../core/debug';
+import type { KernelBuffers } from './kernel';
+import { getKernelById } from './kernel-registry';
+import type { KernelBufferKind, Scheduler } from './scheduler';
 
 /**
- * シングルスレッドで同期的にカーネルを実行するスケジューラ。
+ * 直列スケジューラ。Threaded と同じチャンク分割・同じ 64 要素の params で実行する (パリティのため)。
  */
 export class SerialScheduler implements Scheduler {
+  /** 並列度 (常に 1)。 */
   public readonly concurrency = 1;
-
-  private readonly u32Buffers: Uint32Array[] = [];
-  private readonly f32Buffers: Float32Array[] = [];
-  private readonly i32Buffers: Int32Array[] = [];
-
-  private readonly buffers: KernelBuffers = {
-    u32: this.u32Buffers,
-    f32: this.f32Buffers,
-    i32: this.i32Buffers,
-  };
-
+  private readonly u32: Uint32Array[] = [];
+  private readonly f32: Float32Array[] = [];
+  private readonly i32: Int32Array[] = [];
+  private readonly buffers: KernelBuffers = { u32: this.u32, f32: this.f32, i32: this.i32 };
   private readonly view = new ChunkView();
+  private readonly params = new Float32Array(MAX_KERNEL_PARAMS);
 
-  /**
-   * World の状態を同期する (直列実行のため何もしない)。
-   */
-  public syncWorld(world?: World): void {
-    if (world === undefined) return;
+  /** 直列実行では同期するものがない。 */
+  public syncWorld(): void {
+    // 共有メモリを使わないので何もしない
   }
 
   /**
    * 共有バッファを登録する。
-   *
-   * @param kind バッファの種類。
-   * @param slot バッファのスロット番号。
-   * @param array 登録する TypedArray インスタンス。
+   * @cold 初期化時のみ
+   * @param kind 種類
+   * @param slot スロット番号
+   * @param array TypedArray
    */
   public registerBuffer(
-    kind: 'u32' | 'f32' | 'i32',
+    kind: KernelBufferKind,
     slot: number,
     array: Uint32Array | Float32Array | Int32Array,
   ): void {
-    if (kind === 'u32') {
-      this.u32Buffers[slot] = array as Uint32Array;
-    } else if (kind === 'f32') {
-      this.f32Buffers[slot] = array as Float32Array;
-    } else {
-      this.i32Buffers[slot] = array as Int32Array;
-    }
+    if (kind === 'u32' && array instanceof Uint32Array) this.u32[slot] = array;
+    else if (kind === 'f32' && array instanceof Float32Array) this.f32[slot] = array;
+    else if (kind === 'i32' && array instanceof Int32Array) this.i32[slot] = array;
+    else
+      throw new PlutoError(
+        ErrorCode.InvalidArgument,
+        `registerBuffer: kind '${kind}' と配列の型が一致しません。`,
+      );
   }
 
   /**
-   * カーネルを実行する。
-   *
-   * @param kernel 実行するカーネル定義。
-   * @param query 実行対象のエンティティを含むクエリ。
-   * @param params カーネルパラメータ。
+   * クエリの全チャンクにカーネルを実行する。
+   * @hot
+   * @param kernel カーネル
+   * @param query 対象クエリ
+   * @param params パラメータ (長さ ≤ 64)
    */
-  public runKernel(kernel: KernelDef, query: Query, params: Float32Array): void {
+  public runKernel(kernel: KernelRef, query: Query, params: Float32Array): void {
+    if (params.length > MAX_KERNEL_PARAMS) {
+      throw new PlutoError(
+        ErrorCode.InvalidArgument,
+        'runKernel: params は 64 要素以下にしてください。',
+      );
+    }
+    const def = getKernelById(kernel.id);
+    const p = this.params;
+    p.fill(0);
+    p.set(params);
     const chunks = query.chunkCount();
     for (let i = 0; i < chunks; i++) {
       query.getChunk(i, this.view);
-      kernel.fn(this.view, params, this.buffers);
+      def.fn(this.view, p, this.buffers);
     }
   }
 
-  /**
-   * リソースを解放する。
-   */
+  /** 解放するものがない。 */
   public dispose(): void {
-    // 処理なし
+    // Worker を持たないので何もしない
   }
 }

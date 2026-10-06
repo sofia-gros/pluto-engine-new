@@ -1,182 +1,165 @@
 // @pluto-hot
 /**
- * @file クエリ (条件に合致するアーキタイプの抽出と反復処理)。
+ * @file クエリ: all / none 条件に合うアーキタイプのキャッシュとチャンク列挙 (docs/04-memory-and-ecs.md §5.3)。
  */
-
+import { ErrorCode, PlutoError } from '../debug';
+import { Bitset } from '../memory';
 import type { Archetype } from './archetype';
-import { ChunkView, CHUNK_ROWS } from './chunk-view';
-import type { AnyComponentDef } from './component';
-import { Bitset } from '../memory/bitset';
+import { CHUNK_ROWS, ChunkView } from './chunk-view';
 import { MAX_COMPONENTS } from './component';
+import type { AnyComponentDef } from './component';
 
+/** クエリの条件。 */
 export interface QueryDesc {
-  all?: readonly AnyComponentDef[];
-  none?: readonly AnyComponentDef[];
+  /** すべて持つべきコンポーネント。 */
+  readonly all?: readonly AnyComponentDef[];
+  /** 1 つも持ってはならないコンポーネント。 */
+  readonly none?: readonly AnyComponentDef[];
 }
 
+/** チャンクごとに呼ばれるコールバック (毎フレーム生成せず、事前に定義した関数を渡す)。 */
+export type ChunkCallback = (view: ChunkView) => void;
+
 /**
- * 指定したコンポーネント構成条件(all, none)に合致するアーキタイプを抽出し、
- * そのチャンクを反復処理するためのクラス。
+ * 条件の正規形キー (コンポーネント ID を昇順に並べる。指定順序に依存しない)。
+ * @cold world.query() のキャッシュ検索でだけ使う
+ * @param desc クエリ条件
+ * @returns キー
  */
+export function queryKey(desc: QueryDesc): string {
+  const ids = (list: readonly AnyComponentDef[] | undefined): string =>
+    (list ?? [])
+      .map((c) => c.id)
+      .sort((a, b) => a - b)
+      .join(',');
+  return `${ids(desc.all)}|${ids(desc.none)}`;
+}
+
 let nextQueryId = 1;
 
+/**
+ * 条件に合うアーキタイプを保持し、チャンクを列挙するクエリ。
+ */
 export class Query {
-  public readonly id = nextQueryId++;
-  private readonly allMask: Bitset;
-  private readonly noneMask: Bitset;
-
-  // キャッシュされた適合アーキタイプ
-  public readonly archetypes: Archetype[] = [];
-
-  // 反復処理用に使い回すビュー
+  /** クエリ ID (1 からの連番)。 */
+  public readonly id: number = nextQueryId++;
+  /** 登録済みのアーキタイプ (登録順)。 */
+  public readonly archetypes: readonly Archetype[];
+  private readonly matched: Archetype[] = [];
+  private readonly registered = new Set<number>();
+  private readonly allMask = new Bitset(MAX_COMPONENTS);
+  private readonly noneMask = new Bitset(MAX_COMPONENTS);
   private readonly view = new ChunkView();
 
   /**
-   * @param desc クエリの条件 (all, none)
+   * @param desc クエリ条件
    */
   public constructor(desc: QueryDesc) {
-    this.allMask = new Bitset(MAX_COMPONENTS);
-    this.noneMask = new Bitset(MAX_COMPONENTS);
-
-    if (desc.all) {
-      for (const comp of desc.all) {
-        this.allMask.set(comp.id);
-      }
-    }
-    if (desc.none) {
-      for (const comp of desc.none) {
-        this.noneMask.set(comp.id);
-      }
-    }
+    this.archetypes = this.matched;
+    for (const c of desc.all ?? []) this.allMask.set(c.id);
+    for (const c of desc.none ?? []) this.noneMask.set(c.id);
   }
 
   /**
-   * 対象のアーキタイプがこのクエリの条件に合致するかを判定する。
+   * アーキタイプが条件に合うか。
+   * @hot
    * @param archetype 判定するアーキタイプ
+   * @returns 合えば true
    */
   public match(archetype: Archetype): boolean {
-    const archData = archetype.mask.data;
-    const allData = this.allMask.data;
-    const noneData = this.noneMask.data;
-
-    const len = archData.length;
+    const a = archetype.mask.data;
+    const all = this.allMask.data;
+    const none = this.noneMask.data;
+    const len = a.length;
     for (let i = 0; i < len; i++) {
-      const a = archData[i];
-      const all = allData[i];
-      const none = noneData[i];
-
-      // all の条件を満たしているか (a & all) == all
-      if ((a & all) !== all) {
-        return false;
-      }
-
-      // none の条件を満たしているか (a & none) == 0
-      if ((a & none) !== 0) {
-        return false;
-      }
+      if ((a[i] & all[i]) !== all[i] || (a[i] & none[i]) !== 0) return false;
     }
-
     return true;
   }
 
   /**
-   * Worldの ArchetypeGraph 等から新しいアーキタイプが生成された場合に、
-   * このクエリにマッチするか判定してキャッシュに登録する。
-   * (World 側から呼ぶためのメソッド)
-   * @param archetype 追加されたアーキタイプ
+   * アーキタイプが条件に合えば登録する (同じアーキタイプは 1 回だけ)。
+   * @param archetype 新しく作られたアーキタイプ
+   * @returns 新たに登録したら true
    */
-  public tryRegister(archetype: Archetype): void {
-    if (this.match(archetype)) {
-      this.archetypes.push(archetype);
-    }
+  public tryRegister(archetype: Archetype): boolean {
+    if (this.registered.has(archetype.id) || !this.match(archetype)) return false;
+    this.registered.add(archetype.id);
+    this.matched.push(archetype);
+    return true;
   }
 
   /**
-   * マッチしたすべてのアーキタイプの合計行数 (エンティティ数) を返す。
+   * 該当エンティティの総数。
+   * @hot
+   * @returns 行数の合計
    */
   public count(): number {
     let total = 0;
-    const len = this.archetypes.length;
-    for (let i = 0; i < len; i++) {
-      total += this.archetypes[i].count;
-    }
+    const archs = this.matched;
+    const n = archs.length;
+    for (let i = 0; i < n; i++) total += archs[i].count;
     return total;
   }
 
   /**
-   * マッチしたすべてのチャンク数を返す。
+   * チャンクの総数。
+   * @hot
+   * @returns チャンク数
    */
   public chunkCount(): number {
     let total = 0;
-    const len = this.archetypes.length;
-    for (let i = 0; i < len; i++) {
-      const arch = this.archetypes[i];
-      total += Math.ceil(arch.count / CHUNK_ROWS);
-    }
+    const archs = this.matched;
+    const n = archs.length;
+    for (let i = 0; i < n; i++) total += Math.ceil(archs[i].count / CHUNK_ROWS);
     return total;
   }
 
   /**
-   * 指定されたグローバルチャンクインデックスの ChunkView を構築する (ジョブシステム用)。
-   * @param globalChunkIndex 通し番号
-   * @param out 結果を格納する ChunkView
+   * 通し番号のチャンクのビューを作る (jobs が使う)。
+   * @hot
+   * @param globalChunkIndex 0 〜 chunkCount() - 1
+   * @param out 書き込み先のビュー
    */
   public getChunk(globalChunkIndex: number, out: ChunkView): void {
-    let currentGlobalIndex = 0;
-
-    const len = this.archetypes.length;
-    for (let i = 0; i < len; i++) {
-      const arch = this.archetypes[i];
+    let base = 0;
+    const archs = this.matched;
+    const n = archs.length;
+    for (let i = 0; i < n; i++) {
+      const arch = archs[i];
       const chunks = Math.ceil(arch.count / CHUNK_ROWS);
-
-      if (
-        globalChunkIndex >= currentGlobalIndex &&
-        globalChunkIndex < currentGlobalIndex + chunks
-      ) {
-        const localIndex = globalChunkIndex - currentGlobalIndex;
+      if (globalChunkIndex < base + chunks) {
+        const local = globalChunkIndex - base;
         out.archetype = arch;
-        out.start = localIndex * CHUNK_ROWS;
-        out.end = Math.min((localIndex + 1) * CHUNK_ROWS, arch.count);
-        out.chunkIndex = localIndex;
+        out.start = local * CHUNK_ROWS;
+        out.end = Math.min(out.start + CHUNK_ROWS, arch.count);
+        out.chunkIndex = globalChunkIndex;
         return;
       }
-
-      currentGlobalIndex += chunks;
+      base += chunks;
     }
-
-    throw new Error('Query: globalChunkIndex が範囲外です');
+    throw new PlutoError(ErrorCode.InvalidArgument, 'Query.getChunk: チャンク番号が範囲外です。');
   }
 
   /**
-   * マッチしたすべてのチャンクに対してコールバックを実行する。
+   * すべてのチャンクに対してコールバックを呼ぶ (ビューは使い回す)。
    * @hot
    * @param cb コールバック
    */
-  public forEachChunk(cb: (view: ChunkView) => void): void {
+  public forEachChunk(cb: ChunkCallback): void {
     const view = this.view;
-    const archs = this.archetypes;
-
-    const len = archs.length;
-    for (let i = 0; i < len; i++) {
+    const archs = this.matched;
+    let globalIndex = 0;
+    const n = archs.length;
+    for (let i = 0; i < n; i++) {
       const arch = archs[i];
-      view.archetype = arch;
-
       const count = arch.count;
-      let start = 0;
-      let chunkIndex = 0;
-
-      while (start < count) {
+      view.archetype = arch;
+      for (let start = 0; start < count; start += CHUNK_ROWS) {
         view.start = start;
-        view.end = start + CHUNK_ROWS;
-        if (view.end > count) {
-          view.end = count;
-        }
-        view.chunkIndex = chunkIndex;
-
+        view.end = Math.min(start + CHUNK_ROWS, count);
+        view.chunkIndex = globalIndex++;
         cb(view);
-
-        start += CHUNK_ROWS;
-        chunkIndex++;
       }
     }
   }

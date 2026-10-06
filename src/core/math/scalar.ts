@@ -3,8 +3,11 @@
  * @file スカラー演算関数と定数。
  */
 
+/** 度 → ラジアンの変換係数。 */
 export const DEG_TO_RAD = Math.PI / 180.0;
+/** ラジアン → 度の変換係数。 */
 export const RAD_TO_DEG = 180.0 / Math.PI;
+/** 浮動小数点の比較に使う既定の許容誤差。 */
 export const EPSILON = 0.000001;
 
 /**

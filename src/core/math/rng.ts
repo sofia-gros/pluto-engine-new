@@ -33,6 +33,9 @@ function splitmix32(state: { s: number }): number {
 
 /**
  * 指定したシードで xoshiro128** 乱数生成器を作成する。
+ * シードは splitmix32 で 4 語の状態に展開する (状態がすべて 0 のときは s0 = 1)。
+ * @see Blackman & Vigna, "Scrambled Linear Pseudorandom Number Generators", 2018 (xoshiro128**)
+ * @cold 生成器の作成は初期化時に行う (next / nextFloat は HOT)
  * @param seed シード値
  * @returns Rng オブジェクト
  */

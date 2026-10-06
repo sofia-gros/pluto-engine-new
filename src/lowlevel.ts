@@ -1,4 +1,107 @@
 /**
- * @file 上級者向け低レベル API エントリ (ECS, RHI, render 等の re-export のみ)
+ * @file 上級者向け低レベル API エントリ (`pluto-engine/lowlevel`)。各モジュールの公開窓口の re-export のみ。
+ * Phase 2 以降のモジュール (jobs, transform, rhi, render ...) はそれぞれのタスクで追加する。
  */
-export {};
+export { assert, unreachable, PlutoError, ErrorCode, logger, LogLevel } from './core/debug';
+export {
+  DEG_TO_RAD,
+  RAD_TO_DEG,
+  EPSILON,
+  clamp,
+  lerp,
+  inverseLerp,
+  smoothstep,
+  wrap,
+  approxEqual,
+  vec2Create,
+  vec2Set,
+  vec2Copy,
+  vec2Add,
+  vec2Sub,
+  vec2Scale,
+  vec2Dot,
+  vec2Cross,
+  vec2LenSq,
+  vec2Len,
+  vec2Normalize,
+  affine2dCreate,
+  affine2dIdentity,
+  affine2dCopy,
+  affine2dMultiply,
+  affine2dInvert,
+  affine2dTransformVec2,
+  aabbCreate,
+  aabbSet,
+  aabbCopy,
+  aabbIntersects,
+  aabbContainsPoint,
+  nextPow2,
+  isPow2,
+  popcount32,
+  ctz32,
+  log2Floor,
+  f32ToF16,
+  f16ToF32,
+  packHalf2x16,
+  packColor,
+  hexToColor,
+  unpackR,
+  unpackG,
+  unpackB,
+  unpackA,
+  createRng,
+} from './core/math';
+export type { Rng } from './core/math';
+export {
+  ScalarType,
+  SCALAR_BYTES,
+  isSharedMemoryEnabled,
+  createBackingBuffer,
+  Bitset,
+  FreeList,
+  RangeAllocator,
+  RingBuffer,
+  ObjectPool,
+} from './core/memory';
+export type { TypedArrayOf, BackingBuffer, Range, AnyTypedArray } from './core/memory';
+export { EventEmitter } from './core/events';
+export type { EventHandler } from './core/events';
+export { PerformanceClock, ManualClock, FixedStepper } from './core/time';
+export type { Clock } from './core/time';
+export {
+  World,
+  DEFAULT_MAX_ENTITIES,
+  DEFAULT_COMMAND_CAPACITY,
+  defineComponent,
+  defineSystem,
+  Phase,
+  MAX_KERNEL_PARAMS,
+  Query,
+  ChunkView,
+  CHUNK_ROWS,
+  DIRTY_BLOCK_ROWS,
+  MAX_COMPONENTS,
+  MAX_ENTITIES,
+  NULL_ENTITY,
+  makeEntity,
+  entityIndex,
+  entityGeneration,
+  CommandBuffer,
+} from './core/ecs';
+export type {
+  Entity,
+  WorldConfig,
+  QueryDesc,
+  ChunkCallback,
+  FieldToken,
+  ComponentSchema,
+  AnyComponentDef,
+  ComponentDef,
+  ComponentId,
+  SystemDef,
+  SystemRunFn,
+  KernelExecutor,
+  KernelRef,
+} from './core/ecs';
+export { defineKernel, KernelBufferSlot, createScheduler } from './jobs';
+export type { KernelBuffers, KernelDef, KernelFn, KernelId, Scheduler } from './jobs';

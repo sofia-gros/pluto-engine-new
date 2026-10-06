@@ -22,7 +22,7 @@ pluto-engine/
 ├── AGENTS.md                 # エージェント最上位ルール (変更禁止)
 ├── .agents/                  # ルール・スキル (変更禁止)
 ├── .github/workflows/        # CI
-├── docs/                     # 設計ドキュメント (progress/ 以外変更禁止)
+├── docs/                     # 設計ドキュメント (progress/ 以外変更禁止。api/ は gen-api-docs の生成物で手編集禁止)
 ├── src/                      # エンジン本体
 ├── tests/                    # テスト (unit: Node / browser: Playwright)
 ├── bench/                    # ベンチマーク
@@ -49,28 +49,38 @@ pluto-engine/
 | `vitest.config.ts`         | ユニットテスト設定 (カバレッジ閾値含む)                                               | -   | T-0.4  |
 | `playwright.config.ts`     | ブラウザテスト設定 (Chromium, WebGPU 有効フラグ)                                      | -   | T-0.5  |
 | `.github/workflows/ci.yml` | CI (verify, unit test, build, browser test(WebGL2))                                   | -   | T-0.6  |
+| `README.md`                | パッケージ概要・導入方法・最小コード例 (`docs/09-api-design.md` §3)                   | -   | T-10.4 |
+| `CHANGELOG.md`             | 変更履歴 (`docs/11-build-and-release.md` §8)                                          | -   | T-10.4 |
 
 ## 3. tools/ (Node スクリプト。外部依存禁止。`node:` 組込モジュールのみ)
 
-| パス                         | 責務                                                           | HOT | タスク |
-| ---------------------------- | -------------------------------------------------------------- | --- | ------ |
-| `tools/verify.mjs`           | 全静的検査を順に実行し要約を表示 (`pnpm verify`)               | -   | 既存   |
-| `tools/check-structure.mjs`  | ファイルが本ドキュメントに記載されているか検査                 | -   | 既存   |
-| `tools/check-boundaries.mjs` | モジュール依存境界を検査                                       | -   | 既存   |
-| `tools/check-rules.mjs`      | 禁止パターン・JSDoc 日本語・HOT 規則・行数を検査               | -   | 既存   |
-| `tools/lib/doc-table.mjs`    | 本ドキュメントの表をパースする共通関数                         | -   | 既存   |
-| `tools/lib/source-files.mjs` | ソースファイル列挙の共通関数                                   | -   | 既存   |
-| `tools/run-bench.mjs`        | Playwright でベンチページを開き結果 JSON を保存                | -   | T-0.7  |
-| `tools/compare-bench.mjs`    | 結果とベースラインを比較し 10% 超の悪化で失敗                  | -   | T-0.7  |
-| `tools/check-bundle.mjs`     | embed ビルドに Worker/SharedArrayBuffer が含まれないことを検査 | -   | T-0.3  |
+> [!NOTE]
+> 例外: `tools/run-bench.mjs` は `@playwright/test` と `vite`、`tools/gen-api-docs.mjs`・`tools/check-structure.mjs`・`tools/check-boundaries.mjs`・`tools/check-rules.mjs`・`tools/lib/ts-source.mjs` は `typescript` (構文解析のため) を import してよい (いずれも許可リストの devDependencies)。それ以外の tools は `node:` 組込モジュールのみ。
+
+| パス                         | 責務                                                                                 | HOT | タスク |
+| ---------------------------- | ------------------------------------------------------------------------------------ | --- | ------ |
+| `tools/verify.mjs`           | 全静的検査を順に実行し要約を表示 (`pnpm verify`)                                     | -   | 既存   |
+| `tools/check-structure.mjs`  | ファイルが本ドキュメントに記載されているか検査                                       | -   | 既存   |
+| `tools/check-boundaries.mjs` | モジュール依存境界を検査                                                             | -   | 既存   |
+| `tools/check-rules.mjs`      | 禁止パターン・JSDoc 日本語・HOT 規則・行数を検査                                     | -   | 既存   |
+| `tools/lib/doc-table.mjs`    | 本ドキュメントの表をパースする共通関数                                               | -   | 既存   |
+| `tools/lib/source-files.mjs` | ソースファイル列挙の共通関数                                                         | -   | 既存   |
+| `tools/lib/ts-source.mjs`    | TypeScript Compiler API による構文解析の共通関数 (import 抽出・JSDoc 取得・AST 走査) | -   | T-R.1  |
+| `tools/lib/rule-tables.mjs`  | 検査規則の表 (禁止 API と例外ファイル・必須ユニットテスト・依存表のパース)           | -   | T-R.1  |
+| `tools/lib/hot-rules.mjs`    | HOT ファイル規則の構文木による検査 (check-rules から使う)                            | -   | T-R.1  |
+| `tools/run-bench.mjs`        | Playwright でベンチページを開き結果 JSON を保存                                      | -   | T-0.7  |
+| `tools/compare-bench.mjs`    | 結果とベースラインを比較し 10% 超の悪化で失敗                                        | -   | T-0.7  |
+| `tools/check-bundle.mjs`     | embed ビルドに Worker/SharedArrayBuffer が含まれないことを検査                       | -   | T-0.3  |
+| `tools/gen-api-docs.mjs`     | TypeScript Compiler API で公開 API の Markdown を `docs/api/` に生成                 | -   | T-10.3 |
 
 ## 4. src/ ルート
 
-| パス                   | 責務                                                                         | HOT | タスク |
-| ---------------------- | ---------------------------------------------------------------------------- | --- | ------ |
-| `src/index.ts`         | 公開 API エントリ (高レベル API)。`scene` の re-export と `VERSION` 定数のみ | -   | T-0.3  |
-| `src/lowlevel.ts`      | 上級者向け低レベル API エントリ (ECS, RHI, render 等の re-export のみ)       | -   | T-0.3  |
-| `src/build-flags.d.ts` | ビルド時定数 `__PARALLEL__`, `__DEBUG__`, `__VERSION__` の型宣言             | -   | T-0.3  |
+| パス                   | 責務                                                                                 | HOT | タスク |
+| ---------------------- | ------------------------------------------------------------------------------------ | --- | ------ |
+| `src/index.ts`         | 公開 API エントリ (高レベル API)。`scene` の re-export と `VERSION` 定数のみ         | -   | T-0.3  |
+| `src/lowlevel.ts`      | 上級者向け低レベル API エントリ (ECS, RHI, render 等の re-export のみ)               | -   | T-0.3  |
+| `src/build-flags.d.ts` | ビルド時定数 `__PARALLEL__`, `__DEBUG__`, `__VERSION__` の型宣言                     | -   | T-0.3  |
+| `src/worker-main.ts`   | Worker のエントリ。組込カーネルを持つモジュールを import し `runWorkerLoop()` を呼ぶ | -   | T-R.4  |
 
 ## 5. src/core/debug — デバッグ支援 (依存なし)
 
@@ -83,30 +93,30 @@ pluto-engine/
 
 ## 6. src/core/math — 数学 (割り当てなしの関数群)
 
-| パス                        | 責務                                                                                 | HOT | タスク |
-| --------------------------- | ------------------------------------------------------------------------------------ | --- | ------ |
-| `src/core/math/index.ts`    | 公開窓口                                                                             | -   | T-1.1  |
-| `src/core/math/scalar.ts`   | `clamp`, `lerp`, `inverseLerp`, `smoothstep`, `wrap`, `approxEqual`, `DEG_TO_RAD` 等 | HOT | T-1.1  |
-| `src/core/math/vec2.ts`     | `Float32Array` に out 引数で書き込む 2D ベクトル関数                                 | HOT | T-1.1  |
-| `src/core/math/affine2d.ts` | 2x3 アフィン行列 (`Float32Array(6)`) の合成・逆行列・点変換                          | HOT | T-1.1  |
-| `src/core/math/aabb.ts`     | AABB (`minX,minY,maxX,maxY`) の判定関数                                              | HOT | T-1.1  |
-| `src/core/math/bits.ts`     | `nextPow2`, `isPow2`, `popcount32`, `ctz32`, `log2Floor`                             | HOT | T-1.1  |
-| `src/core/math/half.ts`     | f32 ⇔ f16 変換 (`packHalf2x16` 相当)                                                 | HOT | T-1.1  |
-| `src/core/math/color.ts`    | RGBA8 パック/アンパック、`0xRRGGBB` → ABGR 変換                                      | HOT | T-1.1  |
-| `src/core/math/rng.ts`      | xoshiro128** 乱数 (`createRng(seed)`)。`Math.random` の代替                          | HOT | T-1.1  |
+| パス                        | 責務                                                                                           | HOT | タスク |
+| --------------------------- | ---------------------------------------------------------------------------------------------- | --- | ------ |
+| `src/core/math/index.ts`    | 公開窓口                                                                                       | -   | T-1.1  |
+| `src/core/math/scalar.ts`   | `clamp`, `lerp`, `inverseLerp`, `smoothstep`, `wrap`, `approxEqual`, `DEG_TO_RAD` 等           | HOT | T-1.1  |
+| `src/core/math/vec2.ts`     | `Float32Array` に out 引数で書き込む 2D ベクトル関数                                           | HOT | T-1.1  |
+| `src/core/math/affine2d.ts` | 2x3 アフィン行列 (`Float32Array(6)`) の合成・逆行列・点変換                                    | HOT | T-1.1  |
+| `src/core/math/aabb.ts`     | AABB (`minX,minY,maxX,maxY`) の判定関数                                                        | HOT | T-1.1  |
+| `src/core/math/bits.ts`     | `nextPow2`, `isPow2`, `popcount32`, `ctz32`, `log2Floor`                                       | HOT | T-1.1  |
+| `src/core/math/half.ts`     | f32 ⇔ f16 変換 (`f32ToF16`, `f16ToF32`, 2 値パック `packHalf2x16(lo, hi)`。丸めは最近接偶数)   | HOT | T-1.1  |
+| `src/core/math/color.ts`    | RGBA8 パック/アンパック、`0xRRGGBB` → ABGR 変換                                                | HOT | T-1.1  |
+| `src/core/math/rng.ts`      | xoshiro128** 乱数 (`createRng(seed)`、シードは splitmix32 で 4 語に展開)。`Math.random` の代替 | HOT | T-1.1  |
 
 ## 7. src/core/memory — メモリ管理
 
-| パス                                 | 責務                                                                                                                             | HOT | タスク |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | --- | ------ |
-| `src/core/memory/index.ts`           | 公開窓口                                                                                                                         | -   | T-1.3  |
-| `src/core/memory/scalar-type.ts`     | `ScalarType` 定数 (`f32,i32,u32,i16,u16,i8,u8`) とバイト長・TypedArray 対応表                                                    | -   | T-1.3  |
-| `src/core/memory/buffer-factory.ts`  | `createBackingBuffer(bytes, maxBytes)`。`__PARALLEL__` なら growable `SharedArrayBuffer`、そうでなければ resizable `ArrayBuffer` | -   | T-1.3  |
-| `src/core/memory/bitset.ts`          | `Uint32Array` ベースの固定長ビットセット                                                                                         | HOT | T-1.3  |
-| `src/core/memory/free-list.ts`       | u32 インデックスの再利用スタック                                                                                                 | HOT | T-1.3  |
-| `src/core/memory/range-allocator.ts` | 連続範囲の確保/解放 (スプライトスロット、GPU バッファ領域用。first-fit + 隣接結合)                                               | -   | T-1.3  |
-| `src/core/memory/ring-buffer.ts`     | 固定長 TypedArray リングバッファ (コマンド・イベント用)                                                                          | HOT | T-1.3  |
-| `src/core/memory/object-pool.ts`     | コールドパス用オブジェクトプール (ハンドルオブジェクト等)                                                                        | -   | T-1.3  |
+| パス                                 | 責務                                                                                                                                 | HOT | タスク |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | --- | ------ |
+| `src/core/memory/index.ts`           | 公開窓口                                                                                                                             | -   | T-1.3  |
+| `src/core/memory/scalar-type.ts`     | `ScalarType` 定数 (`F32,I32,U32,I16,U16,I8,U8`) とバイト長・TypedArray 対応表                                                        | -   | T-1.3  |
+| `src/core/memory/buffer-factory.ts`  | `createBackingBuffer(bytes)`。`__PARALLEL__` (かつ crossOriginIsolated) なら固定長 `SharedArrayBuffer`、そうでなければ `ArrayBuffer` | -   | T-1.3  |
+| `src/core/memory/bitset.ts`          | `Uint32Array` ベースの固定長ビットセット                                                                                             | HOT | T-1.3  |
+| `src/core/memory/free-list.ts`       | u32 インデックスの再利用スタック                                                                                                     | HOT | T-1.3  |
+| `src/core/memory/range-allocator.ts` | 連続範囲の確保/解放 (スプライトスロット、GPU バッファ領域用。first-fit + 隣接結合)                                                   | -   | T-1.3  |
+| `src/core/memory/ring-buffer.ts`     | 固定長 TypedArray リングバッファ (コマンド・イベント用)                                                                              | HOT | T-1.3  |
+| `src/core/memory/object-pool.ts`     | コールドパス用オブジェクトプール (ハンドルオブジェクト等)                                                                            | -   | T-1.3  |
 
 ## 8. src/core/events / src/core/time
 
@@ -127,7 +137,7 @@ pluto-engine/
 | `src/core/ecs/component.ts`       | `defineComponent(name, schema)`。コンポーネント ID とフィールドトークンを発行         | -   | T-1.6  |
 | `src/core/ecs/entity.ts`          | エンティティハンドル (index 22bit + generation 10bit) の pack/unpack                  | HOT | T-1.6  |
 | `src/core/ecs/entity-table.ts`    | エンティティ ID → (archetypeId, row, generation) の SoA 表と ID 再利用                | HOT | T-1.6  |
-| `src/core/ecs/column.ts`          | 1 フィールド分の可変長 TypedArray カラム (resizable buffer + length-tracking view)    | HOT | T-1.7  |
+| `src/core/ecs/column.ts`          | 1 フィールド分の可変長 TypedArray カラム (固定長バッファ + 伸長時コピー)              | HOT | T-1.7  |
 | `src/core/ecs/archetype.ts`       | 同一コンポーネント構成の行集合。行の追加・swap-remove・行コピー                       | HOT | T-1.7  |
 | `src/core/ecs/archetype-graph.ts` | コンポーネント追加/削除によるアーキタイプ遷移のキャッシュ                             | -   | T-1.7  |
 | `src/core/ecs/change-tracking.ts` | 64 行ブロック単位の dirty ビット管理                                                  | HOT | T-1.8  |
@@ -139,18 +149,18 @@ pluto-engine/
 
 ## 10. src/jobs — ジョブシステム (仕様: `docs/05-jobs-and-builds.md`)
 
-| パス                             | 責務                                                                          | HOT | タスク |
-| -------------------------------- | ----------------------------------------------------------------------------- | --- | ------ |
-| `src/jobs/index.ts`              | 公開窓口 (`create-scheduler` と型のみ公開)                                    | -   | T-2.1  |
-| `src/jobs/kernel.ts`             | `Kernel` 型 (純粋関数 `(view, params) => void`)、`KernelId`、`defineKernel()` | -   | T-2.1  |
-| `src/jobs/kernel-registry.ts`    | 組込カーネルの登録表 (Worker 側でも同じ表を import する)                      | -   | T-2.1  |
-| `src/jobs/scheduler.ts`          | `Scheduler` インターフェース                                                  | -   | T-2.1  |
-| `src/jobs/serial-scheduler.ts`   | メインスレッドで全チャンクを順に実行                                          | HOT | T-2.1  |
-| `src/jobs/sync.ts`               | `Atomics` によるチャンクカウンタ・完了カウンタ操作                            | HOT | T-2.2  |
-| `src/jobs/worker-protocol.ts`    | メイン⇔Worker のメッセージ型定義                                              | -   | T-2.2  |
-| `src/jobs/worker-entry.ts`       | Worker 側エントリ。共有メモリを受け取りカーネルを実行                         | HOT | T-2.2  |
-| `src/jobs/threaded-scheduler.ts` | Worker プール + メインスレッド参加型の並列実行                                | HOT | T-2.2  |
-| `src/jobs/create-scheduler.ts`   | `__PARALLEL__` と `crossOriginIsolated` を見て実装を選ぶ唯一の場所            | -   | T-2.3  |
+| パス                             | 責務                                                                                                          | HOT | タスク |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------- | --- | ------ |
+| `src/jobs/index.ts`              | 公開窓口 (`create-scheduler` と型のみ公開)                                                                    | -   | T-2.1  |
+| `src/jobs/kernel.ts`             | `KernelFn` 型 (純粋関数 `(view, params, buffers) => void`)、`KernelId`、`defineKernel()`、`MAX_KERNEL_PARAMS` | -   | T-2.1  |
+| `src/jobs/kernel-registry.ts`    | 組込カーネルの登録表 (Worker 側でも同じ表を import する)                                                      | -   | T-2.1  |
+| `src/jobs/scheduler.ts`          | `Scheduler` インターフェース                                                                                  | -   | T-2.1  |
+| `src/jobs/serial-scheduler.ts`   | メインスレッドで全チャンクを順に実行                                                                          | HOT | T-2.1  |
+| `src/jobs/sync.ts`               | `Atomics` によるチャンクカウンタ・完了カウンタ操作                                                            | HOT | T-2.2  |
+| `src/jobs/worker-protocol.ts`    | メイン⇔Worker のメッセージ型定義                                                                              | -   | T-2.2  |
+| `src/jobs/worker-entry.ts`       | Worker 側ループ `runWorkerLoop()`。共有メモリを受け取りカーネルを実行 (副作用なし)                            | HOT | T-2.2  |
+| `src/jobs/threaded-scheduler.ts` | Worker プール + メインスレッド参加型の並列実行                                                                | HOT | T-2.2  |
+| `src/jobs/create-scheduler.ts`   | `__PARALLEL__` と `crossOriginIsolated` を見て実装を選ぶ唯一の場所                                            | -   | T-2.3  |
 
 ## 11. src/transform — 変換・階層
 
@@ -274,6 +284,8 @@ pluto-engine/
 | `src/shaders/post/fullscreen.wgsl`                      | フルスクリーン三角形 + コピー                                     | -   | T-4.7  |
 | `src/shaders/post/fullscreen.vert.glsl`                 | 同 GLSL 頂点                                                      | -   | T-4.7  |
 | `src/shaders/post/blit.frag.glsl`                       | GLSL コピー                                                       | -   | T-4.7  |
+| `src/shaders/post/solid-color.wgsl`                     | ビューポート全面の単色合成 (カメラの fade / flash)                | -   | T-5.5  |
+| `src/shaders/post/solid-color.frag.glsl`                | 同 GLSL 版 (頂点は `fullscreen.vert.glsl` を共用)                 | -   | T-5.5  |
 | `src/shaders/post/bloom.wgsl`                           | ブルーム (ダウン/アップサンプル)                                  | -   | T-9.7  |
 | `src/shaders/post/bloom.frag.glsl`                      | 同 GLSL 版                                                        | -   | T-9.7  |
 | `src/shaders/post/tonemap.wgsl`                         | トーンマップ + カラーマトリクス                                   | -   | T-9.7  |
@@ -310,6 +322,7 @@ pluto-engine/
 | `src/render/sprite/sprite-renderer.ts`          | 能力に応じてパスを選択し、スプライト描画全体を統括                       | -   | T-4.4  |
 | `src/render/camera/camera-store.ts`             | カメラの SoA ストア (位置・ズーム・回転・ビューポート)                   | -   | T-4.7  |
 | `src/render/camera/camera-uniforms.ts`          | カメラ → GPU uniform 変換                                                | HOT | T-4.7  |
+| `src/render/camera/camera-fx-pass.ts`           | カメラごとの fade / flash 単色合成パス (`camera:fx`)                     | -   | T-5.5  |
 | `src/render/graph/render-graph.ts`              | パス登録・実行順序・一時リソースの寿命管理                               | -   | T-4.7  |
 | `src/render/graph/render-pass-node.ts`          | パスノード型                                                             | -   | T-4.7  |
 | `src/render/graph/transient-pool.ts`            | 一時テクスチャのプール                                                   | -   | T-4.7  |
@@ -413,6 +426,7 @@ pluto-engine/
 | `src/scene/handles/light-handle.ts`     | `LightHandle`                                                        | -   | T-9.5  |
 | `src/scene/physics-manager.ts`          | `scene.physics` の実装                                               | -   | T-8.1  |
 | `src/scene/sound-manager.ts`            | `scene.sound` の実装                                                 | -   | T-9.6  |
+| `src/scene/lights-manager.ts`           | `scene.lights` (ライティングの有効化・環境光・GI モード) の実装      | -   | T-9.5  |
 | `src/scene/fx-manager.ts`               | `scene.fx` (ポストエフェクト) の実装                                 | -   | T-9.7  |
 
 ---

@@ -1,77 +1,77 @@
 import { describe, expect, it } from 'vitest';
-import { EntityTable } from '../../../../src/core/ecs/entity-table';
-import type { Entity } from '../../../../src/core/ecs/entity';
-import { NULL_ENTITY, entityIndex, entityGeneration } from '../../../../src/core/ecs/entity';
+import { EntityTable, NULL_ARCHETYPE } from '../../../../src/core/ecs/entity-table';
+import {
+  MAX_ENTITIES,
+  NULL_ENTITY,
+  entityGeneration,
+  entityIndex,
+  makeEntity,
+} from '../../../../src/core/ecs/entity';
+import { PlutoError } from '../../../../src/core/debug/pluto-error';
 
 describe('EntityTable', () => {
-  it('initializes correctly', () => {
-    const table = new EntityTable(100);
-    expect(table.capacity).toBe(100);
-    expect(table.isAlive(NULL_ENTITY)).toBe(false);
+  it('allocate 直後は予約済みだが生存していない。update で所属させると生存する', () => {
+    const t = new EntityTable(4);
+    const e = t.allocate();
+    expect(t.isReserved(e)).toBe(true);
+    expect(t.isAlive(e)).toBe(false);
+    expect(t.getArchetype(e)).toBe(NULL_ARCHETYPE);
+    t.update(e, 3, 7);
+    expect(t.isAlive(e)).toBe(true);
+    expect(t.getArchetype(e)).toBe(3);
+    expect(t.getRow(e)).toBe(7);
   });
 
-  it('creates and destroys entities', () => {
-    const table = new EntityTable(10);
-
-    const e1 = table.create();
-    expect(table.isAlive(e1)).toBe(true);
-    expect(entityIndex(e1)).toBe(0);
-    expect(entityGeneration(e1)).toBe(0);
-    expect(table.getArchetype(e1)).toBe(0);
-    expect(table.getRow(e1)).toBe(0);
-
-    const e2 = table.create();
-    expect(table.isAlive(e2)).toBe(true);
-    expect(entityIndex(e2)).toBe(1);
-
-    table.destroy(e1);
-    expect(table.isAlive(e1)).toBe(false);
-
-    // 再利用されるはず
-    const e3 = table.create();
-    expect(table.isAlive(e3)).toBe(true);
-    expect(entityIndex(e3)).toBe(0);
-    expect(entityGeneration(e3)).toBe(1); // generationが進む
-
-    expect(table.isAlive(e1)).toBe(false); // 古いエンティティは死んだまま
+  it('destroy で世代が進み、同じ index が新しい世代で再利用される', () => {
+    const t = new EntityTable(1);
+    const e1 = t.allocate();
+    t.update(e1, 0, 0);
+    t.destroy(e1);
+    expect(t.isAlive(e1)).toBe(false);
+    const e2 = t.allocate();
+    expect(entityIndex(e2)).toBe(entityIndex(e1));
+    expect(entityGeneration(e2)).toBe(entityGeneration(e1) + 1);
+    expect(t.isReserved(e1)).toBe(false);
   });
 
-  it('updates archetype and row', () => {
-    const table = new EntityTable(10);
-    const e = table.create();
-
-    table.update(e, 5, 42);
-    expect(table.getArchetype(e)).toBe(5);
-    expect(table.getRow(e)).toBe(42);
+  it('世代は 1023 の次に 0 へ循環する', () => {
+    const t = new EntityTable(1);
+    let e = t.allocate();
+    for (let i = 0; i < 1024; i++) {
+      t.update(e, 0, 0);
+      t.destroy(e);
+      e = t.allocate();
+    }
+    expect(entityGeneration(e)).toBe(0);
   });
 
-  it('fails isAlive for invalid entities', () => {
-    const table = new EntityTable(10);
-    const e = table.create();
-    table.destroy(e);
-
-    // generation mismatch
-    expect(table.isAlive(e)).toBe(false);
-
-    // out of bounds
-    // (mocking an out of bounds entity)
-    const outOfBounds = 99999 as Entity;
-    expect(table.isAlive(outOfBounds)).toBe(false);
+  it('NULL_ENTITY・範囲外の index は生存していない', () => {
+    const t = new EntityTable(2);
+    expect(t.isAlive(NULL_ENTITY)).toBe(false);
+    expect(t.isReserved(NULL_ENTITY)).toBe(false);
+    expect(t.isAlive(makeEntity(5, 0))).toBe(false);
+    expect(t.isReserved(makeEntity(5, 0))).toBe(false);
   });
 
-  it('throws on capacity exceed', () => {
-    const table = new EntityTable(2);
-    table.create();
-    table.create();
-    expect(() => table.create()).toThrow(); // 空きがない
+  it('容量を使い切ると canAllocate が false になり、allocate は PlutoError (release でも不正な index を返さない)', () => {
+    const t = new EntityTable(2);
+    t.allocate();
+    t.allocate();
+    expect(t.canAllocate()).toBe(false);
+    expect(() => t.allocate()).toThrow(PlutoError);
   });
 
-  it('throws on destroying already dead entity', () => {
-    const table = new EntityTable(2);
-    const e = table.create();
-    table.destroy(e);
+  it('capacity が 0 以下・MAX_ENTITIES 超・非整数なら PlutoError', () => {
+    expect(() => new EntityTable(0)).toThrow(PlutoError);
+    expect(() => new EntityTable(MAX_ENTITIES + 1)).toThrow(PlutoError);
+    expect(() => new EntityTable(1.5)).toThrow(PlutoError);
+  });
+
+  it('生存していないエンティティの destroy は assert で失敗する', () => {
+    const t = new EntityTable(1);
+    const e = t.allocate();
     expect(() => {
-      table.destroy(e);
-    }).toThrow();
+      t.destroy(e);
+    }).toThrow(PlutoError);
   });
 });

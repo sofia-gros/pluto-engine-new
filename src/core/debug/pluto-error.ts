@@ -21,6 +21,14 @@ export const ErrorCode = {
 /** {@link ErrorCode} の値の型。 */
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
+/** V8 拡張の `Error.captureStackTrace` (標準の型定義には無いので任意として扱う)。 */
+interface V8ErrorConstructor {
+  /** ErrorConstructor と共通の必須プロパティ (任意プロパティだけの型は代入できないため)。 */
+  readonly prototype: Error;
+  /** V8 だけにある。 */
+  captureStackTrace?: (target: Error, constructorOpt: typeof PlutoError) => void;
+}
+
 /**
  * Pluto Engine 専用のエラークラス。
  * エンジン内部の例外はすべてこのクラスを使用する。
@@ -41,7 +49,8 @@ export class PlutoError extends Error {
     this.name = 'PlutoError';
     this.code = code;
 
-    // V8 のスタックトレースからコンストラクタ自身を除外する
-    Error.captureStackTrace(this, PlutoError);
+    // V8 のスタックトレースからコンストラクタ自身を除外する (V8 以外では何もしない)
+    const v8Error: V8ErrorConstructor = Error;
+    v8Error.captureStackTrace?.(this, PlutoError);
   }
 }

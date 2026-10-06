@@ -1,54 +1,40 @@
 /**
- * @file ジョブスケジューラのインターフェース定義。
+ * @file スケジューラのインターフェース (docs/05-jobs-and-builds.md §3)。core/ecs の `KernelExecutor` を満たす。
  */
+import type { KernelExecutor, KernelRef, Query, World } from '../core/ecs';
 
-import type { World } from '../core/ecs/world';
-import type { Query } from '../core/ecs/query';
-import type { KernelDef } from './kernel';
+/** 共有バッファの種類。 */
+export type KernelBufferKind = 'u32' | 'f32' | 'i32';
 
 /**
- * ジョブスケジューラ。
- * カーネルの実行や共有バッファの登録、Worldの同期を行う。
+ * カーネルをチャンク単位で実行するスケジューラ。
  */
-export interface Scheduler {
-  /**
-   * 並列実行に使うスレッド数 (メイン含む)。
-   * 直列実行 (SerialScheduler) の場合は常に 1。
-   */
+export interface Scheduler extends KernelExecutor {
+  /** 並列実行に使うスレッド数 (メイン含む)。Serial は 1。 */
   readonly concurrency: number;
-
   /**
-   * ワーカーへ World の共有メモリ情報を同期する。
-   * (アーキタイプ・クエリの新規作成後に World が呼ぶ)。
-   *
-   * @param world 同期する World インスタンス。
+   * ワーカーへ World の共有メモリ情報を同期する (World が structureVersion の変化時に呼ぶ)。
+   * @param world 対象の World
    */
   syncWorld(world: World): void;
-
   /**
    * カーネル用共有バッファを登録する (初期化時のみ)。
-   *
-   * @param kind バッファの種類 (u32, f32, i32)。
-   * @param slot バッファのスロット番号 (`KernelBufferSlot` などの定数)。
-   * @param array 登録する TypedArray インスタンス。
+   * @param kind 種類
+   * @param slot スロット番号 (`KernelBufferSlot`)
+   * @param array TypedArray (parallel では SharedArrayBuffer 上)
    */
   registerBuffer(
-    kind: 'u32' | 'f32' | 'i32',
+    kind: KernelBufferKind,
     slot: number,
     array: Uint32Array | Float32Array | Int32Array,
   ): void;
-
   /**
-   * クエリの全チャンクに対してカーネルを実行し、完了まで戻らない。
-   *
-   * @param kernel 実行するカーネルの定義。
-   * @param query 実行対象のエンティティを絞り込むクエリ。
-   * @param params カーネルに渡すパラメータ配列 (最大 MAX_KERNEL_PARAMS = 64 要素)。
+   * クエリの全チャンクにカーネルを実行し、完了まで戻らない。
+   * @param kernel カーネル (ID でレジストリから引く)
+   * @param query 対象クエリ
+   * @param params パラメータ (長さ ≤ 64、`params[0]` = dt)
    */
-  runKernel(kernel: KernelDef, query: Query, params: Float32Array): void;
-
-  /**
-   * ワーカーなどを終了し、リソースを解放する。
-   */
+  runKernel(kernel: KernelRef, query: Query, params: Float32Array): void;
+  /** ワーカーを終了する。 */
   dispose(): void;
 }

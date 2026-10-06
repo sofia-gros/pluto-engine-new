@@ -1,50 +1,43 @@
-import { test, expect } from '@playwright/test';
-import { compareImages } from '../helpers/golden';
-import { PNG } from 'pngjs';
+import { test, expect, openHarness, harnessUrl } from '../helpers/harness-test';
 
-test.describe('Harness Smoke Test', () => {
-  test('ハーネスが読み込まれ、crossOriginIsolatedが正しく設定される', async ({ page }) => {
-    // 開発サーバー上のHTMLにアクセス
-    await page.goto('/tests/browser/fixtures/harness.html?backend=webgl2');
-
-    // window.__pluto の状態を評価
-    const pluto = await page.evaluate(
-      () =>
-        (window as unknown as { __pluto: { backend: string; crossOriginIsolated: boolean } })
-          .__pluto,
-    );
-
-    expect(pluto).toBeDefined();
-    expect(pluto.backend).toBe('webgl2');
-    // vite dev server に COOP/COEP を設定しているので true になるはず
+test.describe('ハーネス', () => {
+  test('プロジェクト設定どおりのバックエンド・ビルドで読み込まれる', async ({
+    page,
+    plutoBackend,
+    plutoBuild,
+  }) => {
+    const requested: string[] = [];
+    page.on('request', (r) => requested.push(new URL(r.url()).pathname));
+    const pluto = await openHarness(page, { plutoBackend, plutoBuild });
+    // embed は成果物だけを読み、src のエンジンを読まない (05 §4 の NOTE)
+    const hasEmbedBundle = requested.includes('/dist/embed/pluto.debug.js');
+    const hasSrcEngine = requested.includes('/src/index.ts');
+    expect(hasEmbedBundle).toBe(plutoBuild === 'embed');
+    expect(hasSrcEngine).toBe(plutoBuild === 'src');
+    expect(pluto.backend).toBe(plutoBackend);
+    expect(pluto.build).toBe(plutoBuild);
     expect(pluto.crossOriginIsolated).toBe(true);
+    expect(pluto.version).toMatch(/^\d+\.\d+\.\d+/);
   });
-});
 
-test.describe('Golden helper unit test', () => {
-  test('同一画像は差分0、1pxの違いを検出できる', () => {
-    // 2x2の黒い画像
-    const img1 = new PNG({ width: 2, height: 2 });
-    for (let i = 0; i < img1.data.length; i++) {
-      img1.data[i] = i % 4 === 3 ? 255 : 0; // RGBA: (0, 0, 0, 255)
-    }
+  test('dev server では __PARALLEL__ と __DEBUG__ が true になる (05 §4)', async ({
+    page,
+    plutoBackend,
+  }) => {
+    const pluto = await openHarness(page, { plutoBackend, plutoBuild: 'src' });
+    expect(pluto.devParallel).toBe(true);
+    expect(pluto.devDebug).toBe(true);
+  });
 
-    // img1と全く同じ画像
-    const img2 = new PNG({ width: 2, height: 2 });
-    img1.data.copy(img2.data);
-
-    // 1pxだけ赤い画像
-    const img3 = new PNG({ width: 2, height: 2 });
-    img1.data.copy(img3.data);
-    img3.data[0] = 255; // R = 255
-
-    const buf1 = PNG.sync.write(img1);
-    const buf2 = PNG.sync.write(img2);
-    const buf3 = PNG.sync.write(img3);
-
-    // 同一なら差分0
-    expect(compareImages(buf1, buf2)).toBe(0);
-    // 1px違うなら差分1
-    expect(compareImages(buf1, buf3)).toBe(1);
+  test('不正な backend / build はハーネスが例外で止まる', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto(harnessUrl('canvas2d', 'src'));
+    await expect.poll(() => errors.length).toBeGreaterThan(0);
+    expect(errors[0]).toContain('backend=canvas2d は不正');
+    errors.length = 0;
+    await page.goto(harnessUrl('webgl2', 'cdn'));
+    await expect.poll(() => errors.length).toBeGreaterThan(0);
+    expect(errors[0]).toContain('build=cdn は不正');
   });
 });

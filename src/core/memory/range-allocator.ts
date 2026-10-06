@@ -2,8 +2,11 @@
  * @file バイト範囲などを管理する汎用的な first-fit 範囲アロケータ。
  */
 
+/** 連続範囲 (開始位置と長さ)。 */
 export interface Range {
+  /** 開始位置。 */
   start: number;
+  /** 長さ。 */
   size: number;
 }
 
@@ -12,6 +15,7 @@ export interface Range {
  * 空き領域のリストを管理し、隣接する解放領域は結合する。
  */
 export class RangeAllocator {
+  /** 管理する全体の容量。 */
   public readonly capacity: number;
   private readonly freeRanges: Range[];
 

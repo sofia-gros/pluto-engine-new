@@ -42,7 +42,7 @@ export {
   containsPoint as aabbContainsPoint,
 } from './aabb';
 export { nextPow2, isPow2, popcount32, ctz32, log2Floor } from './bits';
-export { packHalf2x16, unpackHalf2x16 } from './half';
+export { f32ToF16, f16ToF32, packHalf2x16 } from './half';
 export { packColor, hexToColor, unpackR, unpackG, unpackB, unpackA } from './color';
 export { createRng } from './rng';
 export type { Rng } from './rng';

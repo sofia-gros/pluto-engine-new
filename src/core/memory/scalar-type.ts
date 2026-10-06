@@ -16,6 +16,7 @@ export const ScalarType = {
   U8: 6,
 } as const;
 
+/** {@link ScalarType} の値の型。 */
 export type ScalarType = (typeof ScalarType)[keyof typeof ScalarType];
 
 /**

@@ -18,6 +18,10 @@ export interface Clock {
  * 実際の performance.now() を使用する Clock の実装。
  */
 export class PerformanceClock implements Clock {
+  /**
+   * 現在時刻を返す。
+   * @returns performance.now() の値 (ミリ秒)
+   */
   public now(): number {
     return globalThis.performance.now();
   }
@@ -37,6 +41,10 @@ export class ManualClock implements Clock {
     this.currentTime = initialTime;
   }
 
+  /**
+   * 現在時刻を返す。
+   * @returns 手動で進めた時刻 (ミリ秒)
+   */
   public now(): number {
     return this.currentTime;
   }

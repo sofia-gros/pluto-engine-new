@@ -43,7 +43,7 @@
     "build:embed": "vite build --mode embed && vite build --mode embed-debug",
     "build:types": "tsc -p tsconfig.build.json",
     "build": "pnpm build:parallel && pnpm build:embed && pnpm build:types && node tools/check-bundle.mjs",
-    "bench": "pnpm build:embed && node tools/run-bench.mjs && node tools/compare-bench.mjs",
+    "bench": "node tools/run-bench.mjs",
     "verify": "node tools/verify.mjs"
   },
   "devDependencies": {

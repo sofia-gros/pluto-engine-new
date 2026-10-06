@@ -231,8 +231,20 @@ export function assert(condition: boolean, message: string): asserts condition {
 }
 ```
 
-- `src/core/debug/logger.ts` のみ `no-console` を off にする (ファイル単位の override)。
+- `src/core/debug/logger.ts` と、`console` をスパイして logger を検証する `tests/unit/core/debug/logger.test.ts` のみ `no-console` を off にする (ファイル単位の override。他のルール (`no-empty-function` 等) は緩めない)。
 - `tests/**` は `max-lines` を 800 にしてよい。
+- 設定ファイル (`*.config.ts`, `*.config.js`) は `export default` が必須のため、`ExportDefaultDeclaration` の禁止だけを外す。それ以外のルールの無効化 (`no-empty-function: off` など仕様外の緩和) は禁止。
+- `tools/**/*.mjs` も lint 対象 (ignore しない)。`console` は tools でのみ許可する (`no-console: off` の override)。
+- `naming-convention` は §3 の表を次のように実装する: 型系 `PascalCase`、変数・関数・メソッド `camelCase`、モジュールトップの `const` は `camelCase | UPPER_CASE | PascalCase` (`as const` 列挙オブジェクトのため)、import 名は `camelCase | PascalCase` (default import されるコンストラクタ `WorkerCtor` のため)、`as const` 列挙オブジェクトのプロパティは `PascalCase` (`UPPER_CASE` 定数オブジェクトのキーは対象外)、`boolean` 型の **変数** は接頭辞 `is|has|can|should` (引数・プロパティは仕様書で決まった API 名 (`caps.compute`, `pixelArt`, WebGL のコンテキスト属性など) を優先するため機械検査の対象外。新しく名前を付ける場合は接頭辞を付ける)。`as const` 列挙オブジェクトのキーの PascalCase は、PascalCase 名の宣言に付いた `as const` オブジェクトを `no-restricted-syntax` で検査する
+- `tests/`・`bench/`・`tools/` にも AGENTS.md §3-4 の禁止事項 (`as unknown as` 等) が適用される (`tools/check-rules.mjs` が検査)。
+
+## 10. 機械検査の範囲 (`tools/check-rules.mjs`)
+
+- HOT 規則 (`.agents/rules/02-performance.md`) の検査は、**クラスのコンストラクタ本体・フィールド初期化子・`@cold` 関数 (とそれらの中のクロージャ)・モジュールのトップレベルの文** を対象外とする (初期化時に 1 回だけ実行されるため)。トップレベルで宣言した関数の本体は対象。`throw new PlutoError(...)` のようなエラー経路の確保も対象外 (毎フレームの経路ではないため。ループ内の throw は従来どおり禁止)。それ以外で禁止事項を使う行は、行末に `// pluto-allow: 日本語の理由` が必要。
+- HOT ファイルでは、トップレベルの `export function` の JSDoc に `@hot` か `@cold` のどちらかが必要。`@cold` を付けた関数・メソッド (例: `vec2.create()`, `createRng()` のような初期化用の生成関数) は HOT 規則の検査対象外。`@cold` を毎フレーム呼ぶ経路で使ってはならない (レビューで確認)。
+- 「index.ts は re-export のみ」の検査はモジュールの `index.ts` (`src/<module>/index.ts`) が対象。ルートの `src/index.ts` は `VERSION` 定数を持つため対象外。
+- 循環 import の検査は値の import のみを対象とする (`import type` は実行時の依存にならないため除外)。
+- 公開シンボルの JSDoc 検査対象: トップレベルの export 宣言と、export されたクラスの public なメソッド・プロパティ・アクセサ (コンストラクタとインターフェースのメンバーは対象外)。
 - `eslint-disable` コメントは **全面禁止** (`linterOptions.noInlineConfig: true` を設定する)。
 
 ## 9. Prettier 設定 (`.prettierrc.json`)

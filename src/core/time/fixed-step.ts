@@ -3,13 +3,15 @@
  * @file 固定タイムステップのアキュムレータ。
  */
 
-import { logger } from '../debug/logger';
+import { logger } from '../debug';
 
 /**
  * 物理演算などのための固定タイムステップアキュムレータ。
  */
 export class FixedStepper {
+  /** 1 ステップの長さ (ミリ秒)。 */
   public readonly stepMs: number;
+  /** 1 フレームで実行する最大ステップ数。 */
   public readonly maxSteps: number;
   private accumulator: number;
 
@@ -38,7 +40,8 @@ export class FixedStepper {
       if (steps >= this.maxSteps) {
         // Spiral of Death 回避のため、超過分を破棄して終了
         logger.warn(
-          `FixedStepper: 最大ステップ数 (${String(this.maxSteps)}) を超過しました。残りの時間を破棄します。`,
+          'FixedStepper: 最大ステップ数を超過しました。残りの時間を破棄します。maxSteps =',
+          this.maxSteps,
         );
         this.accumulator %= this.stepMs;
         break;

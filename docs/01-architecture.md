@@ -7,7 +7,7 @@
 
 ```mermaid
 flowchart TD
-  ENTRY["L9: src/index.ts / src/lowlevel.ts"] --> SCENE
+  ENTRY["L9: src/index.ts / src/lowlevel.ts / src/worker-main.ts"] --> SCENE
   SCENE["L8: scene (高レベル API)"] --> DEV
   DEV["L7: devtools"] --> SIM
   SCENE --> SIM

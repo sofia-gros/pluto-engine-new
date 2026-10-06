@@ -54,7 +54,8 @@
     "build:embed": "vite build --mode embed && vite build --mode embed-debug",
     "build:types": "tsc -p tsconfig.build.json",
     "build": "pnpm build:parallel && pnpm build:embed && pnpm build:types && node tools/check-bundle.mjs",
-    "bench": "pnpm build:embed && node tools/run-bench.mjs && node tools/compare-bench.mjs",
+    "bench": "node tools/run-bench.mjs",
+    "docs:api": "node tools/gen-api-docs.mjs",
     "verify": "node tools/verify.mjs"
   }
 }
@@ -64,6 +65,8 @@
 `check:structure` → `check:boundaries` → `check:rules` → `typecheck` → `lint` → `format:check` → `test:coverage`
 
 (package.json が存在しない段階では、存在するスクリプトのみ実行して残りは「スキップ (未作成)」と表示する)
+
+最後に各段階の成否を表で要約表示する。`docs:api` は T-10.3 で追加する (それまでは scripts に書かない)。`pnpm bench` は引数を `run-bench.mjs` に渡す (`pnpm bench --scene crowd --build parallel`)。run-bench は結果を保存した後に `compare-bench.mjs` を呼ぶ (pnpm は引数をスクリプトの末尾に付けるので、`run-bench && compare-bench` の形にすると引数が compare 側に渡ってしまうため)。
 
 ## 4. tsconfig.json (この内容で作る)
 
@@ -121,17 +124,21 @@
 - 出力先 `dist/<parallel|embed>/`、debug モードはファイル名に `.debug` を付け、minify しない。
 - `build.target: 'es2022'`。
 - `worker.format: 'es'`。
-- dev server: `headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' }`。
+- dev server: `headers: { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' }`。`preview.headers` にも同じものを設定する。
+- `command === 'serve'` (dev server) のときは mode 名によらず `__PARALLEL__ = true`, `__DEBUG__ = true` (`docs/05-jobs-and-builds.md` §4)。
 - `assetsInclude` に `**/*.wgsl`, `**/*.glsl` は入れない (`?raw` で読む)。
 
 ## 6. tools/check-bundle.mjs の要件 (T-0.3)
 
 - `dist/embed/pluto.js` に文字列 `SharedArrayBuffer`, `new Worker`, `Atomics.wait` が **含まれない** ことを検査。
-- `dist/parallel/pluto.js` に `Atomics.wait` が含まれる (Worker がインライン化されている) ことを検査 (T-2.2 以降。それ以前はスキップ表示)。
+- `dist/parallel/pluto-lowlevel.js` に `Atomics.wait` (Worker は `Atomics.waitAsync` を使うため、文字列 `Atomics.waitAsync` も可) が含まれる (Worker がインライン化されている) ことを検査し、含まれなければ **失敗**。
+
+> [!NOTE]
+> 検査対象は `pluto-lowlevel.js` である。`src/index.ts` は `scene` の re-export と `VERSION` のみであり、`scene` は T-5.1 まで存在しない (`docs/02` §2)。Worker への唯一の導線は `lowlevel` → `jobs` → `createScheduler` なので、parallel 側の Worker 同梱はここで確認する。高レベルエントリ `pluto.js` に Worker が入ることは T-5.1 で `scene` を作ったときに確認する。
 
 ## 7. CI (`.github/workflows/ci.yml`)
 
-- トリガー: `push`, `pull_request`。
+- トリガー: `push`, `pull_request` (ブランチで絞らない)。
 - ジョブ `verify`: `ubuntu-latest`, Node 22, `pnpm install --frozen-lockfile` → `pnpm verify` → `pnpm build`。
 - ジョブ `browser`: `pnpm exec playwright install --with-deps chromium` → `pnpm test:browser --project=webgl2` (CI では WebGPU は対象外)。
 - ベンチは CI で実行しない。

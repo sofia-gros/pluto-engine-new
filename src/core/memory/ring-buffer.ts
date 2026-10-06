@@ -3,6 +3,7 @@
  * @file 固定長 TypedArray リングバッファ。
  */
 
+/** リングバッファに使える TypedArray。 */
 export type AnyTypedArray =
   Float32Array | Int32Array | Uint32Array | Int16Array | Uint16Array | Int8Array | Uint8Array;
 
@@ -10,7 +11,9 @@ export type AnyTypedArray =
  * 任意の TypedArray を用いたリングバッファ。
  */
 export class RingBuffer<T extends AnyTypedArray> {
+  /** バッキング配列。 */
   public readonly data: T;
+  /** 格納できる要素数。 */
   public readonly capacity: number;
   private head: number;
   private count: number;

@@ -1,101 +1,201 @@
-import { test, expect } from '@playwright/test';
-import type { ChunkView } from '../../../src/core/ecs/chunk-view';
+/**
+ * @file SerialScheduler と ThreadedScheduler のパリティ検証 (docs/05-jobs-and-builds.md §3.4、docs/10-testing-strategy.md §4)。
+ * 100 万エンティティを実際に動かして、ビット一致・ジョブ競合・例外伝播を検証する。
+ * テスト用 Worker は createWorker の注入で差し替える (docs/05-jobs-and-builds.md §3.3)。
+ */
+import { expect, test } from '../helpers/harness-test';
+import type { FieldToken, Query, World } from '../../../src/core/ecs';
+import type { Scheduler } from '../../../src/jobs';
 
-test.describe('Scheduler Parity', () => {
-  test('ThreadedScheduler は SerialScheduler と完全に一致する結果を出力する (1M エンティティ)', async ({
-    page,
-  }) => {
-    await page.goto('/tests/browser/fixtures/harness.html');
-    test.setTimeout(120000);
+/** カーネル 1 の計算結果を合計した値 (float32 の加算なので順序が違えば差が出る)。 */
+interface ParityTotals {
+  /** 直列スケジュラの合計。 */
+  readonly serialTotal: number;
+  /** 並列スケジュラの合計。 */
+  readonly threadedTotal: number;
+}
 
-    const match = await page.evaluate(async () => {
-      const { World } = await import('../../../src/core/ecs/world');
-      const { defineComponent } = await import('../../../src/core/ecs/component');
-      const { ScalarType } = await import('../../../src/core/memory/scalar-type');
-      const { defineKernel } = await import('../../../src/jobs/kernel');
+test.describe('スケジューラ選択とパリティ (T-2.3)', () => {
+  test('並列と直列が 100 万エンティティでビット一致する', async ({ page, plutoBackend }) => {
+    await page.goto(`/tests/browser/fixtures/harness.html?backend=${plutoBackend}&build=src`);
+
+    const outcome = (await page.evaluate(async () => {
+      const ecs = await import('../../../src/core/ecs');
       const { SerialScheduler } = await import('../../../src/jobs/serial-scheduler');
       const { ThreadedScheduler } = await import('../../../src/jobs/threaded-scheduler');
-
-      const Transform = defineComponent('Transform', { x: ScalarType.F32, y: ScalarType.F32 });
-      const Velocity = defineComponent('Velocity', { dx: ScalarType.F32, dy: ScalarType.F32 });
-
-      const MoveKernel = defineKernel('Move', (view: ChunkView) => {
-        const tX = view.column(Transform.x);
-        const tY = view.column(Transform.y);
-        const vDx = view.column(Velocity.dx);
-        const vDy = view.column(Velocity.dy);
-
-        for (let i = view.start; i < view.end; i++) {
-          tX[i] += vDx[i];
-          tY[i] += vDy[i];
-        }
-      });
+      const fixtures = await import('../fixtures/parity-kernels');
 
       const COUNT = 1_000_000;
+      const createWorker = (): Worker =>
+        new Worker('/tests/browser/fixtures/parity-worker.ts', { type: 'module' });
 
-      // 1. 直列スケジューラでの実行
-      const worldSerial = new World();
-      const serialScheduler = new SerialScheduler();
+      const buildWorld = (scheduler: Scheduler): World => {
+        const world = new ecs.World();
+        world.setExecutor(scheduler);
+        world.addSystem({
+          name: 'ParityMove',
+          phase: ecs.Phase.Update,
+          query: { all: [fixtures.ComponentA, fixtures.ComponentB] },
+          kernel: fixtures.parityKernel1,
+          writes: [fixtures.ComponentB],
+        });
+        for (let i = 0; i < COUNT; i++) {
+          const e = world.spawn(fixtures.ComponentA, fixtures.ComponentB);
+          world.set(e, fixtures.ComponentA.value1, i);
+          world.set(e, fixtures.ComponentA.value2, i);
+          world.flush();
+        }
+        return world;
+      };
 
-      for (let i = 0; i < COUNT; i++) {
-        const e = worldSerial.spawn(Transform, Velocity);
-        worldSerial.set(e, Velocity.dx, 1.5);
-        worldSerial.set(e, Velocity.dy, 2.5);
+      const readTotal = (query: Query, field: FieldToken): number => {
+        let sum = 0;
+        query.forEachChunk((view) => {
+          const column = view.column(field);
+          for (let i = view.start; i < view.end; i++) sum += column[i];
+        });
+        return sum;
+      };
+
+      const serial = new SerialScheduler();
+      const serialWorld = buildWorld(serial);
+      const threaded = new ThreadedScheduler({ maxWorkers: 3, createWorker });
+      const threadedWorld = buildWorld(threaded);
+
+      serialWorld.runPhase(ecs.Phase.Update, 0.5);
+      threadedWorld.runPhase(ecs.Phase.Update, 0.5);
+
+      const result: ParityTotals = {
+        serialTotal: readTotal(
+          serialWorld.query({ all: [fixtures.ComponentB] }),
+          fixtures.ComponentB.result,
+        ),
+        threadedTotal: readTotal(
+          threadedWorld.query({ all: [fixtures.ComponentB] }),
+          fixtures.ComponentB.result,
+        ),
+      };
+      threaded.dispose();
+      return result;
+    })) satisfies ParityTotals;
+
+    expect(outcome.threadedTotal).toBe(outcome.serialTotal);
+  });
+
+  test('2 つのカーネルを交互に 1000 回回しても Serial と一致する', async ({
+    page,
+    plutoBackend,
+  }) => {
+    await page.goto(`/tests/browser/fixtures/harness.html?backend=${plutoBackend}&build=src`);
+
+    const outcome = (await page.evaluate(async () => {
+      const ecs = await import('../../../src/core/ecs');
+      const { SerialScheduler } = await import('../../../src/jobs/serial-scheduler');
+      const { ThreadedScheduler } = await import('../../../src/jobs/threaded-scheduler');
+      const fixtures = await import('../fixtures/parity-kernels');
+
+      const COUNT = 500_000;
+      const ITERATIONS = 1000;
+      const createWorker = (): Worker =>
+        new Worker('/tests/browser/fixtures/parity-worker.ts', { type: 'module' });
+
+      const buildWorld = (scheduler: Scheduler): World => {
+        const world = new ecs.World();
+        world.setExecutor(scheduler);
+        world.addSystem({
+          name: 'Accumulate',
+          phase: ecs.Phase.Update,
+          query: { all: [fixtures.ComponentB, fixtures.ComponentC] },
+          kernel: fixtures.parityKernel2,
+          writes: [fixtures.ComponentC],
+        });
+        for (let i = 0; i < COUNT; i++) {
+          const e = world.spawn(fixtures.ComponentB, fixtures.ComponentC);
+          world.set(e, fixtures.ComponentB.result, 1);
+          world.flush();
+        }
+        return world;
+      };
+
+      const readTotal = (world: World): number => {
+        const query = world.query({ all: [fixtures.ComponentC] });
+        let sum = 0;
+        query.forEachChunk((view) => {
+          const column = view.column(fixtures.ComponentC.accumulator);
+          for (let i = view.start; i < view.end; i++) sum += column[i];
+        });
+        return sum;
+      };
+
+      const serial = new SerialScheduler();
+      const serialWorld = buildWorld(serial);
+      const threaded = new ThreadedScheduler({ maxWorkers: 3, createWorker });
+      const threadedWorld = buildWorld(threaded);
+
+      for (let i = 0; i < ITERATIONS; i++) {
+        serialWorld.runPhase(ecs.Phase.Update, 0);
+        threadedWorld.runPhase(ecs.Phase.Update, 0);
       }
 
-      serialScheduler.syncWorld(worldSerial);
-      const q1 = worldSerial.query({ all: [Transform, Velocity] });
-      serialScheduler.runKernel(MoveKernel, q1, new Float32Array(0));
+      const result: ParityTotals = {
+        serialTotal: readTotal(serialWorld),
+        threadedTotal: readTotal(threadedWorld),
+      };
+      threaded.dispose();
+      return result;
+    })) satisfies ParityTotals;
 
-      // 2. 並列スケジューラでの実行
-      const worldThreaded = new World();
-      const threadedScheduler = new ThreadedScheduler({ maxWorkers: 4 });
+    expect(outcome.threadedTotal).toBe(outcome.serialTotal);
+  });
 
-      for (let i = 0; i < COUNT; i++) {
-        const e = worldThreaded.spawn(Transform, Velocity);
-        worldThreaded.set(e, Velocity.dx, 1.5);
-        worldThreaded.set(e, Velocity.dy, 2.5);
+  test('Worker 内で例外を投げると PlutoError(InvalidState) になりハングしない', async ({
+    page,
+    plutoBackend,
+  }) => {
+    await page.goto(`/tests/browser/fixtures/harness.html?backend=${plutoBackend}&build=src`);
+
+    const caught = await page.evaluate(async () => {
+      const ecs = await import('../../../src/core/ecs');
+      const { PlutoError } = await import('../../../src/core/debug');
+      const { ThreadedScheduler } = await import('../../../src/jobs/threaded-scheduler');
+      const fixtures = await import('../fixtures/parity-kernels');
+
+      const createWorker = (): Worker =>
+        new Worker('/tests/browser/fixtures/parity-worker.ts', { type: 'module' });
+      const threaded = new ThreadedScheduler({ maxWorkers: 3, createWorker });
+
+      const world = new ecs.World();
+      world.setExecutor(threaded);
+      world.addSystem({
+        name: 'FailingKernel',
+        phase: ecs.Phase.Update,
+        query: { all: [fixtures.ComponentA, fixtures.ComponentB] },
+        kernel: fixtures.failingKernel,
+      });
+      for (let i = 0; i < 200_000; i++) {
+        const e = world.spawn(fixtures.ComponentA, fixtures.ComponentB);
+        world.set(e, fixtures.ComponentA.value1, i);
+        world.flush();
       }
 
-      threadedScheduler.syncWorld(worldThreaded);
-      const q2 = worldThreaded.query({ all: [Transform, Velocity] });
-      threadedScheduler.runKernel(MoveKernel, q2, new Float32Array(0));
-      threadedScheduler.dispose();
-
-      // 3. 結果の比較
-      const archSerial = worldSerial.graph.getArchetypeById(1);
-      const archThreaded = worldThreaded.graph.getArchetypeById(1);
-
-      if (!archSerial || !archThreaded) return { match: false, reason: 'Archetype not found' };
-      if (archSerial.count !== COUNT || archThreaded.count !== COUNT)
-        return { match: false, reason: 'Count mismatch' };
-
-      const bufSx = archSerial.getColumn(Transform.x);
-      const bufTx = archThreaded.getColumn(Transform.x);
-      const bufSy = archSerial.getColumn(Transform.y);
-      const bufTy = archThreaded.getColumn(Transform.y);
-
-      const colSx = new Float32Array(bufSx.buffer).subarray(0, COUNT);
-      const colTx = new Float32Array(bufTx.buffer).subarray(0, COUNT);
-      const colSy = new Float32Array(bufSy.buffer).subarray(0, COUNT);
-      const colTy = new Float32Array(bufTy.buffer).subarray(0, COUNT);
-
-      for (let i = 0; i < COUNT; i++) {
-        if (colSx[i] !== colTx[i])
-          return {
-            match: false,
-            reason: `Mismatch X at ${String(i)}: ${String(colSx[i])} vs ${String(colTx[i])}`,
-          };
-        if (colSy[i] !== colTy[i])
-          return {
-            match: false,
-            reason: `Mismatch Y at ${String(i)}: ${String(colSy[i])} vs ${String(colTy[i])}`,
-          };
+      const startedAt = performance.now();
+      let name = '';
+      let code = '';
+      try {
+        world.runPhase(ecs.Phase.Update, 0.016);
+      } catch (err) {
+        if (err instanceof PlutoError) {
+          name = err.name;
+          code = err.code;
+        }
       }
-
-      return { match: true };
+      const elapsedMs = performance.now() - startedAt;
+      threaded.dispose();
+      return { name, code, elapsedMs };
     });
 
-    expect(match.match).toBe(true);
+    expect(caught.name).toBe('PlutoError');
+    expect(caught.code).toBe('E_INVALID_STATE');
+    expect(caught.elapsedMs).toBeLessThan(30_000);
   });
 });

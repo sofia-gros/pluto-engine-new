@@ -1,8 +1,1 @@
-{
-  "ecs-move": {
-    "spawn": 120.5,
-    "getSet": 15.2,
-    "moveKernel": 1.2,
-    "pass": true
-  }
-}
+[]

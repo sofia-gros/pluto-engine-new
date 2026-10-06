@@ -8,21 +8,27 @@
 
 ## 2. 定数 (`src/render/render-constants.ts` と `src/shaders/common/constants.*` で一致させる)
 
-| 定数                  | 値        | 意味                                                                |
-| --------------------- | --------- | ------------------------------------------------------------------- |
-| `WORKGROUP_SIZE`      | 256       | コンピュートの 1D ワークグループサイズ                              |
-| `SPRITE_STRIDE_BYTES` | 32        | スプライト 1 個のバイト数                                           |
-| `SPRITE_STRIDE_WORDS` | 8         | 同 u32 個数                                                         |
-| `DEFAULT_MAX_SPRITES` | 1,048,576 | `GameConfig.maxSprites` の既定値 (上限 4,194,304)                   |
-| `MAX_LAYERS`          | 1024      | layer の上限 (排他)                                                 |
-| `ATLAS_PAGE_SIZE`     | 2048      | テクスチャ配列 1 層の幅・高さ (px)                                  |
-| `MAX_ATLAS_PAGES`     | 64        | テクスチャ配列の最大層数 (`caps.maxTextureArrayLayers` と小さい方)  |
-| `MAX_FRAMES`          | 65,536    | フレームテーブルの最大要素数                                        |
-| `FRAME_STRIDE_BYTES`  | 32        | フレーム 1 個のバイト数                                             |
-| `DATA_TEXTURE_WIDTH`  | 2048      | WebGL2 データテクスチャの幅 (texel)                                 |
-| `GPU_GROUP_ALIGN`     | 1024      | GPU Tier グループのスロット範囲の整列単位 (= データテクスチャ 1 行) |
-| `MAX_CAMERAS`         | 8         | 同時カメラ数                                                        |
-| `BIN_COUNT`           | 3         | 描画ビン数 (Opaque / Alpha / Additive)                              |
+| 定数                        | 値        | 意味                                                                 |
+| --------------------------- | --------- | -------------------------------------------------------------------- |
+| `WORKGROUP_SIZE`            | 256       | コンピュートの 1D ワークグループサイズ                               |
+| `SPRITE_STRIDE_BYTES`       | 32        | スプライト 1 個のバイト数                                            |
+| `SPRITE_STRIDE_WORDS`       | 8         | 同 u32 個数                                                          |
+| `DEFAULT_MAX_SPRITES`       | 1,048,576 | `GameConfig.maxSprites` の既定値 (上限 4,194,304)                    |
+| `MAX_LAYERS`                | 1024      | layer の上限 (排他)                                                  |
+| `ATLAS_PAGE_SIZE`           | 2048      | テクスチャ配列 1 層の幅・高さ (px)                                   |
+| `MAX_ATLAS_PAGES`           | 64        | テクスチャ配列の最大層数 (`caps.maxTextureArrayLayers` と小さい方)   |
+| `MAX_FRAMES`                | 65,536    | フレームテーブルの最大要素数                                         |
+| `FRAME_STRIDE_BYTES`        | 32        | フレーム 1 個のバイト数                                              |
+| `DATA_TEXTURE_WIDTH`        | 2048      | WebGL2 データテクスチャの幅 (texel)                                  |
+| `GPU_GROUP_ALIGN`           | 1024      | GPU Tier グループのスロット範囲の整列単位 (= データテクスチャ 1 行)  |
+| `MAX_CAMERAS`               | 8         | 同時カメラ数                                                         |
+| `BIN_COUNT`                 | 3         | 描画ビン数 (Opaque / Alpha / Additive)                               |
+| `FRAME_PAGE_COMPRESSED_BIT` | 0x10000   | フレームの `page` でこのビットが立っていれば圧縮テクスチャ配列を参照 |
+| `WHITE_FRAME_ID`            | 0         | 初期化時に予約する白一色のフレーム (fade/flash・図形・デバッグ用)    |
+| `TILEMAP_CHUNK_SIZE`        | 32        | タイルマップのチャンク 1 辺のタイル数                                |
+| `GRAPHICS_MAX_VERTICES`     | 262,144   | 図形描画の頂点ストレージの総容量                                     |
+| `TEXT_DEFAULT_MAX_GLYPHS`   | 256       | `TextHandle` 1 個が既定で確保するグリフ数                            |
+| `MAX_LIGHTS`                | 4096      | 同時に有効な光源数                                                   |
 
 ## 3. スプライトインスタンス (32 バイト, `sprite-instance-layout.ts` が SSOT)
 
@@ -39,14 +45,15 @@
 
 `flags`:
 
-| bit  | 名前            | 内容                                                       |
-| ---- | --------------- | ---------------------------------------------------------- |
-| 0    | `FLAG_VISIBLE`  | 0 なら描画しない (空きスロットは必ず 0)                    |
-| 1    | `FLAG_FLIP_X`   | 左右反転                                                   |
-| 2    | `FLAG_FLIP_Y`   | 上下反転                                                   |
-| 3    | `FLAG_OPAQUE`   | 不透明 (アルファテスト `a < 0.5` で discard、深度書込あり) |
-| 4    | `FLAG_ADDITIVE` | 加算合成 (OPAQUE と同時指定不可。OPAQUE 優先)              |
-| 5–31 | 予約            | 0                                                          |
+| bit  | 名前            | 内容                                                                 |
+| ---- | --------------- | -------------------------------------------------------------------- |
+| 0    | `FLAG_VISIBLE`  | 0 なら描画しない (空きスロットは必ず 0)                              |
+| 1    | `FLAG_FLIP_X`   | 左右反転                                                             |
+| 2    | `FLAG_FLIP_Y`   | 上下反転                                                             |
+| 3    | `FLAG_OPAQUE`   | 不透明 (アルファテスト `a < 0.5` で discard、深度書込あり)           |
+| 4    | `FLAG_ADDITIVE` | 加算合成 (OPAQUE と同時指定不可。OPAQUE 優先)                        |
+| 5    | `FLAG_OCCLUDER` | 2D GI (Radiance Cascades) の遮蔽物として扱う。通常描画には影響しない |
+| 6–31 | 予約            | 0                                                                    |
 
 ビン決定: `OPAQUE` → Opaque(0)、`ADDITIVE` → Additive(2)、それ以外 → Alpha(1)。
 
@@ -60,6 +67,7 @@ export const FLAG_FLIP_X = 2;
 export const FLAG_FLIP_Y = 4;
 export const FLAG_OPAQUE = 8;
 export const FLAG_ADDITIVE = 16;
+export const FLAG_OCCLUDER = 32;
 export function packSprite(
   dstU32: Uint32Array,
   dstF32: Float32Array,
@@ -79,15 +87,18 @@ export function packSprite(
 
 ## 4. フレームテーブル (32 バイト / フレーム)
 
-| byte | 型    | 内容                                    |
-| ---- | ----- | --------------------------------------- |
-| 0    | f32×4 | `uvMinX, uvMinY, uvMaxX, uvMaxY` (0〜1) |
-| 16   | f16×2 | `width, height` (px)                    |
-| 20   | f16×2 | `anchorX, anchorY` (0〜1, 既定 0.5)     |
-| 24   | u32   | `page` (テクスチャ配列の層)             |
-| 28   | u32   | 予約 (0)                                |
+| byte | 型    | 内容                                                                                                    |
+| ---- | ----- | ------------------------------------------------------------------------------------------------------- |
+| 0    | f32×4 | `uvMinX, uvMinY, uvMaxX, uvMaxY` (0〜1)                                                                 |
+| 16   | f16×2 | `width, height` (px)                                                                                    |
+| 20   | f16×2 | `anchorX, anchorY` (0〜1, 既定 0.5)                                                                     |
+| 24   | u32   | `page`: bit 0〜15 = テクスチャ配列の層、bit 16 (`FRAME_PAGE_COMPRESSED_BIT`) = 圧縮テクスチャ配列を参照 |
+| 28   | u32   | 予約 (0)                                                                                                |
 
 フレームの追加は `frame-table.ts` の `addFrame()` (コールドパス)。変更分だけ GPU 転送。
+
+- **アンカー違いの派生フレーム**: アンカーはスプライトではなくフレームが持つ。`SpriteHandle.setOrigin(ax, ay)` は `frame-table.ts` の `getDerivedFrame(baseFrameId, anchorX, anchorY): number` で UV・サイズ・page が同じでアンカーだけ異なるフレームを取得する。`(baseFrameId, anchorX, anchorY)` をキーにキャッシュし、同じ組み合わせでは同じ ID を返す。`MAX_FRAMES` を超えたら `PlutoError(CapacityExceeded)`。`setFrame` は現在のアンカーを保ったまま派生フレームを引き直す。
+- `WHITE_FRAME_ID` (0) はテクスチャ配列の層 0 の左上 4×4 px を白で塗った領域を指し、初期化時に必ず予約する。
 
 ## 5. テクスチャ
 
@@ -96,6 +107,8 @@ export function packSprite(
 - 個別画像は `atlas-packer.ts` (shelf 法, 2px パディング + エッジ複製) でページに詰める。
 - サンプラ: 既定 `Linear` + `ClampToEdge`。`GameConfig.pixelArt: true` で `Nearest`。
 - ミップマップは v1 では生成しない。
+- **圧縮テクスチャ (KTX2)**: 初期化時に、デバイスが対応する圧縮形式を `BC7 → ASTC 4x4 → ETC2` の優先順で **1 つだけ** 選び、その形式の 2D テクスチャ配列 (`ATLAS_PAGE_SIZE`², 最大 `MAX_ATLAS_PAGES` 層) を遅延生成する。KTX2 画像は 1 枚 = 1 層 (幅・高さは 4 の倍数かつ `ATLAS_PAGE_SIZE` 以下、ミップはレベル 0 のみ使用)。選ばれた形式以外の KTX2 は `PlutoError(UnsupportedFeature)` (日本語で、対応形式で再エンコードするよう案内)。対応形式がないデバイスでは `load.ktx2` 自体が `UnsupportedFeature`。
+- スプライトシェーダは RGBA8 配列と圧縮配列の両方をバインドし、`page` の `FRAME_PAGE_COMPRESSED_BIT` で切り替える。分岐内でもサンプルできるよう **`textureSampleLevel(..., 0)` (GLSL は `textureLod`)** を使う。圧縮配列が未生成のときは 1×1 層のダミー配列をバインドする。
 
 ## 6. カメラ uniform (64 バイト, std140)
 
@@ -189,7 +202,12 @@ dirtyBits.set(slot >> 6)
 
 - v1 は「登録順に実行する線形グラフ + 一時リソースのプール」。自動バリア・並べ替えはしない。
 - パスは `name`, `reads`, `writes` (リソース名), `execute(encoder, ctx)` を持つ。
-- 既定のパス順: `sim:*` → `sprite:cull` → `sprite:draw` → `text:draw` → `graphics:draw` → `lighting` → `post:*` → `present`。
+- 既定のパス順: `sim:*` → `sprite:cull` → `tilemap:draw` → `sprite:draw` → `text:draw` → `graphics:draw` → `lighting` → `camera:fx` → `post:*` → `present`。
+- スプライト以外の描画とスプライトの前後関係は **深度** で決める (深度値は §7 と同じ式 `1.0 - (layer + sortKey) / MAX_LAYERS`):
+  - `tilemap:draw`: アルファテスト (`a < 0.5` で discard) + 深度テスト `Less` + 深度書込あり。スプライト (Opaque / Alpha / Additive) と layer で正しく前後する。半透明タイルは 2 値化される (API ドキュメントに明記)。
+  - `text:draw` / `graphics:draw`: 深度テスト `Less` + 書込なし、`PremultipliedAlpha`。手前の Opaque スプライト・タイルには隠れるが、Alpha / Additive スプライトとは layer で並ばず **常にスプライトより後に描かれる** (v1 の制約。API ドキュメントに明記)。
+  - `lighting`: 光の蓄積を `RGBA16Float` の一時ターゲットに描き、シーン色に乗算合成する (`lit = albedo × (ambient + Σlight)`)。GI モードでは先に `FLAG_OCCLUDER` のスプライトとタイルマップの遮蔽レイヤーを遮蔽マスクに描き、JFA で SDF を作る (`docs/08-simulation.md` §2 のとおり WebGPU のみ)。
+  - `camera:fx`: カメラごとにビューポートを設定し、`solid-color` シェーダでフェード/フラッシュ色をアルファ合成する (ポストエフェクトより前)。
 - ポストエフェクトが 1 つもなければ swapchain に直接描画する。ある場合は `RGBA16Float` の中間ターゲットに描画する。
 
 ## 13. 性能受け入れ基準 (WebGPU, 基準機, 1920×1080)

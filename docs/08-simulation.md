@@ -128,3 +128,22 @@ rotation = atan2(vel.y, vel.x)  (alignToVelocity=true の場合)
 - 形状: 円・凸多角形 (最大 8 頂点)・カプセル。ナローフェーズ: 円-円は解析、多角形は SAT。
 - サブステップ `substeps` 既定 8、位置反復 1。接触: 法線方向の非貫通制約 + 静/動摩擦。
 - v1 は CPU 実装。GPU 剛体 (AVBD 等) は将来タスク (現在は実装禁止)。
+
+---
+
+## 8. 性能受け入れ基準 (基準機, 1920×1080, `docs/10-testing-strategy.md` §5 の方法で計測)
+
+| シーン (`bench/scenes/`)   | 条件                                            | 基準                                                      | タスク |
+| -------------------------- | ----------------------------------------------- | --------------------------------------------------------- | ------ |
+| `particles.ts`             | WebGPU, 1,000,000 パーティクル                  | フレーム p99 ≤ 6.94ms、`gpuMs` (シミュレーション) ≤ 2.0ms | T-6.2  |
+| `particles.ts`             | WebGL2, 100,000 パーティクル                    | フレーム p99 ≤ 6.94ms                                     | T-6.2  |
+| `crowd.ts` (**G2**)        | WebGPU, 1,000,000, `avoidance: false`           | フレーム p99 ≤ 6.94ms                                     | T-6.3  |
+| `crowd.ts`                 | WebGPU, 250,000, `avoidance: true`              | フレーム p99 ≤ 6.94ms                                     | T-6.4  |
+| `fluid-grid.ts`            | WebGPU 512×512 / WebGL2 256×256                 | フレーム p99 ≤ 6.94ms                                     | T-7.4  |
+| `fluid-particles.ts`       | WebGPU, PBF 100,000 粒子 / MLS-MPM 100,000 粒子 | フレーム p99 ≤ 6.94ms                                     | T-7.4  |
+| `cpu-entities.ts` (**G4**) | parallel ビルド, アーケード動的ボディ 100,000   | `cpuMs` ≤ 2.0ms                                           | T-8.1  |
+| `rigid-bodies.ts`          | 1,000 剛体 (半数が接触中)                       | `cpuMs` ≤ 2.0ms                                           | T-8.2  |
+
+- G2 (`docs/00-vision.md`) は `avoidance: false` の条件で判定する。
+- 上記は基準機での **暫定目標**。初回計測で満たせない場合は最適化を試みたうえで `pluto-escalate` (勝手に基準を下げない)。
+- 表にないベンチシーン (`tweens.ts`, `tilemap.ts` など) は初回計測値をベースライン登録し、以降 10% を超える悪化を不合格とする。

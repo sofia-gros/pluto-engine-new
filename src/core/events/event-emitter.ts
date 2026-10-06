@@ -2,6 +2,7 @@
  * @file 型安全な EventEmitter。
  */
 
+/** イベントハンドラ。 */
 export type EventHandler<P> = (payload: P) => void;
 
 interface ListenerEntry<P> {
@@ -81,10 +82,10 @@ export class EventEmitter<EventMap extends Record<string, unknown>> {
     const previousEmitting = this.emitting;
     this.emitting = event;
 
-    let needsCompact = false;
+    let shouldCompact = false;
     for (const entry of list) {
       if (entry.removed) {
-        needsCompact = true;
+        shouldCompact = true;
         continue;
       }
 
@@ -92,13 +93,13 @@ export class EventEmitter<EventMap extends Record<string, unknown>> {
 
       if (entry.once) {
         entry.removed = true;
-        needsCompact = true;
+        shouldCompact = true;
       }
     }
 
     this.emitting = previousEmitting;
 
-    if (needsCompact && this.emitting !== event) {
+    if (shouldCompact && this.emitting !== event) {
       this.compact(list);
     }
   }

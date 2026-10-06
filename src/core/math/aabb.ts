@@ -5,6 +5,7 @@
 
 /**
  * 新しいAABBを作成する。
+ * @cold 初期化時に作業領域を確保するための関数 (フレーム中に呼ばない)
  * @returns [0, 0, 0, 0] で初期化された Float32Array
  */
 export function create(): Float32Array {

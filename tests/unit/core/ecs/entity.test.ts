@@ -1,37 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import {
-  makeEntity,
-  entityIndex,
-  entityGeneration,
+  MAX_ENTITIES,
   NULL_ENTITY,
-  ENTITY_INDEX_MASK,
-  ENTITY_GENERATION_MASK,
+  entityGeneration,
+  entityIndex,
+  makeEntity,
 } from '../../../../src/core/ecs/entity';
 
-describe('Entity', () => {
-  it('makes entity and retrieves index and generation', () => {
-    const e = makeEntity(123, 45);
-    expect(entityIndex(e)).toBe(123);
-    expect(entityGeneration(e)).toBe(45);
+describe('entity', () => {
+  it('index と世代を pack / unpack できる', () => {
+    const e = makeEntity(12345, 678);
+    expect(entityIndex(e)).toBe(12345);
+    expect(entityGeneration(e)).toBe(678);
   });
 
-  it('handles boundary values', () => {
-    const maxIndex = ENTITY_INDEX_MASK;
-    const maxGen = ENTITY_GENERATION_MASK;
-    const e = makeEntity(maxIndex, maxGen);
-
-    expect(entityIndex(e)).toBe(maxIndex);
-    expect(entityGeneration(e)).toBe(maxGen);
+  it('境界値: index の最大値 (MAX_ENTITIES - 1) と世代 1023 を往復できる', () => {
+    const e = makeEntity(MAX_ENTITIES - 1, 1023);
+    expect(entityIndex(e)).toBe(MAX_ENTITIES - 1);
+    expect(entityGeneration(e)).toBe(1023);
+    expect(e).toBeGreaterThanOrEqual(0);
   });
 
-  it('handles 0', () => {
-    const e = makeEntity(0, 0);
-    expect(entityIndex(e)).toBe(0);
-    expect(entityGeneration(e)).toBe(0);
+  it('世代は 10 ビットで循環する', () => {
+    expect(entityGeneration(makeEntity(1, 1024))).toBe(0);
   });
 
-  it('handles NULL_ENTITY', () => {
-    expect(entityIndex(NULL_ENTITY)).toBe(ENTITY_INDEX_MASK);
-    expect(entityGeneration(NULL_ENTITY)).toBe(ENTITY_GENERATION_MASK);
+  it('MAX_ENTITIES は 4194303 で、index 0x3FFFFF は NULL_ENTITY 用に予約されている', () => {
+    expect(MAX_ENTITIES).toBe(4194303);
+    expect(makeEntity(0x3fffff, 1023)).toBe(NULL_ENTITY);
+    expect(makeEntity(MAX_ENTITIES - 1, 1023)).not.toBe(NULL_ENTITY);
   });
 });

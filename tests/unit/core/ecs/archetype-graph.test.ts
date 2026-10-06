@@ -1,72 +1,52 @@
 import { describe, expect, it } from 'vitest';
-import { ArchetypeGraph, maskToString } from '../../../../src/core/ecs/archetype-graph';
+import { ArchetypeGraph, maskToKey } from '../../../../src/core/ecs/archetype-graph';
+import type { Archetype } from '../../../../src/core/ecs/archetype';
 import { defineComponent } from '../../../../src/core/ecs/component';
-import type { AnyComponentDef } from '../../../../src/core/ecs/component';
-import { ScalarType } from '../../../../src/core/memory/scalar-type';
 import { Bitset } from '../../../../src/core/memory/bitset';
+import { ScalarType } from '../../../../src/core/memory/scalar-type';
 
-const CompA = defineComponent('CompA', { v: ScalarType.F32 });
-const CompB = defineComponent('CompB', { v: ScalarType.F32 });
+const A = defineComponent('A', { a: ScalarType.F32 });
+const B = defineComponent('B', { b: ScalarType.F32 });
 
 describe('ArchetypeGraph', () => {
-  it('maskToString converts bitset to string correctly', () => {
-    const mask = new Bitset(256);
-    mask.set(1);
-    mask.set(5);
-    mask.set(10);
-    expect(maskToString(mask)).toBe('1,5,10');
+  it('maskToKey は語ごとに 8 桁固定の 16 進文字列を返す', () => {
+    const m = new Bitset(64);
+    m.set(0);
+    m.set(33);
+    expect(maskToKey(m)).toBe('0000000100000002');
   });
 
-  it('initializes with empty archetype (ID: 0)', () => {
-    const graph = new ArchetypeGraph(10000);
-    const arch0 = graph.getArchetypeById(0);
-    expect(arch0).toBeDefined();
-    expect(arch0?.id).toBe(0);
-    expect(arch0?.mask.test(CompA.id)).toBe(false);
+  it('ID 0 は空アーキタイプで、ID は配列で O(1) に引ける', () => {
+    const g = new ArchetypeGraph(10);
+    expect(g.size).toBe(1);
+    expect(g.getArchetypeById(0)?.mask.data.every((w) => w === 0)).toBe(true);
+    expect(g.getArchetypeById(99)).toBeUndefined();
   });
 
-  it('gets or creates archetype', () => {
-    const graph = new ArchetypeGraph(10000);
-    const archA1 = graph.getOrCreateArchetype([CompA]);
-    const archA2 = graph.getOrCreateArchetype([CompA]); // キャッシュされるはず
-
-    expect(archA1.id).toBe(archA2.id);
-    expect(archA1.hasComponent(CompA.id)).toBe(true);
-
-    const archAB = graph.getOrCreateArchetype([CompA, CompB]);
-    expect(archAB.id).not.toBe(archA1.id);
-    expect(archAB.hasComponent(CompA.id)).toBe(true);
-    expect(archAB.hasComponent(CompB.id)).toBe(true);
+  it('同じ構成 (順序・重複によらない) には同じアーキタイプを返す', () => {
+    const g = new ArchetypeGraph(10);
+    const ab = g.getOrCreateArchetype([A, B]);
+    expect(g.getOrCreateArchetype([B, A, B])).toBe(ab);
+    expect(g.getArchetypes()).toHaveLength(2);
   });
 
-  it('handles transitions (add and remove) with edge caching', () => {
-    const graph = new ArchetypeGraph(10000);
-    const allComponents: AnyComponentDef[] = [];
-    allComponents[CompA.id] = CompA;
-    allComponents[CompB.id] = CompB;
+  it('transition は追加・削除の遷移先を返し、エッジをキャッシュする', () => {
+    const created: Archetype[] = [];
+    const g = new ArchetypeGraph(10, (a) => created.push(a));
+    const empty = g.getArchetypeById(0);
+    if (empty === undefined) throw new Error('空アーキタイプがありません');
+    const a = g.transition(empty, A, true);
+    const ab = g.transition(a, B, true);
+    expect(ab.hasComponent(A.id) && ab.hasComponent(B.id)).toBe(true);
+    expect(g.transition(empty, A, true)).toBe(a);
+    expect(g.transition(ab, B, false)).toBe(a);
+    expect(created.map((x) => x.id)).toEqual([0, 1, 2]);
+  });
 
-    const emptyArch = graph.getArchetypeById(0);
-    if (!emptyArch) throw new Error('emptyArch not found');
-
-    // Add CompA
-    const archA = graph.transition(emptyArch, CompA, true, allComponents);
-    expect(archA.hasComponent(CompA.id)).toBe(true);
-
-    // Cache hit on Add CompA
-    const archACached = graph.transition(emptyArch, CompA, true, allComponents);
-    expect(archACached.id).toBe(archA.id);
-
-    // Add CompB to archA
-    const archAB = graph.transition(archA, CompB, true, allComponents);
-    expect(archAB.hasComponent(CompA.id)).toBe(true);
-    expect(archAB.hasComponent(CompB.id)).toBe(true);
-
-    // Remove CompA from archAB
-    const archB = graph.transition(archAB, CompA, false, allComponents);
-    expect(archB.hasComponent(CompA.id)).toBe(false);
-    expect(archB.hasComponent(CompB.id)).toBe(true);
-
-    // Get non-existent archetype
-    expect(graph.getArchetypeById(9999)).toBeUndefined();
+  it('境界値: 既に持つコンポーネントの追加・持たないコンポーネントの削除は同じアーキタイプを返す', () => {
+    const g = new ArchetypeGraph(10);
+    const a = g.getOrCreateArchetype([A]);
+    expect(g.transition(a, A, true)).toBe(a);
+    expect(g.transition(a, B, false)).toBe(a);
   });
 });

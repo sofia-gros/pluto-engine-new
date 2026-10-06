@@ -1,9 +1,9 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createBackingBuffer,
-  growBackingBuffer,
   isSharedMemoryEnabled,
 } from '../../../../src/core/memory/buffer-factory';
+import { PlutoError } from '../../../../src/core/debug/pluto-error';
 
 describe('buffer-factory', () => {
   afterEach(() => {
@@ -11,19 +11,19 @@ describe('buffer-factory', () => {
   });
 
   describe('isSharedMemoryEnabled', () => {
-    it('returns true when __PARALLEL__ is true and crossOriginIsolated is true', () => {
+    it('__PARALLEL__ かつ crossOriginIsolated のときだけ true', () => {
       vi.stubGlobal('__PARALLEL__', true);
       vi.stubGlobal('crossOriginIsolated', true);
       expect(isSharedMemoryEnabled()).toBe(true);
     });
 
-    it('returns false when __PARALLEL__ is false', () => {
+    it('__PARALLEL__ が false なら false', () => {
       vi.stubGlobal('__PARALLEL__', false);
       vi.stubGlobal('crossOriginIsolated', true);
       expect(isSharedMemoryEnabled()).toBe(false);
     });
 
-    it('returns false when crossOriginIsolated is false or undefined', () => {
+    it('crossOriginIsolated が false / undefined なら false', () => {
       vi.stubGlobal('__PARALLEL__', true);
       vi.stubGlobal('crossOriginIsolated', false);
       expect(isSharedMemoryEnabled()).toBe(false);
@@ -33,93 +33,29 @@ describe('buffer-factory', () => {
   });
 
   describe('createBackingBuffer', () => {
-    it('creates ArrayBuffer when shared memory is disabled', () => {
+    it('共有メモリが無効なら伸長しない ArrayBuffer を作る', () => {
       vi.stubGlobal('__PARALLEL__', false);
-      vi.stubGlobal('__DEBUG__', false);
-      const buffer = createBackingBuffer(16, 32);
+      const buffer = createBackingBuffer(16);
       expect(buffer).toBeInstanceOf(ArrayBuffer);
       expect(buffer.byteLength).toBe(16);
+      expect(buffer instanceof ArrayBuffer && buffer.resizable).toBe(false);
     });
 
-    it('creates SharedArrayBuffer when shared memory is enabled', () => {
+    it('共有メモリが有効なら伸長しない SharedArrayBuffer を作る', () => {
       vi.stubGlobal('__PARALLEL__', true);
       vi.stubGlobal('crossOriginIsolated', true);
-      vi.stubGlobal('__DEBUG__', false);
-      const buffer = createBackingBuffer(16, 32);
+      const buffer = createBackingBuffer(16);
       expect(buffer).toBeInstanceOf(SharedArrayBuffer);
-      expect(buffer.byteLength).toBe(16);
+      expect(buffer instanceof SharedArrayBuffer && buffer.growable).toBe(false);
     });
 
-    it('throws if initialBytes is not a multiple of 8', () => {
-      vi.stubGlobal('__PARALLEL__', false);
-      vi.stubGlobal('__DEBUG__', true);
-      expect(() => {
-        createBackingBuffer(4, 32);
-      }).toThrow();
+    it('境界値: 0 バイトは作れる', () => {
+      expect(createBackingBuffer(0).byteLength).toBe(0);
     });
 
-    it('throws if maxBytes is not a multiple of 8', () => {
-      vi.stubGlobal('__PARALLEL__', false);
-      vi.stubGlobal('__DEBUG__', true);
-      expect(() => {
-        createBackingBuffer(16, 31);
-      }).toThrow();
-    });
-
-    it('throws if initialBytes > maxBytes', () => {
-      vi.stubGlobal('__PARALLEL__', false);
-      vi.stubGlobal('__DEBUG__', true);
-      expect(() => {
-        createBackingBuffer(32, 16);
-      }).toThrow();
-    });
-  });
-
-  describe('growBackingBuffer', () => {
-    it('grows ArrayBuffer', () => {
-      vi.stubGlobal('__PARALLEL__', false);
-      vi.stubGlobal('__DEBUG__', false);
-      const buffer = createBackingBuffer(16, 32) as ArrayBuffer;
-      growBackingBuffer(buffer, 24);
-      expect(buffer.byteLength).toBe(24);
-    });
-
-    it('grows SharedArrayBuffer', () => {
-      vi.stubGlobal('__PARALLEL__', true);
-      vi.stubGlobal('crossOriginIsolated', true);
-      vi.stubGlobal('__DEBUG__', false);
-      const buffer = createBackingBuffer(16, 32) as SharedArrayBuffer;
-      growBackingBuffer(buffer, 24);
-      expect(buffer.byteLength).toBe(24);
-    });
-
-    it('throws if newBytes is not a multiple of 8', () => {
-      vi.stubGlobal('__PARALLEL__', false);
-      vi.stubGlobal('__DEBUG__', true);
-      const buffer = createBackingBuffer(16, 32);
-      expect(() => {
-        growBackingBuffer(buffer, 20);
-      }).toThrow();
-    });
-
-    it('throws if newBytes is not greater than current byteLength', () => {
-      vi.stubGlobal('__PARALLEL__', false);
-      vi.stubGlobal('__DEBUG__', true);
-      const buffer = createBackingBuffer(16, 32);
-      expect(() => {
-        growBackingBuffer(buffer, 16);
-      }).toThrow();
-      expect(() => {
-        growBackingBuffer(buffer, 8);
-      }).toThrow();
-    });
-
-    it('throws if buffer does not support grow or resize', () => {
-      vi.stubGlobal('__DEBUG__', true);
-      const fakeBuffer = new ArrayBuffer(16); // non-resizable
-      expect(() => {
-        growBackingBuffer(fakeBuffer, 24);
-      }).toThrow();
+    it('8 の倍数でない・負のバイト数は assert で失敗する', () => {
+      expect(() => createBackingBuffer(4)).toThrow(PlutoError);
+      expect(() => createBackingBuffer(-8)).toThrow(PlutoError);
     });
   });
 });

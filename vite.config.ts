@@ -3,10 +3,18 @@ import { readFileSync } from 'node:fs';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
 
-export default defineConfig(({ mode }) => {
-  // mode can be: 'parallel', 'embed', 'parallel-debug', 'embed-debug'
-  const isParallel = mode.startsWith('parallel');
-  const isDebug = mode.endsWith('-debug');
+/** COOP/COEP (SharedArrayBuffer を使うために crossOriginIsolated にする)。 */
+const ISOLATION_HEADERS = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+};
+
+export default defineConfig(({ mode, command }) => {
+  // build の mode: 'parallel' | 'embed' | 'parallel-debug' | 'embed-debug'。
+  // dev server (serve) は mode によらず parallel + debug (docs/05-jobs-and-builds.md §4)
+  const isServe = command === 'serve';
+  const isParallel = isServe || mode.startsWith('parallel');
+  const isDebug = isServe || mode.endsWith('-debug');
   const outDir = isParallel ? 'dist/parallel' : 'dist/embed';
   const outExt = isDebug ? '.debug.js' : '.js';
 
@@ -34,10 +42,10 @@ export default defineConfig(({ mode }) => {
       format: 'es',
     },
     server: {
-      headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-      },
+      headers: ISOLATION_HEADERS,
+    },
+    preview: {
+      headers: ISOLATION_HEADERS,
     },
   };
 });

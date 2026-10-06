@@ -1,93 +1,71 @@
-import type { BenchScene } from '../bench-types';
-import type { Entity } from '../../src/core/ecs/entity';
-import { World } from '../../src/core/ecs/world';
-import { logger } from '../../src/core/debug/logger';
-import { defineComponent } from '../../src/core/ecs/component';
-import { ScalarType } from '../../src/core/memory/scalar-type';
+/**
+ * @file ECS ベンチ (docs/04-memory-and-ecs.md §10)。
+ * 単発処理 (spawn・set・get) は metrics に、移動カーネル 1 回の時間は毎フレーム sample に記録する。
+ */
+import type { BenchContext, BenchScene } from '../bench-types';
+import { Phase, World, defineComponent } from '../../src/core/ecs';
+import type { Entity } from '../../src/core/ecs';
+import { ScalarType } from '../../src/core/memory';
+import { defineKernel } from '../../src/jobs';
+import { SerialScheduler } from '../../src/jobs/serial-scheduler';
 
-declare global {
-  interface Window {
-    world: World;
+const Position = defineComponent('BenchPosition', { x: ScalarType.F32, y: ScalarType.F32 });
+const Velocity = defineComponent('BenchVelocity', { dx: ScalarType.F32, dy: ScalarType.F32 });
+
+/** 移動カーネル (x += dx * dt)。 */
+const MoveKernel = defineKernel('BenchMove', (view, params) => {
+  const x = view.column(Position.x);
+  const y = view.column(Position.y);
+  const dx = view.column(Velocity.dx);
+  const dy = view.column(Velocity.dy);
+  const dt = params[0];
+  const end = view.end;
+  for (let i = view.start; i < end; i++) {
+    x[i] += dx[i] * dt;
+    y[i] += dy[i] * dt;
   }
-}
-
-const Transform = defineComponent('Transform', {
-  x: ScalarType.F32,
-  y: ScalarType.F32,
+  view.markDirty(Position.x);
+  view.markDirty(Position.y);
 });
 
-const Velocity = defineComponent('Velocity', {
-  dx: ScalarType.F32,
-  dy: ScalarType.F32,
-});
+let world: World | null = null;
+let benchCtx: BenchContext | null = null;
 
+/** ECS ベンチ (既定 100 万エンティティ)。 */
 export const scene: BenchScene = {
   name: 'ecs-move',
-  setup(_game: unknown, count: number): void {
-    if (count === 0) count = 1_000_000;
-
-    window.world = new World();
-    const world = window.world;
-
-    // 1. spawn benchmark
-    const t0 = performance.now();
-    for (let i = 0; i < count; i++) {
-      world.spawn(Transform, Velocity);
-    }
-    const t1 = performance.now();
-    const spawnMs = t1 - t0;
-    logger.info(`Spawn ${String(count)} entities: ${spawnMs.toFixed(2)} ms`);
-
-    // 2. get/set benchmark
-    const q = world.query({ all: [Transform, Velocity] });
-    const entities: number[] = [];
-    q.forEachChunk((view) => {
-      for (let i = view.start; i < view.end; i++) {
-        entities.push(view.entity(i));
-      }
-    });
-
-    const t2 = performance.now();
-    for (let i = 0; i < count; i++) {
-      const e = entities[i] as unknown as Entity;
-      world.set(e, Velocity.dx, 1.5);
-      world.set(e, Velocity.dy, 2.0);
-    }
-    const t3 = performance.now();
-    const setMs = t3 - t2;
-    logger.info(`Set ${String(count)} * 2 fields: ${setMs.toFixed(2)} ms`);
-
-    const t4 = performance.now();
+  defaultCount: 1_000_000,
+  setup(ctx: BenchContext, count: number): void {
+    benchCtx = ctx;
+    const w = new World({ maxEntities: Math.max(count, 1) });
+    world = w;
+    // 1. 即時 API で count 体 spawn (同一アーキタイプ)
+    const entities: Entity[] = new Array<Entity>(count);
+    const t0 = ctx.now();
+    for (let i = 0; i < count; i++) entities[i] = w.spawn(Position, Velocity);
+    ctx.metrics['spawnMs'] = ctx.now() - t0;
+    // 2. world.set を count 回
+    const t1 = ctx.now();
+    for (let i = 0; i < count; i++) w.set(entities[i], Velocity.dx, 1.5);
+    ctx.metrics['setMs'] = ctx.now() - t1;
+    // 3. world.get を count 回
+    const t2 = ctx.now();
     let sum = 0;
-    for (let i = 0; i < count; i++) {
-      const e = entities[i] as unknown as Entity;
-      sum += world.get(e, Velocity.dx);
-      sum += world.get(e, Velocity.dy);
-    }
-    const t5 = performance.now();
-    const getMs = t5 - t4;
-    logger.info(`Get ${String(count)} * 2 fields: ${getMs.toFixed(2)} ms (sum=${String(sum)})`);
+    for (let i = 0; i < count; i++) sum += w.get(entities[i], Velocity.dx);
+    ctx.metrics['getMs'] = ctx.now() - t2;
+    ctx.metrics['checksum'] = sum; // 計算が最適化で消されないように結果を残す (時間ではないので比較対象外)
+    w.setExecutor(new SerialScheduler());
+    w.addSystem({
+      name: 'move',
+      phase: Phase.Update,
+      query: { all: [Position, Velocity] },
+      kernel: MoveKernel,
+    });
   },
   step(): void {
-    const world = window.world;
-    const q = world.query({ all: [Transform, Velocity] });
-
-    q.forEachChunk((view) => {
-      const tx = view.column(Transform.x);
-      const ty = view.column(Transform.y);
-      const vx = view.column(Velocity.dx);
-      const vy = view.column(Velocity.dy);
-
-      const start = view.start;
-      const end = view.end;
-
-      for (let i = start; i < end; i++) {
-        tx[i] += vx[i];
-        ty[i] += vy[i];
-      }
-
-      view.markDirty(Transform.x);
-      view.markDirty(Transform.y);
-    });
+    if (world === null || benchCtx === null) return;
+    const t = benchCtx.now();
+    world.runPhase(Phase.Update, 1 / 144);
+    benchCtx.sample('moveKernel', benchCtx.now() - t);
   },
 };

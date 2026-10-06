@@ -1,50 +1,49 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { defineKernel, KernelBufferSlot } from '../../../src/jobs/kernel';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { KernelBufferSlot, MAX_KERNEL_PARAMS, defineKernel } from '../../../src/jobs/kernel';
 import {
-  getKernelById,
   clearKernelRegistryForTesting,
-  getAllKernels,
+  fnv1a32,
+  getKernelById,
 } from '../../../src/jobs/kernel-registry';
-import type { KernelFn, KernelId } from '../../../src/jobs/kernel';
+import { ErrorCode } from '../../../src/core/debug/pluto-error';
 
-describe('Kernel and KernelRegistry', () => {
+describe('kernel', () => {
   beforeEach(() => {
     clearKernelRegistryForTesting();
   });
 
-  it('defines and registers a kernel', () => {
-    const fn: KernelFn = () => {
-      // noop
-    };
-    const def = defineKernel('TestKernel', fn);
-
-    expect(def.name).toBe('TestKernel');
+  it('defineKernel は名前の FNV-1a ハッシュを ID にして登録する', () => {
+    const fn = (): void => undefined;
+    const def = defineKernel('Move', fn);
+    expect(def.id).toBe(fnv1a32('Move'));
     expect(def.fn).toBe(fn);
-    expect(def.id).toBe(0);
-
-    const kernels = getAllKernels();
-    expect(kernels).toHaveLength(1);
-    expect(kernels[0]).toBe(def);
+    expect(getKernelById(def.id)).toBe(def);
   });
 
-  it('retrieves a kernel by ID', () => {
-    const fn: KernelFn = () => {
-      // noop
-    };
-    const def = defineKernel('MyKernel', fn);
-
-    const retrieved = getKernelById(def.id);
-    expect(retrieved).toBe(def);
+  it('ID は登録順に依存しない (メインと Worker で一致する)', () => {
+    const a1 = defineKernel('A', () => undefined).id;
+    const b1 = defineKernel('B', () => undefined).id;
+    clearKernelRegistryForTesting();
+    const b2 = defineKernel('B', () => undefined).id;
+    const a2 = defineKernel('A', () => undefined).id;
+    expect([a2, b2]).toEqual([a1, b1]);
   });
 
-  it('throws when retrieving an unregistered ID', () => {
-    expect(() => {
-      getKernelById(999 as KernelId);
-    }).toThrow('KernelRegistry: 未登録のカーネルIDです');
+  it('同じ名前の再定義は PlutoError(InvalidArgument)', () => {
+    defineKernel('Dup', () => undefined);
+    expect(() => defineKernel('Dup', () => undefined)).toThrow(
+      expect.objectContaining({ code: ErrorCode.InvalidArgument }),
+    );
   });
 
-  it('exports fixed buffer slots', () => {
-    expect(KernelBufferSlot.SpriteStagingU32).toBe(0);
-    expect(KernelBufferSlot.CullOutput).toBe(1);
+  it('MAX_KERNEL_PARAMS は 64、KernelBufferSlot は 05 §2 の値', () => {
+    expect(MAX_KERNEL_PARAMS).toBe(64);
+    expect(KernelBufferSlot).toEqual({
+      SpriteStagingU32: 0,
+      SpriteStagingF32: 0,
+      SpriteDirtyBits: 0,
+      CullOutput: 1,
+      CullCounters: 1,
+    });
   });
 });

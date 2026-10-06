@@ -7,7 +7,9 @@
  * 固定長ビットセット。
  */
 export class Bitset {
+  /** ビットを格納する語の配列 (1 語 = 32 ビット)。 */
   public readonly data: Uint32Array;
+  /** ビット数。 */
   public readonly capacity: number;
 
   /**

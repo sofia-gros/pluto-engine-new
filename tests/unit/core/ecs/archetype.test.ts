@@ -1,88 +1,123 @@
 import { describe, expect, it } from 'vitest';
 import { Archetype } from '../../../../src/core/ecs/archetype';
 import { defineComponent } from '../../../../src/core/ecs/component';
+import { INITIAL_ARCHETYPE_ROWS } from '../../../../src/core/ecs/column';
+import { NULL_ENTITY, makeEntity } from '../../../../src/core/ecs/entity';
 import { ScalarType } from '../../../../src/core/memory/scalar-type';
-import type { Entity } from '../../../../src/core/ecs/entity';
-import { NULL_ENTITY } from '../../../../src/core/ecs/entity';
+import { PlutoError } from '../../../../src/core/debug/pluto-error';
 
-const Transform = defineComponent('Transform', {
-  x: ScalarType.F32,
-  y: ScalarType.F32,
-});
-const Velocity = defineComponent('Velocity', {
-  dx: ScalarType.F32,
-  dy: ScalarType.F32,
-});
+const Pos = defineComponent('Pos', { x: ScalarType.F32, y: ScalarType.F32 });
+const Hp = defineComponent('Hp', { hp: ScalarType.I32 });
+const Other = defineComponent('Other', { o: ScalarType.U8 });
+
+/**
+ * 追加した行の dirty 範囲を集める。
+ * @param a アーキタイプ
+ * @param fieldId フィールド ID
+ * @returns [start, end] の配列
+ */
+function dirty(a: Archetype, fieldId: number): number[][] {
+  const out: number[][] = [];
+  a.changeTracker.forEachDirtyRange(fieldId, a.count, (s, e) => out.push([s, e]));
+  return out;
+}
 
 describe('Archetype', () => {
-  it('initializes correctly', () => {
-    const arch = new Archetype(0, [Transform], 10000);
-    expect(arch.id).toBe(0);
-    expect(arch.hasComponent(Transform.id)).toBe(true);
-    expect(arch.hasComponent(Velocity.id)).toBe(false);
-
-    const xCol = arch.getColumn(Transform.x);
-    expect(xCol).toBeInstanceOf(Float32Array);
+  it('pushRow はゼロ初期化した行を追加し、全フィールドの新しい行を dirty にする', () => {
+    const a = new Archetype(1, [Pos, Hp], 100);
+    const row = a.pushRow(makeEntity(3, 0));
+    expect(row).toBe(0);
+    expect(a.count).toBe(1);
+    expect(a.entities[0]).toBe(makeEntity(3, 0));
+    expect(a.getColumn(Pos.x)[0]).toBe(0);
+    expect(dirty(a, Pos.x.fieldId)).toEqual([[0, 1]]);
+    expect(dirty(a, Hp.hp.fieldId)).toEqual([[0, 1]]);
   });
 
-  it('pushes rows and handles swapRemove', () => {
-    const arch = new Archetype(0, [Transform], 10000);
-    const e1 = 100 as Entity;
-    const e2 = 200 as Entity;
-    const e3 = 300 as Entity;
-
-    const row0 = arch.pushRow(e1);
-    const row1 = arch.pushRow(e2);
-    const row2 = arch.pushRow(e3);
-
-    expect(row0).toBe(0);
-    expect(row1).toBe(1);
-    expect(row2).toBe(2);
-    expect(arch.count).toBe(3);
-
-    const xCol = arch.getColumn(Transform.x);
-    xCol[row0] = 10;
-    xCol[row1] = 20;
-    xCol[row2] = 30;
-
-    // e1 (row0) を削除する。末尾の e3 (row2) が row0 に移動してくるはず
-    const moved = arch.swapRemove(row0);
-    expect(moved).toBe(e3);
-    expect(arch.count).toBe(2);
-    expect(arch.entities[0]).toBe(e3); // e3 が row0 に来た
-    expect(xCol[0]).toBe(30); // e3 のデータも row0 に来た
-
-    // 末尾 (row1) を削除する場合、移動はない
-    const moved2 = arch.swapRemove(1);
-    expect(moved2).toBe(NULL_ENTITY);
-    expect(arch.count).toBe(1);
-    expect(arch.entities[0]).toBe(e3);
-  });
-
-  it('grows entities buffer when capacity exceeded', () => {
-    // INITIAL_ARCHETYPE_ROWS は 1024
-    const arch = new Archetype(0, [Transform], 1500);
-    for (let i = 0; i < 1500; i++) {
-      arch.pushRow(i as Entity);
+  it('swapRemove は最終行を穴に移し、移動したエンティティを返す。末尾なら NULL_ENTITY', () => {
+    const a = new Archetype(1, [Hp], 10);
+    for (let i = 0; i < 3; i++) {
+      const r = a.pushRow(makeEntity(i, 0));
+      a.getColumn(Hp.hp)[r] = i * 10;
     }
-    expect(arch.count).toBe(1500);
-    expect(arch.entities.length).toBe(1500); // maxRows でキャップされる
+    expect(a.swapRemove(0)).toBe(makeEntity(2, 0));
+    expect(a.getColumn(Hp.hp)[0]).toBe(20);
+    expect(a.count).toBe(2);
+    expect(a.swapRemove(1)).toBe(NULL_ENTITY);
+    expect(a.count).toBe(1);
   });
 
-  it('copies row to another archetype', () => {
-    const src = new Archetype(0, [Transform, Velocity], 10000);
-    const dst = new Archetype(1, [Transform], 10000);
+  it('copyRowTo は共通フィールドだけをコピーする', () => {
+    const src = new Archetype(1, [Pos, Hp], 10);
+    const dst = new Archetype(2, [Pos, Other], 10);
+    const r = src.pushRow(makeEntity(0, 0));
+    src.getColumn(Pos.x)[r] = 7;
+    src.getColumn(Hp.hp)[r] = 9;
+    const d = dst.pushRow(makeEntity(0, 0));
+    src.copyRowTo(r, dst, d);
+    expect(dst.getColumn(Pos.x)[d]).toBe(7);
+    expect(dst.getColumn(Other.o)[d]).toBe(0);
+  });
 
-    const srcRow = src.pushRow(100 as Entity);
-    const dstRow = dst.pushRow(100 as Entity);
+  it('INITIAL_ARCHETYPE_ROWS を超えて伸長してもデータが保たれ、bufferVersion が進んで通知が呼ばれる', () => {
+    const grown: number[] = [];
+    const a = new Archetype(1, [Hp], 10_000, undefined, (arch) => grown.push(arch.bufferVersion));
+    const oldEntities = a.entities;
+    for (let i = 0; i < INITIAL_ARCHETYPE_ROWS + 10; i++) {
+      const r = a.pushRow(makeEntity(i, 0));
+      a.getColumn(Hp.hp)[r] = i;
+    }
+    expect(a.bufferVersion).toBe(1);
+    expect(grown).toEqual([1]);
+    expect(a.entities).not.toBe(oldEntities);
+    expect(a.getColumn(Hp.hp)[5]).toBe(5);
+    expect(a.getColumn(Hp.hp)[INITIAL_ARCHETYPE_ROWS + 5]).toBe(INITIAL_ARCHETYPE_ROWS + 5);
+    expect(a.entities[INITIAL_ARCHETYPE_ROWS + 5]).toBe(makeEntity(INITIAL_ARCHETYPE_ROWS + 5, 0));
+  });
 
-    src.getColumn(Transform.x)[srcRow] = 42;
-    src.getColumn(Transform.y)[srcRow] = 99;
-    src.getColumn(Velocity.dx)[srcRow] = 5; // dst には存在しない
+  it('ミラーは rebindShared でメインの伸長後のバッファに追従する (同じオブジェクトのまま)', () => {
+    const a = new Archetype(5, [Hp], 10_000);
+    a.pushRow(makeEntity(0, 0));
+    const mirror = Archetype.fromShared(a.toShared());
+    for (let i = 1; i < INITIAL_ARCHETYPE_ROWS + 1; i++) a.pushRow(makeEntity(i, 0));
+    a.getColumn(Hp.hp)[INITIAL_ARCHETYPE_ROWS] = 77;
+    mirror.rebindShared(a.toShared());
+    expect(mirror.getColumn(Hp.hp)[INITIAL_ARCHETYPE_ROWS]).toBe(77);
+    expect(mirror.entities[INITIAL_ARCHETYPE_ROWS]).toBe(makeEntity(INITIAL_ARCHETYPE_ROWS, 0));
+    expect(() => {
+      a.rebindShared(a.toShared());
+    }).toThrow(PlutoError);
+  });
 
-    src.copyRowTo(srcRow, dst, dstRow);
+  it('hasComponent はマスクで判定する', () => {
+    const a = new Archetype(1, [Pos], 10);
+    expect(a.hasComponent(Pos.id)).toBe(true);
+    expect(a.hasComponent(Hp.id)).toBe(false);
+  });
 
-    expect(dst.getColumn(Transform.x)[dstRow]).toBe(42);
-    expect(dst.getColumn(Transform.y)[dstRow]).toBe(99);
+  it('最大行数を超える pushRow・範囲外の swapRemove・無いフィールドは assert で失敗する', () => {
+    const a = new Archetype(1, [Pos], 1);
+    a.pushRow(makeEntity(0, 0));
+    expect(() => a.pushRow(makeEntity(1, 0))).toThrow(PlutoError);
+    expect(() => a.swapRemove(5)).toThrow(PlutoError);
+    expect(() => a.getColumn(Hp.hp)).toThrow(PlutoError);
+    expect(a.getColumnByFieldId(Hp.hp.fieldId)).toBeUndefined();
+  });
+
+  it('fromShared で作ったミラーは同じバッファを共有し、構造変更は禁止', () => {
+    const a = new Archetype(5, [Pos, Hp], 5000);
+    for (let i = 0; i < 2000; i++) a.pushRow(makeEntity(i, 0));
+    const mirror = Archetype.fromShared(a.toShared());
+    expect(mirror.id).toBe(5);
+    expect(mirror.isMirror).toBe(true);
+    expect(mirror.hasComponent(Hp.id)).toBe(true);
+    a.getColumn(Hp.hp)[1999] = 42;
+    expect(mirror.getColumn(Hp.hp)[1999]).toBe(42);
+    expect(mirror.entities[1999]).toBe(makeEntity(1999, 0));
+    mirror.count = a.count;
+    mirror.changeTracker.markRange(Hp.hp.fieldId, 0, 1);
+    expect(dirty(a, Hp.hp.fieldId)[0]).toEqual([0, 2000]);
+    expect(() => mirror.pushRow(makeEntity(0, 0))).toThrow(PlutoError);
+    expect(() => mirror.swapRemove(0)).toThrow(PlutoError);
   });
 });

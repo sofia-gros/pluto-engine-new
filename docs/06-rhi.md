@@ -20,8 +20,8 @@ export async function createDevice(opts: CreateDeviceOptions): Promise<RhiDevice
 
 `auto` の手順:
 
-1. `navigator.gpu` が存在 → `requestAdapter({ powerPreference })` → 成功なら `requestDevice({ requiredFeatures: 利用可能なら ['timestamp-query', 'indirect-first-instance'], requiredLimits: { maxStorageBufferBindingSize: adapter.limits の最大, maxBufferSize: 同 } })`
-2. 1 が失敗 (例外・null) → `canvas.getContext('webgl2', { antialias, alpha: false, depth: true, stencil: false, powerPreference, preserveDrawingBuffer: false })` → 必須拡張 `EXT_color_buffer_float` を確認
+1. `navigator.gpu` が存在 → `requestAdapter({ powerPreference })` → 成功なら `requestDevice({ requiredFeatures: 利用可能なら ['timestamp-query', 'indirect-first-instance', 'texture-compression-bc', 'texture-compression-etc2', 'texture-compression-astc'], requiredLimits: { maxStorageBufferBindingSize: adapter.limits の最大, maxBufferSize: 同 } })`
+2. 1 が失敗 (例外・null) → `canvas.getContext('webgl2', { antialias, alpha: false, depth: true, stencil: false, powerPreference, preserveDrawingBuffer: false })` → 必須拡張 `EXT_color_buffer_float` を確認。任意拡張 `EXT_float_blend`, `EXT_texture_compression_bptc` (BC7), `WEBGL_compressed_texture_etc` (ETC2), `WEBGL_compressed_texture_astc` (ASTC) を有効化を試みる
 3. 両方失敗 → `PlutoError(GpuUnavailable, ...)`
 
 失敗理由は `logger.info` で必ず記録する。
@@ -41,6 +41,9 @@ export interface RhiCapabilities {
   readonly maxTextureArrayLayers: number;
   readonly maxStorageBufferBytes: number; // WebGL2: データテクスチャの上限から算出
   readonly maxComputeWorkgroupSize: number; // WebGL2: 0
+  readonly textureCompressionBC7: boolean; // WebGPU: 'texture-compression-bc' / WebGL2: EXT_texture_compression_bptc
+  readonly textureCompressionETC2: boolean; // WebGPU: 'texture-compression-etc2' / WebGL2: WEBGL_compressed_texture_etc
+  readonly textureCompressionASTC: boolean; // WebGPU: 'texture-compression-astc' / WebGL2: WEBGL_compressed_texture_astc (4x4 LDR)
 }
 ```
 
@@ -137,6 +140,9 @@ export const TextureFormat = {
   RGBA32Uint: 7,
   Depth24Plus: 8,
   Depth32Float: 9,
+  BC7RGBAUnorm: 10, // caps.textureCompressionBC7 が true のときのみ
+  ETC2RGBA8Unorm: 11, // caps.textureCompressionETC2 が true のときのみ
+  ASTC4x4Unorm: 12, // caps.textureCompressionASTC が true のときのみ
 } as const;
 export const TextureDimension = { D2: 0, D2Array: 1 } as const;
 export const BlendMode = {
@@ -169,6 +175,8 @@ export const BindingType = {
   StorageTexture: 5,
 } as const;
 ```
+
+- 圧縮フォーマット (10〜12) は **サンプル専用** (レンダーターゲット・ストレージ不可)。`writeTexture` には 4×4 ブロック単位のバイト列を渡し、幅・高さ・オフセットは 4 の倍数でなければならない (違反は `PlutoError(InvalidArgument)`)。非対応デバイスで生成すると `PlutoError(UnsupportedFeature)`。
 
 ## 6. シェーダソース (`src/rhi/shader-source.ts`)
 

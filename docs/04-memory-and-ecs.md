@@ -13,20 +13,18 @@
 export type BackingBuffer = ArrayBuffer | SharedArrayBuffer;
 
 /**
- * 伸長可能なバッキングバッファを作る。
- * @param initialBytes 初期バイト長 (8 の倍数)
- * @param maxBytes 最大バイト長 (8 の倍数, initialBytes 以上)
+ * 固定長 (伸長しない) のバッキングバッファを作る。
+ * @param bytes バイト長 (8 の倍数)
  */
-export function createBackingBuffer(initialBytes: number, maxBytes: number): BackingBuffer;
-
-/** バッファを newBytes まで伸長する (縮小不可)。 */
-export function growBackingBuffer(buffer: BackingBuffer, newBytes: number): void;
+export function createBackingBuffer(bytes: number): BackingBuffer;
 ```
 
-- `__PARALLEL__ === true` かつ `globalThis.crossOriginIsolated === true` → `new SharedArrayBuffer(initialBytes, { maxByteLength: maxBytes })`
-- それ以外 → `new ArrayBuffer(initialBytes, { maxByteLength: maxBytes })`
-- 伸長は `buffer.grow()` / `buffer.resize()`。TypedArray は **長さ指定なし (length-tracking)** で作るため、伸長後も同じビューが使える。
+- `__PARALLEL__ === true` かつ `globalThis.crossOriginIsolated === true` → `new SharedArrayBuffer(bytes)`
+- それ以外 → `new ArrayBuffer(bytes)`
+- **伸長可能なバッファ (`maxByteLength` 付きの ArrayBuffer / SharedArrayBuffer) は使わない**。V8 では、その上の TypedArray の要素アクセスが大幅に遅いため (計測: 通常の 2.4ms に対し、resizable ArrayBuffer は約 3.5 倍、growable SAB は約 40 倍。固定長 SAB は 3.5ms。E-002, 2026-10-06)。
+- 容量が足りなくなったら、利用側 (Column / Archetype) が 2 倍の新しいバッファを作ってコピーし、ビューを作り直す (§4.1)。
 - 共有するかの判定は `isSharedMemoryEnabled(): boolean` として同ファイルに置き、他所で同じ判定を重複実装しない。
+- **共有の前提 (parallel)**: Worker に渡すすべての配列 (カラム・`Archetype.entities`・変更追跡ビット) は `createBackingBuffer` 由来でなければならない。バッファを作り直したら Worker に送り直す (§4.2、`docs/05-jobs-and-builds.md` §3.3)。
 
 ### 1.2 ScalarType (`src/core/memory/scalar-type.ts`)
 
@@ -55,8 +53,8 @@ export type Entity = number & { readonly __brand: 'Entity' };
 export const ENTITY_INDEX_BITS = 22;
 export const ENTITY_INDEX_MASK = 0x3fffff;
 export const ENTITY_GENERATION_MASK = 0x3ff;
-export const MAX_ENTITIES = 1 << 22;
-export const NULL_ENTITY: Entity; // 0xFFFFFFFF
+export const MAX_ENTITIES = (1 << 22) - 1; // 4,194,303。index 0x3FFFFF は NULL_ENTITY 用に予約
+export const NULL_ENTITY: Entity; // 0xFFFFFFFF (= makeEntity(0x3FFFFF, 1023)。この index は発行しない)
 export function makeEntity(index: number, generation: number): Entity; // 結果は >>> 0
 export function entityIndex(e: Entity): number;
 export function entityGeneration(e: Entity): number;
@@ -80,6 +78,12 @@ SoA、長さ `maxEntities`:
 ## 3. コンポーネント
 
 ### 3.1 定義 API (`src/core/ecs/component.ts`, `schema.ts`)
+
+- 型 `ComponentSchema`, `FieldToken<T>` は `schema.ts`、`defineComponent`, `ComponentDef<S>`, `AnyComponentDef`, `ComponentId`, `MAX_COMPONENTS` は `component.ts` に置く。
+- World などの API はコンポーネントを型引数を消した `AnyComponentDef` で受け取る (`ComponentDef<S>` はスキーマ付き。型引数なしの `ComponentDef` は TypeScript で全コンポーネントの共通型にできないため)。
+- フィールド名に `id`, `name`, `fields` は使えない (定義オブジェクトのプロパティと衝突するため `PlutoError(InvalidArgument)`)。
+- コンポーネント名は一意 (重複は `PlutoError(InvalidArgument)`)。名前は Worker との ID の整合に使う。
+- `getComponentLayout(): ComponentLayout` はコンポーネント表 (ID 順の `{ name, id, fields: { name, fieldId, type }[] }`) を返す。`applyComponentLayout(layout)` は Worker 専用で、同名のコンポーネントの ID とフィールド ID を表に合わせて書き換える (フィールドトークンは同じオブジェクトのまま書き換わるので、カーネルが持つトークンも正しい ID になる)。表に無いコンポーネントは変更しない。同名でフィールド構成が違えば `PlutoError(InvalidState)`。
 
 ```ts
 export const Transform = defineComponent('Transform', {
@@ -114,8 +118,8 @@ export const Transform = defineComponent('Transform', {
 
 ### 4.1 Column (`src/core/ecs/column.ts`)
 
-- 1 フィールド 1 カラム。`createBackingBuffer(initialRows * bytes, maxRows * bytes)` 上の length-tracking TypedArray。
-- 初期行数 `INITIAL_ARCHETYPE_ROWS = 1024`。容量不足時は **2 倍** に伸長 (`maxRows` を上限)。
+- 1 フィールド 1 カラム。`createBackingBuffer(rows * bytes)` 上の固定長 TypedArray。
+- 初期行数 `INITIAL_ARCHETYPE_ROWS = 1024`。容量不足時は **2 倍** (`maxRows` を上限) の新しいバッファを作ってコピーし、`buffer` と `data` を差し替える。**伸長前に取得したビューは古くなる** ので、カラムは使うたびに `archetype.getColumn()` / `view.column()` で取り直す (チャンク処理の間は伸長が起きないので、その間は保持してよい)。
 - `maxRows` は `WorldConfig.maxRowsPerArchetype` (デフォルト `= maxEntities`)。
 
 ### 4.2 Archetype (`src/core/ecs/archetype.ts`)
@@ -124,7 +128,8 @@ export const Transform = defineComponent('Transform', {
 export class Archetype {
   public readonly id: number; // 0 〜 65534
   public readonly mask: Bitset; // 所有コンポーネント (256bit)
-  public readonly entities: Uint32Array; // 行 → Entity (length-tracking)
+  public entities: Uint32Array; // 行 → Entity (伸長時に差し替わる)
+  public readonly bufferVersion: number; // カラムまたは entities のバッファを作り直すたびに +1
   public count: number; // 使用行数
   public getColumn<T extends ScalarType>(field: FieldToken<T>): TypedArrayOf<T>;
   public hasComponent(componentId: number): boolean;
@@ -135,12 +140,19 @@ export class Archetype {
 ```
 
 - 行は常に密 (0 〜 count-1)。削除は swap-remove。**行の順序は保証しない**。
+- `entities` も `createBackingBuffer` 上の `Uint32Array` (カラムと同じ伸長規則)。
+- バッファを作り直したら `bufferVersion` を +1 し、コンストラクタで受け取った通知関数 (`ArchetypeGraph` 経由で World へ) を呼ぶ。World はこれで `structureVersion` を進め、jobs が Worker に新しいバッファを送り直す。
+- Worker のミラーは `rebindShared(desc)` で同じオブジェクトのままバッファだけ差し替える (クエリが持つ参照を保つため)。
+- `pushRow` で追加した行は全フィールドの値を 0 にし、**dirty にする** (spawn 直後のエンティティをスプライトパック等が拾えるように)。
+- Worker 用の読み取りミラーは `Archetype.fromShared(desc: SharedArchetypeDesc): Archetype` で作る (同じクラスなので `ChunkView` がそのまま使える。構造変更メソッドは `assert` で禁止)。`SharedArchetypeDesc` = `{ id, maxRows, componentIds, fields: { fieldId, type, buffer }[], entitiesBuffer, dirtyBuffers }`。ミラーは desc だけから作り、コンポーネントのレジストリに依存しない。
+- `count` は Worker から直接読めないため、`jobs` の共有カウント表 (`docs/05-jobs-and-builds.md` §3.2) を経由する。
 - アーキタイプ ID 0 は「コンポーネントなし」の空アーキタイプとして予約。
 
 ### 4.3 ArchetypeGraph (`src/core/ecs/archetype-graph.ts`)
 
 - `(archetypeId, componentId, add|remove) → archetypeId` を `Map<number, number>` (キー = `archetypeId * 512 + componentId * 2 + (add ? 1 : 0)`) でキャッシュ。
 - マスク → アーキタイプの検索は `Map<string, Archetype>` (キーはマスクの 16 進文字列)。コールドパスなので文字列キー可。
+- ID → アーキタイプは **配列** (`archetypes[id]`) で O(1) に引く (`world.get/set` のホットな経路のため。Map の走査は禁止)。
 
 ---
 
@@ -159,7 +171,7 @@ export class ChunkView {
   public archetype: Archetype; // 再利用のため readonly にしない
   public start: number; // 開始行 (含む)
   public end: number; // 終了行 (含まない)
-  public chunkIndex: number;
+  public chunkIndex: number; // クエリ全体の通し番号 (getChunk に渡した globalChunkIndex)。Serial / Threaded で同じ値
   public column<T extends ScalarType>(field: FieldToken<T>): TypedArrayOf<T>;
   public entity(row: number): Entity;
   public markDirty(field: FieldToken): void; // 範囲 [start,end) の dirty を立てる
@@ -179,15 +191,17 @@ q.chunkCount(): number;
 q.getChunk(globalChunkIndex: number, out: ChunkView): void; // jobs が使う
 ```
 
-- クエリはキャッシュされ、新しいアーキタイプ生成時にマッチ判定して登録される。
-- 同じ条件の `world.query()` は同じインスタンスを返す。
+- クエリはキャッシュされ、**新しいアーキタイプの生成時に 1 回だけ** マッチ判定して登録される (同じアーキタイプを重複登録してはならない)。
+- 同じ条件の `world.query()` は同じインスタンスを返す。キャッシュキーは `all` / `none` のコンポーネント ID を **昇順に並べた** 正規形から作る (指定順序に依存しない)。
+- `getChunk` のグローバル番号は、登録順のアーキタイプごとのチャンクを連結した通し番号。
 
 ---
 
 ## 6. 変更追跡 (`src/core/ecs/change-tracking.ts`)
 
 - アーキタイプのフィールドごとに `Uint32Array` の dirty ビット (1bit = 64 行ブロック、`DIRTY_BLOCK_ROWS = 64`)。
-- `markRange(fieldId, startRow, endRow)` / `forEachDirtyRange(fieldId, cb(startRow, endRow))` / `clear(fieldId)`。
+- `markRange(fieldId, startRow, endRow)` / `forEachDirtyRange(fieldId, rowCount, cb(startRow, endRow))` (`rowCount` = 現在の行数。範囲は `rowCount` で切り詰める) / `clear(fieldId)`。
+- dirty ビット配列も `createBackingBuffer` 上に置く (Worker のカーネルが `markDirty` するため)。チャンク (16384 行) は 256 ブロック = u32 8 語に揃うので、異なるチャンクが同じ語を書くことはなく、カーネルからの書込に `Atomics` は不要。
 - 連続する dirty ブロックは 1 つの範囲に結合して返す (転送回数削減)。
 - `render/sprite-pack-system` が `Sprite`/`WorldTransform` の dirty 範囲だけをパックする。
 
@@ -201,7 +215,8 @@ q.getChunk(globalChunkIndex: number, out: ChunkView): void; // jobs が使う
 - `spawn` は index を即時予約して `Entity` を返す (ただし行はまだない。`isAlive` は false)。
 - 初期値の設定は `cmd.set(entity, field, value)` (数値 1 個ずつ積む)。
 - 適用は `World.flush()` (同期点、`Phase.PostUpdate` の最後に `Game` が呼ぶ)。
-- 容量は `WorldConfig.commandCapacity` (デフォルト 1,048,576)。超えたら `PlutoError(CapacityExceeded)`。
+- 容量は `WorldConfig.commandCapacity` (デフォルト 1,048,576)。単位は **コマンド領域の u32 語数** (spawn = 2 + コンポーネント数 語, set = 4 語 など)。超えたら `PlutoError(CapacityExceeded)`。容量チェックはエンティティ index を予約する **前** に行う (失敗時に index を消費しない)。
+- `spawn` の可変長引数による配列確保を避けるため、HOT 経路では `spawn1(c)` / `spawnN(components: readonly AnyComponentDef[])` を使う (`spawn(...components)` はコールドパス用に残す)。
 
 ### 7.2 直接操作
 
@@ -226,6 +241,33 @@ export const MovementSystem = defineSystem({
 
 - `kernel` を持つシステムは `Scheduler.runKernel()` でチャンク並列に実行される (`docs/05-jobs-and-builds.md`)。
 - ユーザー定義システムは `run` のみ (v1)。`kernel` は組込のみ (Worker に関数を送れないため)。
+- `Phase` の値は **数値** (`PreUpdate: 0` 〜 `PreRender: 4`, `docs/01-architecture.md` §4)。
+- `core/ecs` は `jobs` を import できないため、カーネル関連の型は `system.ts` に **構造的な最小インターフェース** として置く:
+
+```ts
+/** jobs の KernelDef が満たす最小形 (ecs は実行方法を知らない)。 */
+export interface KernelRef {
+  readonly id: number;
+  readonly name: string;
+}
+/** カーネルシステムの実行者。jobs の Scheduler がこれを満たす。 */
+export interface KernelExecutor {
+  syncWorld(world: World): void;
+  runKernel(kernel: KernelRef, query: Query, params: Float32Array): void;
+}
+export interface SystemDef {
+  readonly name: string;
+  readonly phase: Phase;
+  readonly query: QueryDesc;
+  readonly writes?: readonly AnyComponentDef[];
+  readonly kernel?: KernelRef; // kernel と run はどちらか一方 (両方/どちらもなしは PlutoError(InvalidArgument))
+  readonly run?: (world: World, dt: number) => void;
+  readonly params?: Float32Array; // kernel 用。長さ ≤ MAX_KERNEL_PARAMS (64)。params[0] は実行時に dt で上書き
+  readonly order?: number;
+}
+```
+
+- `jobs` の `Scheduler` は `KernelExecutor` を、`KernelDef` は `KernelRef` を構造的に満たす (型の import 方向は jobs → ecs のみ)。
 
 ---
 
@@ -235,15 +277,15 @@ export const MovementSystem = defineSystem({
 export interface WorldConfig {
   maxEntities?: number; // デフォルト 1_048_576 (上限 MAX_ENTITIES)
   maxRowsPerArchetype?: number; // デフォルト maxEntities
-  commandCapacity?: number; // デフォルト 1_048_576
+  commandCapacity?: number; // デフォルト 1_048_576 (u32 語数, §7.1)
 }
 export class World {
   public constructor(config?: WorldConfig);
-  public spawn(...components: ComponentDef[]): Entity;
+  public spawn(...components: AnyComponentDef[]): Entity;
   public despawn(e: Entity): void;
-  public addComponent(e: Entity, c: ComponentDef): void;
-  public removeComponent(e: Entity, c: ComponentDef): void;
-  public hasComponent(e: Entity, c: ComponentDef): boolean;
+  public addComponent(e: Entity, c: AnyComponentDef): void;
+  public removeComponent(e: Entity, c: AnyComponentDef): void;
+  public hasComponent(e: Entity, c: AnyComponentDef): boolean;
   public isAlive(e: Entity): boolean;
   public get<T extends ScalarType>(e: Entity, field: FieldToken<T>): number; // コールドパス用
   public set<T extends ScalarType>(e: Entity, field: FieldToken<T>, v: number): void; // コールドパス用 (dirty を立てる)
@@ -252,11 +294,19 @@ export class World {
   public addSystem(s: SystemDef): void;
   public runPhase(phase: Phase, dt: number): void;
   public flush(): void;
-  public readonly isIterating: boolean;
+  public readonly isIterating: boolean; // 外部から書換不可 (getter)
+  public setExecutor(executor: KernelExecutor): void; // kernel システムの実行前に必須
+  public readonly structureVersion: number; // アーキタイプ・クエリの新規作成やクエリへのアーキタイプ登録で +1
 }
 ```
 
+- `maxEntities` の既定は 1,048,576、上限は `MAX_ENTITIES` (4,194,303)。超えたら `PlutoError(InvalidArgument)`。
+- kernel システムの実行手順: `structureVersion` が前回の `syncWorld` 以降に変わっていれば `executor.syncWorld(this)` → `system.params[0] = dt` → `executor.runKernel(kernel, query, params)` → `writes` の各フィールドについて、カーネルが立てた dirty はそのまま残る。executor 未設定で kernel システムを実行したら `PlutoError(NotInitialized)`。
+- swap-remove 後のエンティティ表更新は `moved !== NULL_ENTITY` で判定する (0 は正規のエンティティ)。
+
 ## 10. 性能受け入れ基準
+
+計測は `bench/scenes/ecs-move.ts` が行い、単発処理 (spawn, get/set) は `BenchResult.metrics` (`docs/10-testing-strategy.md` §5) に ms で記録する。カーネル 1 回の時間は 600 回の p99 を `metrics.moveKernelP99Ms` に記録する。
 
 | 項目                                                        | 基準 (基準機, embed ビルド, Node ではなくブラウザで計測) |
 | ----------------------------------------------------------- | -------------------------------------------------------- |

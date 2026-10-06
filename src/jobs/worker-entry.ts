@@ -1,191 +1,168 @@
 // @pluto-hot
 /**
- * @file Worker エントリポイント。メインスレッドからのジョブを並列実行する。
+ * @file Worker 側のジョブループ `runWorkerLoop` (docs/05-jobs-and-builds.md §3.2〜3.3)。副作用を持たない。
+ * `Atomics.waitAsync` で待つのでブロックせず、ジョブの合間に同期メッセージを処理できる。
  */
-
+import { Archetype, ChunkView, Query, applyComponentLayout } from '../core/ecs';
+import type { KernelBuffers } from './kernel';
+import { findKernel } from './kernel-registry';
 import {
   CTRL_EPOCH,
+  CTRL_ERROR,
   CTRL_KERNEL_ID,
-  CTRL_QUERY_ID,
   CTRL_NEXT_CHUNK,
-  CTRL_TOTAL_CHUNKS,
-  CTRL_DONE_CHUNKS,
+  CTRL_PARAMS,
+  CTRL_PARAM_COUNT,
+  CTRL_QUERY_ID,
   CTRL_SHUTDOWN,
-  CTRL_PARAMS_OFFSET,
-  CTRL_MAX_PARAMS,
+  CTRL_SYNC_VERSION,
+  CTRL_TOTAL_CHUNKS,
+  claimChunk,
+  completeChunk,
 } from './sync';
-import type { WorkerMessage } from './worker-protocol';
-import { getKernelById } from './kernel-registry';
-import { ChunkView } from '../core/ecs/chunk-view';
-import { ScalarType } from '../core/memory/scalar-type';
-import type { KernelBuffers, KernelId } from './kernel';
-import type { Archetype } from '../core/ecs/archetype';
+import type { ToWorkerMessage, WorkerPort } from './worker-protocol';
 
-// Worker local state
-let ctrl: Int32Array;
-let paramsFloat: Float32Array;
-let counts: Uint32Array;
-let localEpoch = 0;
-
-// Dummy classes for worker
-class WorkerArchetype {
-  public id = 0;
-  public entities!: Uint32Array;
-  public columns = new Map<number, ArrayBufferLike>();
-  // ChunkView calls this, but it expects a Column or typed array?
-  // No, ChunkView uses archetype.getColumn(fieldId, type).
-  // Wait, chunk-view uses archetype.columns? No, getColumn.
-  public getColumn(fieldId: number, type: ScalarType): ArrayBufferView | null {
-    const buf = this.columns.get(fieldId);
-    if (!buf) return null;
-    switch (type) {
-      case ScalarType.F32:
-        return new Float32Array(buf);
-      case ScalarType.I32:
-        return new Int32Array(buf);
-      case ScalarType.U32:
-        return new Uint32Array(buf);
-      case ScalarType.I16:
-        return new Int16Array(buf);
-      case ScalarType.U16:
-        return new Uint16Array(buf);
-      case ScalarType.I8:
-        return new Int8Array(buf);
-      case ScalarType.U8:
-        return new Uint8Array(buf);
-      default:
-        return new Uint8Array(buf);
-    }
-  }
+/** Worker の状態 (初期化後に確定)。 */
+interface WorkerState {
+  readonly ctrl: Int32Array;
+  readonly counts: Int32Array;
+  readonly params: Float32Array;
+  readonly mirrors: Map<number, Archetype>;
+  readonly queries: Map<number, Query>;
+  readonly buffers: { u32: Uint32Array[]; f32: Float32Array[]; i32: Int32Array[] };
+  readonly view: ChunkView;
+  appliedVersion: number;
+  localEpoch: number;
 }
 
-class WorkerQuery {
-  public id = 0;
-  public archetypes: WorkerArchetype[] = [];
-  public chunkCount = 0;
+/**
+ * 同期メッセージを状態に反映する。
+ * @cold メッセージ受信時のみ
+ * @param state Worker の状態
+ * @param msg メッセージ
+ */
+function applyMessage(state: WorkerState, msg: Exclude<ToWorkerMessage, { type: 'init' }>): void {
+  if (msg.type === 'archetype') {
+    // 既存のミラーはバッファだけ差し替える (クエリが持つ参照を保つ)
+    const existing = state.mirrors.get(msg.desc.id);
+    if (existing === undefined) state.mirrors.set(msg.desc.id, Archetype.fromShared(msg.desc));
+    else existing.rebindShared(msg.desc);
+  } else if (msg.type === 'query') {
+    let q = state.queries.get(msg.queryId);
+    if (q === undefined) {
+      q = new Query({});
+      state.queries.set(msg.queryId, q);
+    }
+    for (const id of msg.archetypeIds) {
+      const mirror = state.mirrors.get(id);
+      if (mirror !== undefined) q.tryRegister(mirror);
+    }
+  } else if (msg.kind === 'u32') {
+    state.buffers.u32[msg.slot] = new Uint32Array(msg.buffer, msg.byteOffset, msg.length);
+  } else if (msg.kind === 'f32') {
+    state.buffers.f32[msg.slot] = new Float32Array(msg.buffer, msg.byteOffset, msg.length);
+  } else {
+    state.buffers.i32[msg.slot] = new Int32Array(msg.buffer, msg.byteOffset, msg.length);
+  }
+  state.appliedVersion = msg.syncVersion;
 }
 
-const archetypes = new Map<number, WorkerArchetype>();
-const queries = new Map<number, WorkerQuery>();
-const buffers: KernelBuffers = { u32: [], f32: [], i32: [] };
-const chunkView = new ChunkView();
-const CHUNK_ROWS = 16384;
+/** runJob の結果: 参加した (または参加不要)。 */
+const JOB_OK = 0;
+/** runJob の結果: カーネルが Worker に登録されていないので参加しなかった。 */
+const JOB_MISSING_KERNEL = 1;
 
-self.onmessage = (e: MessageEvent<WorkerMessage>) => {
-  const msg = e.data;
-  switch (msg.type) {
-    case 'init': {
-      ctrl = new Int32Array(msg.ctrlBuffer);
-      paramsFloat = new Float32Array(msg.ctrlBuffer, CTRL_PARAMS_OFFSET * 4, CTRL_MAX_PARAMS);
-      counts = new Uint32Array(msg.countsBuffer);
-      self.postMessage({ type: 'ready' });
-      pump();
-      break;
-    }
-    case 'archetype': {
-      let arch = archetypes.get(msg.id);
-      if (!arch) {
-        arch = new WorkerArchetype();
-        arch.id = msg.id;
-        archetypes.set(msg.id, arch);
-      }
-      arch.entities = new Uint32Array(msg.entitiesBuffer);
-      for (const [fieldIdStr, buffer] of Object.entries(msg.columns)) {
-        const fieldId = parseInt(fieldIdStr, 10);
-        // We don't know the exact ScalarType here, but in ChunkView we just need the buffer.
-        // Wait, ChunkView uses field.type to create the typed array.
-        // So we should store the buffer itself, and create the typed array when requested.
-        arch.columns.set(fieldId, buffer);
-      }
-      break;
-    }
-    case 'query': {
-      let q = queries.get(msg.queryId);
-      if (!q) {
-        q = new WorkerQuery();
-        q.id = msg.queryId;
-        queries.set(msg.queryId, q);
-      }
-      q.archetypes = [];
-      for (const id of msg.archetypeIds) {
-        const arch = archetypes.get(id);
-        if (arch) q.archetypes.push(arch);
-      }
-      break;
-    }
-    case 'buffer': {
-      const arr = new (
-        msg.kind === 'u32' ? Uint32Array : msg.kind === 'f32' ? Float32Array : Int32Array
-      )(msg.buffer as ArrayBuffer & SharedArrayBuffer, msg.byteOffset, msg.length);
-
-      if (msg.kind === 'u32') {
-        (buffers.u32 as Uint32Array[])[msg.slot] = arr as Uint32Array;
-      } else if (msg.kind === 'f32') {
-        (buffers.f32 as Float32Array[])[msg.slot] = arr as Float32Array;
-      } else {
-        (buffers.i32 as Int32Array[])[msg.slot] = arr as Int32Array;
-      }
-      break;
-    }
-  }
-};
-
-function pump() {
+/**
+ * 現在のジョブに参加してチャンクを処理する。
+ * 参加できるか (同期バージョン・クエリ・カーネル) はチャンクを取る前にすべて確かめる
+ * (取った後に処理できないとメインが完了を待ち続けるため)。
+ * @hot
+ * @param state Worker の状態
+ * @returns JOB_OK または JOB_MISSING_KERNEL
+ */
+function runJob(state: WorkerState): number {
+  const ctrl = state.ctrl;
+  // 先に NEXT の印 (ジョブ番号) を読み、その後でフィールドを読む (05 §3.2 手順 2)
+  const seq = Atomics.load(ctrl, CTRL_NEXT_CHUNK) >>> 16;
+  const total = Atomics.load(ctrl, CTRL_TOTAL_CHUNKS);
+  if (total === 0 || Atomics.load(ctrl, CTRL_SYNC_VERSION) > state.appliedVersion) return JOB_OK;
+  const query = state.queries.get(Atomics.load(ctrl, CTRL_QUERY_ID));
+  if (query === undefined) return JOB_OK;
+  const kernel = findKernel(Atomics.load(ctrl, CTRL_KERNEL_ID) >>> 0);
+  if (kernel === undefined) return JOB_MISSING_KERNEL;
+  const archs = query.archetypes;
+  const n = archs.length;
+  for (let i = 0; i < n; i++) archs[i].count = Atomics.load(state.counts, archs[i].id);
+  const view = state.view;
   for (;;) {
-    if (Atomics.load(ctrl, CTRL_SHUTDOWN) !== 0) {
-      self.close();
-      return;
-    }
-
-    if (Atomics.load(ctrl, CTRL_EPOCH) === localEpoch) {
-      Atomics.wait(ctrl, CTRL_EPOCH, localEpoch);
-    }
-    localEpoch = Atomics.load(ctrl, CTRL_EPOCH);
-
-    if (Atomics.load(ctrl, CTRL_SHUTDOWN) !== 0) {
-      self.close();
-      return;
-    }
-
-    const total = Atomics.load(ctrl, CTRL_TOTAL_CHUNKS);
-    if (total === 0) continue; // Dummy wakeup
-
-    const kernelId = Atomics.load(ctrl, CTRL_KERNEL_ID) as unknown as KernelId;
-    const queryId = Atomics.load(ctrl, CTRL_QUERY_ID);
-
-    const kernel = getKernelById(kernelId);
-    const query = queries.get(queryId);
-
-    if (query === undefined) {
-      // Required data not yet arrived via postMessage. Yield to event loop.
-      setTimeout(pump, 0);
-      return;
-    }
-
-    for (;;) {
-      const chunk = Atomics.add(ctrl, CTRL_NEXT_CHUNK, 1);
-      if (chunk >= total) break;
-
-      // Extract chunk boundaries using shared counts
-      let offset = 0;
-      for (const arch of query.archetypes) {
-        const c = counts[arch.id];
-        const chunksInArch = Math.ceil(c / CHUNK_ROWS);
-        if (chunk < offset + chunksInArch) {
-          const localChunk = chunk - offset;
-          // Construct view manually
-          chunkView.archetype = arch as unknown as Archetype; // WorkerArchetype is structurally compatible for getColumn
-          chunkView.start = localChunk * CHUNK_ROWS;
-          chunkView.end = Math.min((localChunk + 1) * CHUNK_ROWS, c);
-          chunkView.chunkIndex = chunk;
-
-          kernel.fn(chunkView, paramsFloat, buffers);
-          break;
-        }
-        offset += chunksInArch;
-      }
-
-      Atomics.add(ctrl, CTRL_DONE_CHUNKS, 1);
-    }
+    const chunk = claimChunk(ctrl, seq, total);
+    if (chunk < 0) break;
+    query.getChunk(chunk, view);
+    kernel.fn(view, state.params, state.buffers);
+    completeChunk(ctrl, seq);
   }
+  return JOB_OK;
+}
+
+/**
+ * Worker のジョブループを開始する。`src/worker-main.ts` からだけ呼ぶ。
+ * @cold Worker の起動時に 1 回だけ
+ * @param port Worker スコープ
+ */
+export function runWorkerLoop(port: WorkerPort): void {
+  let state: WorkerState | null = null;
+  const fail = (err: unknown): void => {
+    if (state !== null) Atomics.store(state.ctrl, CTRL_ERROR, 1);
+    port.post({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+  };
+  const wake = (): void => {
+    if (state === null) return;
+    const s = state;
+    if (Atomics.load(s.ctrl, CTRL_SHUTDOWN) !== 0) {
+      port.close();
+      return;
+    }
+    s.localEpoch = Atomics.load(s.ctrl, CTRL_EPOCH);
+    try {
+      if (runJob(s) === JOB_MISSING_KERNEL) {
+        // 致命的ではない: この Worker は参加せず、メインが代わりに処理する
+        port.post({
+          type: 'error',
+          message:
+            'カーネルが Worker に登録されていません (src/worker-main.ts の import を確認してください)',
+        });
+      }
+    } catch (err) {
+      fail(err);
+    }
+    const w = Atomics.waitAsync(s.ctrl, CTRL_EPOCH, s.localEpoch);
+    // 既に世代が進んでいた場合も、スタックを伸ばさないようにマイクロタスクで再開する
+    void (w.async ? w.value : Promise.resolve()).then(wake);
+  };
+  port.listen((msg) => {
+    try {
+      if (msg.type === 'init') {
+        applyComponentLayout(msg.componentLayout);
+        const buffers: KernelBuffers & WorkerState['buffers'] = { u32: [], f32: [], i32: [] };
+        state = {
+          ctrl: new Int32Array(msg.ctrlBuffer),
+          counts: new Int32Array(msg.countsBuffer),
+          params: new Float32Array(msg.ctrlBuffer, CTRL_PARAMS * 4, CTRL_PARAM_COUNT),
+          mirrors: new Map(),
+          queries: new Map(),
+          buffers,
+          view: new ChunkView(),
+          appliedVersion: 0,
+          localEpoch: 0,
+        };
+        port.post({ type: 'ready' });
+        wake();
+      } else if (state !== null) {
+        applyMessage(state, msg);
+      }
+    } catch (err) {
+      fail(err);
+      port.close();
+    }
+  });
 }

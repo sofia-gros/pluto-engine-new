@@ -23,6 +23,22 @@
 
 ### カバレッジ閾値 (`vitest.config.ts`)
 
+**カバレッジ集計から除外するファイル** (Node では実行できないもの。代わりに **ブラウザテストで動作を検証することが必須**):
+
+| パターン                                                                                                                                                          | 理由                       | 代替の検証                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | -------------------------------------- |
+| `src/rhi/**`, `src/shaders/**`, `src/devtools/**`                                                                                                                 | GPU / DOM                  | `tests/browser/rhi/` 等                |
+| `src/jobs/threaded-scheduler.ts`, `src/jobs/worker-entry.ts`, `src/worker-main.ts`                                                                                | Worker + SharedArrayBuffer | `tests/browser/jobs/parity.spec.ts`    |
+| `src/compute/gpu-*.ts`, `src/compute/gpgpu-pass.ts`                                                                                                               | GPU                        | パリティテスト (§4)                    |
+| `src/render/renderer.ts`, `src/render/sprite/sprite-renderer.ts`, `src/render/sprite/sprite-path-*.ts`                                                            | GPU                        | ゴールデン画像                         |
+| `src/render/texture/texture-array-manager.ts`, `src/render/graph/transient-pool.ts`, `src/render/camera/camera-fx-pass.ts`                                        | GPU                        | ゴールデン画像                         |
+| `src/render/{text,tilemap,graphics}/*-renderer.ts`, `src/render/lighting/{lighting-simple,radiance-cascades}.ts`, `src/render/post/{bloom,tonemap,post-chain}.ts` | GPU                        | ゴールデン画像                         |
+| `src/sim/**` (ただし `*-config.ts` は除外しない), `src/sim/fluid/fluid-renderer.ts`                                                                               | GPU                        | `readBufferAsync` 検証・ゴールデン画像 |
+| `src/scene/game.ts`                                                                                                                                               | rAF・デバイス生成          | `tests/browser/scene/`                 |
+
+- 上表以外 (例: `sprite-buffer.ts` のスロット割当、`frame-table.ts` の CPU 部分、scene のハンドル) はユニットテストの対象。GPU は **境界としてのモック** (`RhiDevice` の呼び出し記録) を使ってよいが、「GPU 上で正しく動いた」ことの証拠にはしない。
+- 除外リストの追加・変更はこの表を更新してから `vitest.config.ts` に反映する。
+
 | 範囲                                                                                              | lines | branches |
 | ------------------------------------------------------------------------------------------------- | ----- | -------- |
 | `src/core/**`                                                                                     | 95%   | 90%      |
@@ -39,9 +55,14 @@
    - 解像度 256×256 固定、`pixelArt: true`、アンチエイリアスなし。
    - 比較は pixelmatch `threshold: 0.1`、差分ピクセル率 ≤ 0.5%。
    - 画像は `tests/browser/golden/webgpu/` と `tests/browser/golden/webgl2/` に別々に置く。
-   - 更新は `pnpm test:browser --update-golden` で行い、**更新理由をレビュー記録に書く**。差分画像を目視確認せずに更新してはならない。
-4. WebGPU テストは Chromium を `--enable-unsafe-webgpu --enable-features=Vulkan` 等で起動 (`playwright.config.ts`)。WebGPU が使えない環境 (CI) では WebGPU プロジェクトを `skip` ではなく **別プロジェクトとして実行対象から外す** (設定で制御。テストコード内での `test.skip` は禁止)。
+   - 撮影対象は **256×256 の canvas 要素** (`page.locator('canvas').screenshot()`)。ページ全体ではない。
+   - API は `expectGolden(page: Page, name: string): Promise<void>` (`testInfo` は `test.info()` で取得)。保存先は `tests/browser/golden/<backend>/<name>.png` (`<backend>` はハーネスの `backend` パラメータ。プロジェクト名ではない)。
+   - 更新は Playwright 標準の `pnpm test:browser --update-snapshots` (`testInfo.config.updateSnapshots`) で行い、**更新理由をレビュー記録に書く**。差分画像を目視確認せずに更新してはならない。
+   - ゴールデン画像が存在しないときは **失敗** にする (黙って新規作成しない。新規作成も `--update-snapshots` のときだけ)。
+4. WebGPU テストは Chromium を `--enable-unsafe-webgpu --enable-features=Vulkan` 等で起動 (`playwright.config.ts`)。WebGPU が使えない環境 (CI) では **`--project=webgl2` を CLI で指定して** WebGPU プロジェクトを実行対象から外す (テストコード内での `test.skip` は禁止)。
 5. Worker / SharedArrayBuffer テストは dev server の COOP/COEP ヘッダ付きで実行。
+6. プロジェクトとハーネスの対応: `webgpu` → `harness.html?backend=webgpu`、`webgl2` → `?backend=webgl2`、`embed` → `?backend=webgl2&build=embed` (embed ビルド成果物 `/dist/embed/pluto.debug.js` を読み込む。事前に `pnpm build:embed` が必要で、`pnpm test:browser:embed` がそれを行う)。spec は URL を直書きせず、プロジェクトの `use` に置いたパラメータからハーネス URL を組み立てるヘルパ (`tests/browser/helpers/`) を使う。
+7. ハーネスは `backend` / `build` パラメータを検証し、不正値なら例外で止める。
 
 ## 4. パリティテスト (必須)
 
@@ -54,9 +75,16 @@
 
 ## 5. ベンチマーク
 
-- `bench/scenes/*.ts` は `export const scene: BenchScene = { name, setup(game, count), step?(frame) }` を export する。
-- `tools/run-bench.mjs` は Chromium を **headed** で起動し、ウォームアップ 120 フレーム後に 600 フレーム計測、`{ scene, backend, build, count, meanMs, p50Ms, p99Ms, gpuMs? }` を `bench/results/latest.json` に保存。
-- `tools/compare-bench.mjs` は `bench/baseline.json` と比較し、`p99Ms` が 10% を超えて悪化したら exit 1。
+- `bench/scenes/*.ts` は `export const scene: BenchScene = { name, setup(ctx: BenchContext, count), step?(frame) }` を export する。`BenchContext` = `{ backend, build, canvas, metrics: Record<string, number> }` (エンジンの `Game` ができるまでは各シーンが自分で World や RHI を作る。T-5.1 以降は `Game` を作る)。単発処理 (spawn など) の計測値は `ctx.metrics` に ms で書く。
+- `bench/runner.ts` はシーンを `import.meta.glob('./scenes/*.ts')` で動的に読み込む (シーン追加で runner を変更しない)。
+- 計測値の定義:
+  - `meanMs / p50Ms / p99Ms`: **フレーム時間** (連続する rAF コールバックの間隔)。vsync で頭打ちにならないよう、Chromium を `--disable-gpu-vsync --disable-frame-rate-limit` で起動する。
+  - `cpuMs`: 各フレームの `step()` + エンジン更新にかかった CPU 時間の p99。
+  - `gpuMs`: `timestamp-query` がある場合のみ、GPU パス合計の p99。
+  - パーセンタイルは昇順ソート後の `index = ceil(p × n) - 1`。
+- `tools/run-bench.mjs` の引数: `--scene <name|all>` (既定 `all`)、`--count <n>` (既定はシーンの `defaultCount`)、`--backend webgpu|webgl2` (既定 `webgpu`)、`--build parallel|embed` (既定 `embed`)。プロジェクトの `vite.config.ts` を使って Vite サーバーを起動し、`define` を `--build` に合わせて上書きし (`__DEBUG__ = false`)、COOP/COEP ヘッダを付ける。Chromium は **headed**・WebGPU フラグ付きで起動し、ウォームアップ 120 フレーム後に 600 フレーム計測する。
+- 結果は `BenchResult[]` (`{ scene, backend, build, count, meanMs, p50Ms, p99Ms, cpuMs, gpuMs?, metrics? }`) として `bench/results/latest.json` に保存する。
+- `tools/compare-bench.mjs` は `bench/baseline.json` (`BenchResult[]`) と **`(scene, backend, build, count)` が一致する要素同士** を比較し、`p99Ms`・`cpuMs`・各 `metrics` のいずれかが 10% を超えて悪化したら exit 1。ベースラインが空配列なら「ベースラインなし」で exit 0、JSON が不正・配列でない場合は exit 1、対応するベースラインがない結果は「新規」と表示して exit 0。
 - ベンチの数値は **同一マシンでの相対比較のみ** に使う。CI では実行しない。
 - `bench/baseline.json` の更新は `pluto-perf` スキルの手順でのみ行う。
 

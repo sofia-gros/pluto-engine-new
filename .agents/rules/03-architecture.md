@@ -34,11 +34,12 @@ trigger: always_on
 | `scene`                | 上記すべて                                                           |
 | `src/index.ts`         | `scene` のみ                                                         |
 | `src/lowlevel.ts`      | すべて                                                               |
+| `src/worker-main.ts`   | すべて (組込カーネルを持つモジュールと `jobs`)                       |
 
 ## 追加の封印ルール
 
 - `rhi/webgpu/**` と `rhi/webgl2/**` を import してよいのは `rhi/` 内部のみ。外部はバックエンドを意識しない。
-- `jobs/threaded-scheduler.ts` を import してよいのは `jobs/create-scheduler.ts` のみ。`jobs/worker-entry.ts` を import してよいのは `jobs/threaded-scheduler.ts` のみ (`?worker&inline`)。
+- `jobs/threaded-scheduler.ts` を import してよいのは `jobs/create-scheduler.ts` のみ。`src/worker-main.ts` を import してよいのは `jobs/threaded-scheduler.ts` のみ (`?worker&inline` で別バンドルになるため、レイヤー逆転の例外として許可)。`jobs/worker-entry.ts` の `runWorkerLoop` を使ってよいのは `src/worker-main.ts` のみ。
 - `*.wgsl` / `*.glsl` を `?raw` で import してよいのは `src/shaders/` 内部のみ。
 - 他モジュールの import は必ず `index.ts` 経由 (`../../render` は OK、`../../render/sprite/sprite-buffer` は NG)。
-- `tests/` は `src/` の何でも import してよい。`src/` は `tests/`, `bench/`, `examples/`, `tools/` を import してはならない。
+- `tests/` と `bench/` は `src/` の何でも (内部ファイルも) import してよい。`examples/` は `src/index.ts` (と `src/lowlevel.ts`) だけを import する。`src/` は `tests/`, `bench/`, `examples/`, `tools/` を import してはならない。
