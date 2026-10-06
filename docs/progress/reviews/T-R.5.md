@@ -2,7 +2,7 @@
 
 ## 状態
 
-**完了。** 受け入れ条件 1・3・4・5 を満たした。条件 2 (vsync の解除) は**この環境では満たせていない** (§「未解決」参照)。条件 4 の性能基準は 04 §10 の改訂とセットで行った (ユーザー承認済み)。
+**完了。** 受け入れ条件 1・3・4・5 を満たした。条件 2 (vsync の解除) は満たせていないので **T-4.7 以降に再検証へ保留**し、判定は `cpuP50Ms` で行うことにした (2026-10-06 ユーザー承認済み。詳細は受け入れ条件 2 と「未解決」)。条件 4 の性能基準は 04 §10 の改訂とセットで行った。
 
 ## 変更内容
 
@@ -37,7 +37,21 @@ flush():    this.iterating = false     / spawnState.isIterating = false
 ## 受け入れ条件の確認
 
 1. **build の記録: 満たした。** `node tools/run-bench.mjs --scene ecs-move --build embed` と `--build parallel` の結果に `build` が正しく入り、parallel は `crossOriginIsolated: true` を記録した。
-2. **vsync の解除: 未達 (環境の制約)。** `empty` シーンの p50 は 17.415ms (embed) / 17.465ms (parallel) で、どちらも 60Hz から下がらなかった。`--disable-gpu-vsync --disable-frame-rate-limit` を付けても同様。**この値は基準機 (RTX 4060 dGPU) でも 17.4ms** なので、WSL 固有の問題ではなく `requestAnimationFrame` 自体の仕様である可能性が残る (未解決)。
+2. **vsync の解除: 未達。T-4.7 以降に再検証へ保留 (ユーザー承認済み)。** `empty` シーンの p50 は 17.415ms (embed) / 17.465ms (parallel) で、どちらも 60Hz から下がらなかった。`--disable-gpu-vsync --disable-frame-rate-limit` を付けても、`--headless` でも同様 (17.500ms)。
+
+   **原因は環境である。** `Get-CimInstance Win32_VideoController` の出力は次のとおり。
+
+   ```
+   Parsec Virtual Display Adapter      <- 表示先 (VideoModeDescription が空)
+   NVIDIA GeForce RTX 4060            <- 1920x1080 / 23〜143Hz
+   ```
+
+   実ディスプレイは **143Hz** (6.99ms) なのに Chromium は約 60Hz (17.4ms) で止まる。143Hz でも 60Hz でもない値なので、vsync フラグが効いていないのではなく **表示先が Parsec の仮想ディスプレイで 60Hz に固定されている** のが原因である。遠隔接続 (Parsec) 経由では相手側の 60Hz に固定され、ブラウザも追従する。
+
+   **さらに、現時点でフレーム時間は判定に使えない。** `empty` シーンは cpuP50 が 0.005ms だが p50Ms は 17.4ms で、**エンジンが何もしなくても 17.4 になる**。つまりこの指標は現時点でエンジンの速さを測っていない。描画パス (Phase 4) が入って初めて意味を持つ。
+
+   そのため **判定は `cpuP50Ms` で行い、フレーム時間は記録し続けて Phase 4 で合格判定に使う** ことにした (docs/04 §10・docs/10 §5・docs/12 T-R.5 条件 2 を改訂、2026-10-06 ユーザー承認済み)。基準を緩めたのではなく、測るものがないのに測っている状態を是正したものである。
+
 3. **compare-bench: 満たした。** 8 ケースは前回検証済み。今回は判定キーを p50 に変更したので再確認した。
    - ベースラインと同一結果 → exit 0
    - `moveKernelP50Ms` を 10.4% 悪化させた場合 → `[悪化]` を出して exit 1
@@ -85,7 +99,7 @@ flush():    this.iterating = false     / spawnState.isIterating = false
 
 支配的だったのは `markRange` の呼び出し回数で、1 体ずつはフィールドごとに 100 万回、まとめると 3 回で済む。エンティティ数が増えても高速化倍率が上がっているので、`EntityTable.allocate()` は律速になっていない。**当初想定していた「`allocate()` の FreeList 操作が支配的」という仮説は外れていた** (`docs/04` §10.1 の旧記述「CommandBuffer のコマンド書き込みと EntityTable の更新が支配的」も訂正した)。
 
-なお `spawnNMs` の 1 体あたり時間は 100 万体で 27.9 ns。1000 万体でも 279 ms で終わる計算になるが、これは 200 万体までの測定からの外挿なので未計測である。
+なお `spawnNMs` の 1 体あたり時間は 100 万体で 27.9 ns、200 万体で 25.3 ns とほぼ一定で、体数に比例している。
 
 ## レビュー チェックリスト
 
@@ -95,11 +109,10 @@ flush():    this.iterating = false     / spawnState.isIterating = false
 - [x] R2 (HOT): `world-spawn.ts` は `// @pluto-hot`。`spawnRows` / `spawnOne` の JSDoc に `@hot`、`targetArchetype` / `archetypeOfIds` に `@cold`。ループ内で確保・`for...of`・配列高階関数は不使用 (`fill` は TypedArray のプリミティブで許可されている)
 - [x] R3: `world.ts` → `world-spawn.ts` は `core/ecs` 内の相対 import (`check-boundaries` が OK)
 - [x] テスト: `pnpm verify` 全 7 段階成功。新規公開シンボルに対応する `tests/unit/core/ecs/world-spawn.test.ts` (16 件) と `archetype.test.ts` の追加 (4 件) を作成
-- [x] 受け入れ条件: 1・3・4・5 満たす。2 は環境制約で未達 (下記)
+- [x] 受け入れ条件: 1・3・4・5 満たす。2 は未達だが T-4.7 以降に再検証へ保留し、`cpuP50Ms` を主指標にすることにした (ユーザー承認済み)
 
 ## 未解決
 
-- **vsync の解除 (受け入れ条件 2)**: 基準機 (RTX 4060 dGPU / Chrome) でも `empty` の p50 が 17.4ms から下がらない。`--disable-gpu-vsync --disable-frame-rate-limit` を付けても効果なし。WSLg 固有の問題ではないため、フレーム時間の定義 (10 §5) を見直すか、CPU 時間 (`cpuP50Ms`) を主指標にする運用に切り替える必要がある。AGENTS §4 によりユーザー判断を仰ぐ (未実施)。
-- **`spawnNMs` の 1000 万体以上の外挿は未計測**: 線形と予想だが、10 万〜200 万体を 4 点測定しただけなので 1000 万体は推測である。
-- `docs/12-roadmap.md` の T-R.5 受け入れ条件 4 はまだ旧文言 (「spawn ≤ 150ms、get/set ≤ 30ms、カーネル ≤ 2.0ms」) のままである。docs はユーザーの指示なしに変更しないため未更新。04 §10 の改訂と併せて更新が必要。
-- `bench/scenes/ecs-move.ts` は bulk と chain で 2 つの `World` を作るため、`spawnChainMs` の計測中は bulk 側のバッファもメモリに載っている。絶対値には影響しないが、`spawnNMs` はそれより前なので影響を受けない。
+- **vsync の解除 (受け入れ条件 2): T-4.7 以降に再検証 (ユーザー承認済み)。** 原因は Parsec の仮想ディスプレイで 60Hz に固定されていること。-Parsec を切って NVIDIA の 1920×1080@143Hz を直接選ぶ状態で `pnpm bench --scene empty` を 1 回走らせれば 6.99ms 台が出るはずで、そうすれば条件 2 は満たせる。**それまでは `cpuP50Ms` を主指標とする。** 詳細は受け入れ条件 2 参照。
+- **`spawnN` の上限までの線形性は未計測**: `MAX_ENTITIES = 4,194,303` なので 1000 万体は存在しない。実測は 200 万体まで (50.5ms、spawn 連鎖との比で 6.3 倍)。419 万体での実測はない。`docs/00` §5 の通り CPU Tier の想定は 10 万程度であり、200 万体の時点で 6.3 倍の高速化が成り立っているため優先順位は低い。
+- `bench/scenes/ecs-move.ts` は bulk と chain で 2 つの `World` を作るため、`spawnChainMs` の計測中は bulk 側のバッファもメモリに載っている。`spawnNMs` はその前に計測しているので影響を受けない。

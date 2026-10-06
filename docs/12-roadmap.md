@@ -186,12 +186,12 @@
 - **E-002 の回答による追加 (2026-10-06)**: メモリモデルを「固定長バッファ + 伸長時コピー + Worker への再送」に変更する (04 §1.1)。`src/core/memory/buffer-factory.ts`・`src/core/ecs/{column,archetype,archetype-graph,change-tracking,world}.ts`・`src/jobs/{threaded-scheduler,worker-entry}.ts` とそのテストを変更してよい。
 - **変更ファイル**: `tools/run-bench.mjs`, `tools/compare-bench.mjs`, `bench/runner.ts`, `bench/runner.html`, `bench/bench-types.ts`, `bench/scenes/empty.ts`, `bench/scenes/ecs-move.ts`, `bench/baseline.json`, `docs/progress/reviews/T-1.10.md` (訂正の追記のみ)
 - **参照**: `docs/10-testing-strategy.md` §5 (2026-10-06 改訂版), `docs/04-memory-and-ecs.md` §10, `.agents/skills/pluto-perf`
-- **内容**: run-bench の引数 (`--scene/--count/--backend/--build`)、vsync を外した起動、プロジェクト設定 + define 上書き + COOP/COEP、runner のシーン動的読み込みと `BenchContext`、`cpuMs` と `metrics`、compare-bench の比較キーと異常時の終了コード。`ecs-move.ts` は spawn・get/set・移動カーネルを個別に計時して `metrics` に記録し、毎フレームの `world.query()`・クロージャ生成・`as unknown as` をやめる。
+- **内容**: run-bench の引数 (`--scene/--count/--backend/--build`)、vsync を外した起動、プロジェクト設定 + define 上書き + COOP/COEP、runner のシーン動的読み込みと `BenchContext`、`cpuMs` と `metrics`、compare-bench の比較キーと異常時の終了コード。`ecs-move.ts` は spawn・get/set・移動カーネルを個別に計時して `metrics` に記録し、毎フレームの `world.query()`・クロージャ生成・`as unknown as` をやめる。**判定は p50** (04 §10)。E-002 の回答 (2026-10-06) に加えて `Archetype.pushRows` による一括生成 (`World.spawnN`) を測定対象に加えた。
 - **受け入れ条件**:
   1. `pnpm bench -- --scene empty --build embed` と `--build parallel` の両方で `bench/results/latest.json` に `build` が正しく入った結果が出る (parallel は `crossOriginIsolated === true` を記録)
-  2. vsync 解除の確認: `empty` シーンの `p50Ms` が 1000 / リフレッシュレート より明確に小さい
-  3. compare-bench: 空配列で exit 0、10% 超の悪化 (p99Ms / cpuMs / metrics それぞれ) で exit 1、不正 JSON で exit 1、未登録の構成は「新規」で exit 0
-  4. `ecs-move` を基準機で計測し、04 §10 の 3 基準 (spawn ≤ 150ms、get/set ≤ 30ms、カーネル ≤ 2.0ms) を **実測値で** 満たす。`bench/baseline.json` を `BenchResult[]` 形式で登録し直す。T-1.10 のレビュー記録に「旧ベースラインは根拠となる出力がなく無効」と訂正を追記する
+  2. **vsync 解除の確認 (T-4.7 以降に再検証)**: `empty` シーンの `p50Ms` が 1000 / リフレッシュレート より明確に小さい。**2026-10-06 時点では満たせていない**ので保留する。理由は 2 つある。(a) 基準機 (RTX 4060) の表示先が Parsec の仮想ディスプレイで、実ディスプレイは 143Hz なのに Chromium が約 60Hz で止まる (`--disable-gpu-vsync --disable-frame-rate-limit`・headless どちらでも効かない)。(b) 描画パス (Phase 4) が入るまで `p50Ms` はエンジンowymな速さを測らない (`empty` で cpuP50 0.005ms でも p50 は 17.4ms)。判定は `cpuP50Ms` で行う (04 §10)。実測値は `reviews/T-R.5.md` にある
+  3. compare-bench: 空配列で exit 0、10% 超の悪化で exit 1、不正 JSON で exit 1、未登録の構成は「新規」で exit 0。**判定は p50 で行う** (`cpuP50Ms` と `metrics.*P50Ms`。p99 系は参考値として表示のみ。docs/04 §10)
+  4. `ecs-move` を基準機で計測し、**`docs/04` §10 の基準を実測値で満たす** (数値は §10 に定義済み。T-R.5 では「一括生成は初期化なので毎フレーム予算と無関係」という根拠で `spawnN` を 60ms に設定し、判定は p50 にした)。`bench/baseline.json` を `BenchResult[]` 形式で登録し直す。T-1.10 のレビュー記録に「旧ベースラインは根拠となる出力がなく無効」と訂正を追記する
   5. **`pnpm verify` が警告・エラー 0 で成功** (Phase R の完了条件)
 
 ---

@@ -79,11 +79,12 @@
 - `bench/runner.ts` はシーンを `import.meta.glob('./scenes/*.ts')` で動的に読み込む (シーン追加で runner を変更しない)。
 - 計測値の定義:
   - `meanMs / p50Ms / p99Ms`: **フレーム時間** (連続する rAF コールバックの間隔)。vsync で頭打ちにならないよう、Chromium を `--disable-gpu-vsync --disable-frame-rate-limit` で起動する。
-  - `cpuMs`: 各フレームの `step()` + エンジン更新にかかった CPU 時間の p99。
+  - `cpuMs / cpuP50Ms`: 各フレームの `step()` + エンジン更新にかかった CPU 時間。**判定に使うのは `cpuP50Ms`** (docs/04 §10)。p99 は V8 の世代別 GC と OS スケジューラのジッタで ±20% 揺れるため判定に使わない
   - `gpuMs`: `timestamp-query` がある場合のみ、GPU パス合計の p99。
   - パーセンタイルは昇順ソート後の `index = ceil(p × n) - 1`。
-- `tools/run-bench.mjs` の引数: `--scene <name|all>` (既定 `all`)、`--count <n>` (既定はシーンの `defaultCount`)、`--backend webgpu|webgl2` (既定 `webgpu`)、`--build parallel|embed` (既定 `embed`)。プロジェクトの `vite.config.ts` を使って Vite サーバーを起動し、`define` を `--build` に合わせて上書きし (`__DEBUG__ = false`)、COOP/COEP ヘッダを付ける。Chromium は **headed**・WebGPU フラグ付きで起動し、ウォームアップ 120 フレーム後に 600 フレーム計測する。
-- 結果は `BenchResult[]` (`{ scene, backend, build, count, meanMs, p50Ms, p99Ms, cpuMs, gpuMs?, metrics? }`) として `bench/results/latest.json` に保存する。
+- **フレーム時間には描画パス (Phase 4) が入ってから意味がある。** それまではスクリーンrefreshの間隔に固定され、エンジンの処理量と無関係になるためである。`empty` シーンでは cpuP50 が 0.005ms でも `p50Ms` は 17.4ms になる。**判定は `cpuP50Ms` で行い、フレーム時間は記録し続けて Phase 4 で合格判定に使う** (T-4.7 以降に再検証。`docs/12` T-R.5 条件 2)。
+- `tools/run-bench.mjs` の引数: `--scene <name|all>` (既定 `all`)、`--count <n>` (既定はシーンの `defaultCount`)、`--backend webgpu|webgl2` (既定 `webgpu`)、`--build parallel|embed` (既定 `embed`)。プロジェクトの `vite.config.ts` を使って Vite サーバーを起動し、`define` を `--build` に合わせて上書きし (`__DEBUG__ = false`)、COOP/COEP ヘッダを付ける。Chromium は **headed**・WebGPU フラグ付きで起動し、ウォームアップ 300 フレーム後に 600 フレーム計測する。
+- 結果は `BenchResult[]` (`{ scene, backend, build, count, crossOriginIsolated, meanMs, p50Ms, p99Ms, cpuMs, cpuP50Ms, gpuMs?, metrics? }`) として `bench/results/latest.json` に保存する。
 - `tools/compare-bench.mjs` は `bench/baseline.json` (`BenchResult[]`) と **`(scene, backend, build, count)` が一致する要素同士** を比較し、`p99Ms`・`cpuMs`・各 `metrics` のいずれかが 10% を超えて悪化したら exit 1。ベースラインが空配列なら「ベースラインなし」で exit 0、JSON が不正・配列でない場合は exit 1、対応するベースラインがない結果は「新規」と表示して exit 0。
 - ベンチの数値は **同一マシンでの相対比較のみ** に使う。CI では実行しない。
 - `bench/baseline.json` の更新は `pluto-perf` スキルの手順でのみ行う。
