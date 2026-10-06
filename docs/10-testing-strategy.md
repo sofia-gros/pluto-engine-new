@@ -78,12 +78,12 @@
 - `bench/scenes/*.ts` は `export const scene: BenchScene = { name, setup(ctx: BenchContext, count), step?(frame) }` を export する。`BenchContext` = `{ backend, build, canvas, metrics: Record<string, number> }` (エンジンの `Game` ができるまでは各シーンが自分で World や RHI を作る。T-5.1 以降は `Game` を作る)。単発処理 (spawn など) の計測値は `ctx.metrics` に ms で書く。
 - `bench/runner.ts` はシーンを `import.meta.glob('./scenes/*.ts')` で動的に読み込む (シーン追加で runner を変更しない)。
 - 計測値の定義:
-  - `meanMs / p50Ms / p99Ms`: **フレーム時間** (連続する rAF コールバックの間隔)。vsync で頭打ちにならないよう、Chromium を `--disable-gpu-vsync --disable-frame-rate-limit` で起動する。
+  - `meanMs / p50Ms / p99Ms`: **フレーム時間** (連続する rAF コールバックの間隔)。**`--disable-gpu-vsync` と `--disable-frame-rate-limit` は付けない。** 付けると逆に 60Hz に固定される (実測: フラグなしで rAF 140.7fps = 143Hz ディスプレイ、付けると 57.7fps = 17.34ms。headless も同じ 57.7fps)。
   - `cpuMs / cpuP50Ms`: 各フレームの `step()` + エンジン更新にかかった CPU 時間。**判定に使うのは `cpuP50Ms`** (docs/04 §10)。p99 は V8 の世代別 GC と OS スケジューラのジッタで ±20% 揺れるため判定に使わない
   - `gpuMs`: `timestamp-query` がある場合のみ、GPU パス合計の p99。
   - パーセンタイルは昇順ソート後の `index = ceil(p × n) - 1`。
-- **フレーム時間には描画パス (Phase 4) が入ってから意味がある。** それまではスクリーンrefreshの間隔に固定され、エンジンの処理量と無関係になるためである。`empty` シーンでは cpuP50 が 0.005ms でも `p50Ms` は 17.4ms になる。**判定は `cpuP50Ms` で行い、フレーム時間は記録し続けて Phase 4 で合格判定に使う** (T-4.7 以降に再検証。`docs/12` T-R.5 条件 2)。
-- `tools/run-bench.mjs` の引数: `--scene <name|all>` (既定 `all`)、`--count <n>` (既定はシーンの `defaultCount`)、`--backend webgpu|webgl2` (既定 `webgpu`)、`--build parallel|embed` (既定 `embed`)。プロジェクトの `vite.config.ts` を使って Vite サーバーを起動し、`define` を `--build` に合わせて上書きし (`__DEBUG__ = false`)、COOP/COEP ヘッダを付ける。Chromium は **headed**・WebGPU フラグ付きで起動し、ウォームアップ 300 フレーム後に 600 フレーム計測する。
+- **フレーム時間は補助指標であり、描画ワークロードの代理指標にはならない。** rAF 間隔は描画の submit タイミングに強く依存するためである。**判定は `cpuP50Ms` で行い、G1 の 144FPS のような総フレーム時間の目標だけは、描画パス (Phase 4) が入ってからフレーム時間で判定する。**
+- `tools/run-bench.mjs` の引数: `--scene <name|all>` (既定 `all`)、`--count <n>` (既定はシーンの `defaultCount`)、`--backend webgpu|webgl2` (既定 `webgpu`)、`--build parallel|embed` (既定 `embed`)。プロジェクトの `vite.config.ts` を使って Vite サーバーを起動し、`define` を `--build` に合わせて上書きし (`__DEBUG__ = false`)、COOP/COEP ヘッダを付ける。Chromium は **headed**・WebGPU フラグ付きで起動し、ウォームアップ 300 フレーム後に 600 フレーム計測する。**起動は 1 シーン 20〜30 秒で完了する。** ブラウザが開いてからログが出るまで間があるため、出力がない場合はしばらく待つこと (タイムアウトは 180 秒)。
 - 結果は `BenchResult[]` (`{ scene, backend, build, count, crossOriginIsolated, meanMs, p50Ms, p99Ms, cpuMs, cpuP50Ms, gpuMs?, metrics? }`) として `bench/results/latest.json` に保存する。
 - `tools/compare-bench.mjs` は `bench/baseline.json` (`BenchResult[]`) と **`(scene, backend, build, count)` が一致する要素同士** を比較し、`p99Ms`・`cpuMs`・各 `metrics` のいずれかが 10% を超えて悪化したら exit 1。ベースラインが空配列なら「ベースラインなし」で exit 0、JSON が不正・配列でない場合は exit 1、対応するベースラインがない結果は「新規」と表示して exit 0。
 - ベンチの数値は **同一マシンでの相対比較のみ** に使う。CI では実行しない。
