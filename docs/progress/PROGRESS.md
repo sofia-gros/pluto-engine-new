@@ -37,7 +37,7 @@
 | T-R.2  | ビルド・テスト設定の是正            | DONE | [T-R.2.md](./reviews/T-R.2.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
 | T-R.3  | core の是正                         | DONE | [T-R.3.md](./reviews/T-R.3.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
 | T-R.4  | jobs の再実装と World 連携          | DONE | [T-R.4.md](./reviews/T-R.4.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
-| T-R.5  | ベンチ基盤の是正と ECS ベンチ再計測 | DONE | [T-R.5.md](./reviews/T-R.5.md)   | (未コミット)                                                             |
+| T-R.5  | ベンチ基盤の是正と ECS ベンチ再計測 | DONE | [T-R.5.md](./reviews/T-R.5.md)   | [3fa1f5c](https://github.com/sofia-gros/pluto-engine-new/commit/3fa1f5c) |
 | T-2.3  | スケジューラ選択とパリティ          | DONE | [T-2.3.md](./reviews/T-2.3.md)   | (未コミット・指示待ち)                                                   |
 | T-2.4  | Transform                           | TODO |                                  |                                                                          |
 | T-3.1  | RHI インターフェース                | TODO |                                  |                                                                          |
@@ -124,7 +124,7 @@
 - 未解決:
   - 受け入れ条件 5 の警告回数 (`logger.warn` を 1 回出す) は未検証。dev server は常に COOP/COEP を送出するため縮退警告を出す環境の再現が要る。
   - `create-scheduler.ts` の 17〜20 行 (並列を選ぶ分岐) は Node では未実行。ブラウザテスト側の責務。
-  - T-R.5 は BLOCKED のまま (基準機での ECS ベンチ計測と vsync 解除の確認)。
+  - T-R.5 はこの時点で BLOCKED だったが、2026-10-06 に完了した (下のログを参照)。
   - WebGPU プロジェクトは未実行 (実行環境の GPU 状況による)。
   - コミットはしていない (ユーザーの指示待ち)。
 
