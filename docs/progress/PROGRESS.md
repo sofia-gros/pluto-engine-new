@@ -4,89 +4,107 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-## 現在のタスク
-
 **T-2.4** Transform (状態: TODO)
-_(T-R.5 は基準機での計測待ちのため保留中)_
 
-> 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.4 は完了し、T-R.5 は基準機待ちで BLOCKED。T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
+> 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.5 は完了し、T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
 
 > **引き継ぎ**: 次のエージェントは最初に [handoff.md](./handoff.md) を読むこと (2026-10-06 作成)。
 
 ## タスク状態表
 
-| ID     | 内容                                | 状態    | レビュー記録                          | コミット                                                                 |
-| ------ | ----------------------------------- | ------- | ------------------------------------- | ------------------------------------------------------------------------ |
-| T-0.1  | パッケージと TypeScript 設定        | DONE    | [T-0.1.md](./reviews/T-0.1.md)        | [90bb219](https://github.com/sofia-gros/pluto-engine-new/commit/90bb219) |
-| T-0.2  | ESLint                              | DONE    | [T-0.2.md](./reviews/T-0.2.md)        | [4652f6c](https://github.com/sofia-gros/pluto-engine-new/commit/4652f6c) |
-| T-0.3  | Vite 2 ビルドとエントリ             | DONE    | [T-0.3.md](./reviews/T-0.3.md)        | [2e2b360](https://github.com/sofia-gros/pluto-engine-new/commit/2e2b360) |
-| T-0.4  | Vitest と最初のコード               | DONE    | [T-0.4.md](./reviews/T-0.4.md)        | [c537423](https://github.com/sofia-gros/pluto-engine-new/commit/c537423) |
-| T-0.5  | Playwright ハーネス                 | DONE    | [T-0.5.md](./reviews/T-0.5.md)        | [d4bb4f6](https://github.com/sofia-gros/pluto-engine-new/commit/d4bb4f6) |
-| T-0.6  | CI                                  | DONE    | [T-0.6.md](./reviews/T-0.6.md)        | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
-| T-0.7  | ベンチ基盤                          | DONE    | [T-0.7.md](./reviews/T-0.7.md)        | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
-| T-1.1  | 数学                                | DONE    | [T-1.1.md](./reviews/T-1.1.md)        | [cbba746](https://github.com/sofia-gros/pluto-engine-new/commit/cbba746) |
-| T-1.2  | エラー・ログ                        | DONE    | [T-1.2.md](./reviews/T-1.2.md)        | [b24ba45](https://github.com/sofia-gros/pluto-engine-new/commit/b24ba45) |
-| T-1.3  | メモリ                              | DONE    | [T-1.3.md](./reviews/T-1.3.md)        | [7f86618](https://github.com/sofia-gros/pluto-engine-new/commit/7f86618) |
-| T-1.4  | イベント                            | DONE    | [T-1.4.md](./reviews/T-1.4.md)        | [abd00f9](https://github.com/sofia-gros/pluto-engine-new/commit/abd00f9) |
-| T-1.5  | 時間                                | DONE    | [T-1.5.md](./reviews/T-1.5.md)        | [f953359](https://github.com/sofia-gros/pluto-engine-new/commit/f953359) |
-| T-1.6  | エンティティ・コンポーネント        | DONE    | [T-1.6.md](./reviews/T-1.6.md)        | [2411499](https://github.com/sofia-gros/pluto-engine-new/commit/2411499) |
-| T-1.7  | アーキタイプ                        | DONE    | [T-1.7.md](./reviews/T-1.7.md)        | [761cb70](https://github.com/sofia-gros/pluto-engine-new/commit/761cb70) |
-| T-1.8  | クエリ・変更追跡                    | DONE    | [T-1.8.md](./reviews/T-1.8.md)        | [5571111](https://github.com/sofia-gros/pluto-engine-new/commit/5571111) |
-| T-1.9  | World                               | DONE    | 2026-10-06                            | [8a8b4d5](https://github.com/sofia-gros/pluto-engine-new/commit/8a8b4d5) |
-| T-1.10 | ECS ベンチ                          | DONE    | [T-1.10.md](./reviews/T-1.10.md)      | [cb53fd8](https://github.com/sofia-gros/pluto-engine-new/commit/cb53fd8) |
-| T-2.1  | カーネル・直列スケジューラ          | DONE    | [T-2.1.md](./reviews/T-2.1.md)        | [3e84716](https://github.com/sofia-gros/pluto-engine-new/commit/3e84716) |
-| T-2.2  | 並列スケジューラ                    | DONE    | [T-2.2.md](./reviews/T-2.2.md)        | [d179532](https://github.com/sofia-gros/pluto-engine-new/commit/d179532) |
-| T-R.1  | 検査ツールの実装                    | DONE    | [T-R.1.md](./reviews/T-R.1.md)        | (git 管理外)                                                             |
-| T-R.2  | ビルド・テスト設定の是正            | DONE    | [T-R.2.md](./reviews/T-R.2.md)        | (git 管理外)                                                             |
-| T-R.3  | core の是正                         | DONE    | [T-R.3.md](./reviews/T-R.3.md)        | (git 管理外)                                                             |
-| T-R.4  | jobs の再実装と World 連携          | DONE    | [T-R.4.md](./reviews/T-R.4.md)        | (git 管理外)                                                             |
-| T-R.5  | ベンチ基盤の是正と ECS ベンチ再計測 | BLOCKED | [T-R.5.md](./reviews/T-R.5.md) (途中) | (git 管理外)                                                             |
-| T-2.3  | スケジューラ選択とパリティ          | DONE    | [T-2.3.md](./reviews/T-2.3.md)        | (未コミット・指示待ち)                                                   |
-| T-2.4  | Transform                           | TODO    |                                       |                                                                          |
-| T-3.1  | RHI インターフェース                | TODO    |                                       |                                                                          |
-| T-3.2  | RHI WebGPU 実装                     | TODO    |                                       |                                                                          |
-| T-3.3  | RHI WebGL2 実装                     | TODO    |                                       |                                                                          |
-| T-3.4  | デバイス生成とブラウザテスト        | TODO    |                                       |                                                                          |
-| T-4.1  | シェーダ基盤                        | TODO    |                                       |                                                                          |
-| T-4.2  | テクスチャ・アセット                | TODO    |                                       |                                                                          |
-| T-4.3  | スプライトデータ                    | TODO    |                                       |                                                                          |
-| T-4.4  | CPU 補助描画パス                    | TODO    |                                       |                                                                          |
-| T-4.5  | GPU プリミティブ                    | TODO    |                                       |                                                                          |
-| T-4.6  | GPU 駆動描画パス                    | TODO    |                                       |                                                                          |
-| T-4.7  | カメラ・レンダーグラフ・レンダラ    | TODO    |                                       |                                                                          |
-| T-5.1  | Game / Scene / Factory / カメラ     | TODO    |                                       |                                                                          |
-| T-5.2  | 入力                                | TODO    |                                       |                                                                          |
-| T-5.3  | トゥイーン・タイムライン            | TODO    |                                       |                                                                          |
-| T-5.4  | フレームアニメーション              | TODO    |                                       |                                                                          |
-| T-5.5  | タイマー・カメラエフェクト          | TODO    |                                       |                                                                          |
-| T-5.6  | Group / Container                   | TODO    |                                       |                                                                          |
-| T-6.1  | 空間ハッシュ                        | TODO    |                                       |                                                                          |
-| T-6.2  | パーティクル                        | TODO    |                                       |                                                                          |
-| T-6.3  | 群衆 (フローフィールド + 追従)      | TODO    |                                       |                                                                          |
-| T-6.4  | 群衆 PBD 衝突回避                   | TODO    |                                       |                                                                          |
-| T-7.1  | Stable Fluids (格子)                | TODO    |                                       |                                                                          |
-| T-7.2  | PBF                                 | TODO    |                                       |                                                                          |
-| T-7.3  | MLS-MPM                             | TODO    |                                       |                                                                          |
-| T-7.4  | 流体描画                            | TODO    |                                       |                                                                          |
-| T-8.1  | アーケード物理                      | TODO    |                                       |                                                                          |
-| T-8.2  | XPBD 剛体                           | TODO    |                                       |                                                                          |
-| T-9.1  | KTX2                                | TODO    |                                       |                                                                          |
-| T-9.2  | MSDF テキスト                       | TODO    |                                       |                                                                          |
-| T-9.3  | タイルマップ                        | TODO    |                                       |                                                                          |
-| T-9.4  | 図形                                | TODO    |                                       |                                                                          |
-| T-9.5  | ライティング                        | TODO    |                                       |                                                                          |
-| T-9.6  | オーディオ                          | TODO    |                                       |                                                                          |
-| T-9.7  | ポストエフェクト                    | TODO    |                                       |                                                                          |
-| T-10.1 | devtools                            | TODO    |                                       |                                                                          |
-| T-10.2 | サンプル集                          | TODO    |                                       |                                                                          |
-| T-10.3 | API リファレンス生成                | TODO    |                                       |                                                                          |
-| T-10.4 | リリース                            | TODO    |                                       |                                                                          |
+| ID     | 内容                                | 状態 | レビュー記録                     | コミット                                                                 |
+| ------ | ----------------------------------- | ---- | -------------------------------- | ------------------------------------------------------------------------ |
+| T-0.1  | パッケージと TypeScript 設定        | DONE | [T-0.1.md](./reviews/T-0.1.md)   | [90bb219](https://github.com/sofia-gros/pluto-engine-new/commit/90bb219) |
+| T-0.2  | ESLint                              | DONE | [T-0.2.md](./reviews/T-0.2.md)   | [4652f6c](https://github.com/sofia-gros/pluto-engine-new/commit/4652f6c) |
+| T-0.3  | Vite 2 ビルドとエントリ             | DONE | [T-0.3.md](./reviews/T-0.3.md)   | [2e2b360](https://github.com/sofia-gros/pluto-engine-new/commit/2e2b360) |
+| T-0.4  | Vitest と最初のコード               | DONE | [T-0.4.md](./reviews/T-0.4.md)   | [c537423](https://github.com/sofia-gros/pluto-engine-new/commit/c537423) |
+| T-0.5  | Playwright ハーネス                 | DONE | [T-0.5.md](./reviews/T-0.5.md)   | [d4bb4f6](https://github.com/sofia-gros/pluto-engine-new/commit/d4bb4f6) |
+| T-0.6  | CI                                  | DONE | [T-0.6.md](./reviews/T-0.6.md)   | [5507e4c](https://github.com/sofia-gros/pluto-engine-new/commit/5507e4c) |
+| T-0.7  | ベンチ基盤                          | DONE | [T-0.7.md](./reviews/T-0.7.md)   | [4fbfc8c](https://github.com/sofia-gros/pluto-engine-new/commit/4fbfc8c) |
+| T-1.1  | 数学                                | DONE | [T-1.1.md](./reviews/T-1.1.md)   | [cbba746](https://github.com/sofia-gros/pluto-engine-new/commit/cbba746) |
+| T-1.2  | エラー・ログ                        | DONE | [T-1.2.md](./reviews/T-1.2.md)   | [b24ba45](https://github.com/sofia-gros/pluto-engine-new/commit/b24ba45) |
+| T-1.3  | メモリ                              | DONE | [T-1.3.md](./reviews/T-1.3.md)   | [7f86618](https://github.com/sofia-gros/pluto-engine-new/commit/7f86618) |
+| T-1.4  | イベント                            | DONE | [T-1.4.md](./reviews/T-1.4.md)   | [abd00f9](https://github.com/sofia-gros/pluto-engine-new/commit/abd00f9) |
+| T-1.5  | 時間                                | DONE | [T-1.5.md](./reviews/T-1.5.md)   | [f953359](https://github.com/sofia-gros/pluto-engine-new/commit/f953359) |
+| T-1.6  | エンティティ・コンポーネント        | DONE | [T-1.6.md](./reviews/T-1.6.md)   | [2411499](https://github.com/sofia-gros/pluto-engine-new/commit/2411499) |
+| T-1.7  | アーキタイプ                        | DONE | [T-1.7.md](./reviews/T-1.7.md)   | [761cb70](https://github.com/sofia-gros/pluto-engine-new/commit/761cb70) |
+| T-1.8  | クエリ・変更追跡                    | DONE | [T-1.8.md](./reviews/T-1.8.md)   | [5571111](https://github.com/sofia-gros/pluto-engine-new/commit/5571111) |
+| T-1.9  | World                               | DONE | 2026-10-06                       | [8a8b4d5](https://github.com/sofia-gros/pluto-engine-new/commit/8a8b4d5) |
+| T-1.10 | ECS ベンチ                          | DONE | [T-1.10.md](./reviews/T-1.10.md) | [cb53fd8](https://github.com/sofia-gros/pluto-engine-new/commit/cb53fd8) |
+| T-2.1  | カーネル・直列スケジューラ          | DONE | [T-2.1.md](./reviews/T-2.1.md)   | [3e84716](https://github.com/sofia-gros/pluto-engine-new/commit/3e84716) |
+| T-2.2  | 並列スケジューラ                    | DONE | [T-2.2.md](./reviews/T-2.2.md)   | [d179532](https://github.com/sofia-gros/pluto-engine-new/commit/d179532) |
+| T-R.1  | 検査ツールの実装                    | DONE | [T-R.1.md](./reviews/T-R.1.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
+| T-R.2  | ビルド・テスト設定の是正            | DONE | [T-R.2.md](./reviews/T-R.2.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
+| T-R.3  | core の是正                         | DONE | [T-R.3.md](./reviews/T-R.3.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
+| T-R.4  | jobs の再実装と World 連携          | DONE | [T-R.4.md](./reviews/T-R.4.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
+| T-R.5  | ベンチ基盤の是正と ECS ベンチ再計測 | DONE | [T-R.5.md](./reviews/T-R.5.md)   | (未コミット)                                                             |
+| T-2.3  | スケジューラ選択とパリティ          | DONE | [T-2.3.md](./reviews/T-2.3.md)   | (未コミット・指示待ち)                                                   |
+| T-2.4  | Transform                           | TODO |                                  |                                                                          |
+| T-3.1  | RHI インターフェース                | TODO |                                  |                                                                          |
+| T-3.2  | RHI WebGPU 実装                     | TODO |                                  |                                                                          |
+| T-3.3  | RHI WebGL2 実装                     | TODO |                                  |                                                                          |
+| T-3.4  | デバイス生成とブラウザテスト        | TODO |                                  |                                                                          |
+| T-4.1  | シェーダ基盤                        | TODO |                                  |                                                                          |
+| T-4.2  | テクスチャ・アセット                | TODO |                                  |                                                                          |
+| T-4.3  | スプライトデータ                    | TODO |                                  |                                                                          |
+| T-4.4  | CPU 補助描画パス                    | TODO |                                  |                                                                          |
+| T-4.5  | GPU プリミティブ                    | TODO |                                  |                                                                          |
+| T-4.6  | GPU 駆動描画パス                    | TODO |                                  |                                                                          |
+| T-4.7  | カメラ・レンダーグラフ・レンダラ    | TODO |                                  |                                                                          |
+| T-5.1  | Game / Scene / Factory / カメラ     | TODO |                                  |                                                                          |
+| T-5.2  | 入力                                | TODO |                                  |                                                                          |
+| T-5.3  | トゥイーン・タイムライン            | TODO |                                  |                                                                          |
+| T-5.4  | フレームアニメーション              | TODO |                                  |                                                                          |
+| T-5.5  | タイマー・カメラエフェクト          | TODO |                                  |                                                                          |
+| T-5.6  | Group / Container                   | TODO |                                  |                                                                          |
+| T-6.1  | 空間ハッシュ                        | TODO |                                  |                                                                          |
+| T-6.2  | パーティクル                        | TODO |                                  |                                                                          |
+| T-6.3  | 群衆 (フローフィールド + 追従)      | TODO |                                  |                                                                          |
+| T-6.4  | 群衆 PBD 衝突回避                   | TODO |                                  |                                                                          |
+| T-7.1  | Stable Fluids (格子)                | TODO |                                  |                                                                          |
+| T-7.2  | PBF                                 | TODO |                                  |                                                                          |
+| T-7.3  | MLS-MPM                             | TODO |                                  |                                                                          |
+| T-7.4  | 流体描画                            | TODO |                                  |                                                                          |
+| T-8.1  | アーケード物理                      | TODO |                                  |                                                                          |
+| T-8.2  | XPBD 剛体                           | TODO |                                  |                                                                          |
+| T-9.1  | KTX2                                | TODO |                                  |                                                                          |
+| T-9.2  | MSDF テキスト                       | TODO |                                  |                                                                          |
+| T-9.3  | タイルマップ                        | TODO |                                  |                                                                          |
+| T-9.4  | 図形                                | TODO |                                  |                                                                          |
+| T-9.5  | ライティング                        | TODO |                                  |                                                                          |
+| T-9.6  | オーディオ                          | TODO |                                  |                                                                          |
+| T-9.7  | ポストエフェクト                    | TODO |                                  |                                                                          |
+| T-10.1 | devtools                            | TODO |                                  |                                                                          |
+| T-10.2 | サンプル集                          | TODO |                                  |                                                                          |
+| T-10.3 | API リファレンス生成                | TODO |                                  |                                                                          |
+| T-10.4 | リリース                            | TODO |                                  |                                                                          |
 
-**現在 T-R.5 の基準機での計測待ち (vsync の確認・ECS ベンチの判定とベースライン登録)。** 全タスクの詳細は `docs/12-roadmap.md` で確定済み (末尾「決定事項」D-1〜D-19)。実施順は T-2.2 → **T-R.1〜T-R.5** → T-2.3。
+**次は T-2.4 (Transform)。** 全タスクの詳細は `docs/12-roadmap.md` で確定済み (末尾「決定事項」D-1〜D-20)。実施順は T-2.2 → **T-R.1〜T-R.5** → T-2.3 → T-2.4。
 
-> 注意: レビューの結果、T-1.10 の性能値 (`bench/baseline.json`) は根拠となる計測出力がなく **無効**。T-2.2 の受け入れ条件も未検証。いずれも T-R.4 / T-R.5 / T-2.3 で再検証する。
+> 注意: T-1.10 の性能値 (旧 `bench/baseline.json`) は根拠となる計測出力がなく **無効** とし、T-R.5 で実測値に基づくベースラインへ置き換えた。T-R.5 の受け入れ条件 2 (vsync の解除) だけは基準機でも満たせていない (フレーム時間 p50 が 60Hz の 17.4ms から下がらない)。詳細は `reviews/T-R.5.md` の「未解決」。
 
 ## 作業ログ (新しいものを上に追記)
+
+### 2026-10-06 T-R.5 完了 (ベンチ基盤の是正と ECS ベンチ再計測)
+
+- やったこと:
+  - **実行中フラグの同期漏れを実バグとして修正**。`SpawnState.isIterating` が `boolean` の複製で管理されているため、`flush()` の入れ子復帰 (`this.iterating = isNested`) で追従せず、**システム実行中に即時 spawn が通ってしまう**状態だった。`SpawnState.isIterating` を `() => boolean` にして `World.iterating` を直接読ませる形にし、値の複製という構造自体を無くした。
+  - `src/core/ecs/world-spawn.ts` を新規作成し、`World` の spawn 責務 (`spawnRows` / `spawnOne` / `targetArchetype` / `archetypeOfIds`) を移した。`docs/02` の表にも追加。
+  - `Archetype.pushRows(count)` / `writeEntityRow(row, entity)` を追加。dirty ビットをフィールドごとに 1 回だけ立てるため、1 体ずつの `pushRow` より **6.2 倍速い** (100 万体で 172.3 → 27.9 ms)。当初想定していた「`allocate()` の FreeList 操作が支配的」という仮説は外れていた (律速は `markRange` の呼び出し回数だった)。
+  - `flush()` の `CMD_SPAWN` 遷移を `archetypeOfIds` へ集約し、`World` の private `emptyArchetype()` を削除。`world.ts` は 413 行 → 388 行 (行数規則を満たす)。
+  - ベンチ判定を p50 に統一。`BenchResult.cpuP50Ms` を追加し、`compare-bench.mjs` の判定対象を `cpuP50Ms` と `metrics.*P50Ms` に変更 (p99 は `[参考値]` 表示のみ)。**p99 は同じ実装でも ±20% 揺れるため、判定に使うと誤検知が出る**ことを実測で確かめた。
+  - `docs/04` §4.2 に `pushRows` / `writeEntityRow`、§9 に `spawnN` と実行中フラグの単一源の規則を追記。§10 を p50 判定・一括生成の基準に改訂、§10.1 に実測値と原因を記載。
+  - `bench/baseline.json` に実測 5 構成を登録 (empty / ecs-move 10 万・50 万・100 万 embed / 100 万 parallel)。
+- 証拠:
+  - `node tools/verify.mjs` → **全 7 段階成功**。テスト **219 件** (前回 196 件)。全体 lines 99.25% / branches 94.93% / functions 100%。
+  - `pnpm build` → **check-bundle: OK**。
+  - `CI=1 pnpm test:browser --project=webgl2` / `--project=webgpu` / `:embed` → **それぞれ 10 passed**。
+  - ECS ベンチ (基準機 = RTX 4060 / Chrome / 1920×1080、embed): 10 万カーネル p50 **0.275ms** (基準 2.0ms)、100 万 `spawnN` **27.9ms** (基準 60ms)、100 万 `get` **34.0ms** (基準 50ms)、100 万 `set` **31.8ms** (基準 50ms)。
+  - 回帰テストは修正前のコードで落ちることを確認済み (`World.iterating` とは別の変数に戻して実行 → 17 件中 2 件失敗)。
+- 未解決:
+  - **受け入れ条件 2 (vsync の解除) は基準機でも未達。** `empty` シーンの p50 が embed 17.415ms / parallel 17.465ms で、`--disable-gpu-vsync --disable-frame-rate-limit` を付けても 60Hz から下がらない。WSLg 固有ではないため、フレーム時間の定義を見直すか CPU 時間 (`cpuP50Ms`) を主指標にする運用に切り替えが要る。AGENTS §4 によりユーザー判断を仰ぐ。
+  - `docs/12-roadmap.md` の T-R.5 受け入れ条件 4 は旧文言のまま (docs はユーザーの指示なしに変更しないため未更新)。
+  - `spawnN` の 1000 万体以上は外挿であり未計測。
 
 ### 2026-10-06 T-2.3 完了 (スケジューラ選択とパリティ)
 

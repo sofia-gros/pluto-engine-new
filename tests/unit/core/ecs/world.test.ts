@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MAX_ENTITIES, World } from '../../../../src/core/ecs/world';
 import { defineComponent } from '../../../../src/core/ecs/component';
-import { MAX_ENTITIES, makeEntity } from '../../../../src/core/ecs/entity';
+import { MAX_ENTITIES, NULL_ENTITY, makeEntity } from '../../../../src/core/ecs/entity';
 import type { Entity } from '../../../../src/core/ecs/entity';
 import { Phase } from '../../../../src/core/ecs/system';
 import type { KernelExecutor, KernelRef } from '../../../../src/core/ecs/system';
@@ -221,5 +221,93 @@ describe('World', () => {
       ranges.push([s, e]),
     );
     expect(ranges).toEqual([[0, 1]]);
+  });
+
+  it('回帰: システム実行中に flush しても、実行中に戻った後は即時 spawn が失敗する', () => {
+    // 実行中フラグを World.iterating 以外へ複製していたので、flush の入れ子復帰で
+    // 「World は実行中 / spawn 側は非実行中」という食い違いが起きていた。
+    const w = new World({ maxEntities: 100 });
+    let hasInnerFailed = false;
+    let hasOuterFailed = false;
+    const trySpawn = (): void => {
+      try {
+        w.spawn(Position);
+      } catch {
+        throw new PlutoError(ErrorCode.InvalidState, '実行中は spawn できない');
+      }
+    };
+    w.addSystem({
+      name: 'inner-flush',
+      phase: Phase.Update,
+      query: {},
+      run: (world) => {
+        world.commands.spawn1(Position);
+        world.flush(); // 入れ子の flush。抜けると実行中に戻る
+        try {
+          trySpawn();
+        } catch {
+          hasInnerFailed = true;
+        }
+      },
+    });
+    w.addSystem({
+      name: 'after-inner-flush',
+      phase: Phase.Update,
+      query: {},
+      order: 1,
+      run: (world) => {
+        world.commands.spawn1(Position);
+        world.flush();
+        try {
+          trySpawn();
+        } catch {
+          hasOuterFailed = true;
+        }
+      },
+    });
+    w.runPhase(Phase.Update, 1);
+    expect(hasInnerFailed).toBe(true);
+    expect(hasOuterFailed).toBe(true);
+    expect(w.isIterating).toBe(false);
+    // 実行外なら spawn できる
+    const e = w.spawn(Position);
+    expect(w.isAlive(e)).toBe(true);
+  });
+
+  it('spawnN は行をまとめて確保し、1 体ずつ spawn した結果と一致する', () => {
+    const bulk = new World({ maxEntities: 500 });
+    const chain = new World({ maxEntities: 500 });
+    const q = bulk.query({ all: [Position, Velocity] });
+    expect(bulk.spawnN(200, [Position, Velocity])).toBe(makeEntity(0, 0));
+    for (let i = 0; i < 200; i++) chain.spawn(Position, Velocity);
+    expect(q.count()).toBe(200);
+    const bulkArch = q.archetypes[0];
+    const chainArch = chain.query({ all: [Position, Velocity] }).archetypes[0];
+    expect(bulkArch.count).toBe(chainArch.count);
+    for (let i = 0; i < 200; i++) {
+      const e = makeEntity(i, 0);
+      expect(bulkArch.entities[i]).toBe(chainArch.entities[i]);
+      expect(bulk.get(e, Position.x)).toBe(chain.get(e, Position.x));
+    }
+  });
+
+  it('spawnN は 0 体なら NULL_ENTITY、負の数と実行中は失敗する', () => {
+    const w = new World({ maxEntities: 10 });
+    expect(w.spawnN(0, [Position])).toBe(NULL_ENTITY);
+    expect(() => {
+      w.spawnN(-1, [Position]);
+    }).toThrow(expect.objectContaining({ code: ErrorCode.InvalidState }));
+    w.addSystem({
+      name: 'spawnn-in-system',
+      phase: Phase.Update,
+      query: {},
+      run: (world) => {
+        world.spawnN(1, [Position]);
+      },
+    });
+    expect(() => {
+      w.runPhase(Phase.Update, 1);
+    }).toThrow(expect.objectContaining({ code: ErrorCode.InvalidState }));
+    expect(w.isIterating).toBe(false);
   });
 });

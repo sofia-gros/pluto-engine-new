@@ -23,6 +23,8 @@ import type { QueryDesc } from './query';
 import type { FieldToken } from './schema';
 import { defineSystem } from './system';
 import type { KernelExecutor, Phase, SystemDef } from './system';
+import type { SpawnState } from './world-spawn';
+import { archetypeOfIds, spawnOne, spawnRows } from './world-spawn';
 
 /** `WorldConfig.maxEntities` の既定値。 */
 export const DEFAULT_MAX_ENTITIES = 1_048_576;
@@ -74,6 +76,12 @@ export class World {
   private readonly onArchetypeGrown = (): void => {
     this.version++;
   };
+  /**
+   * spawn の実装本体へ渡す内部状態 (graph の生成後に組み立てる)。
+   * 実行中フラグは複製せず `this.iterating` を直接読ませる。
+   * 複製すると `flush()` の入れ子復帰などで値が追従せず、実バグになる。
+   */
+  private readonly spawnState: SpawnState;
 
   /**
    * @param config 設定 (省略時は既定値)
@@ -89,6 +97,11 @@ export class World {
     this.entityTable = new EntityTable(maxEntities);
     const rows = config?.maxRowsPerArchetype ?? maxEntities;
     this.graph = new ArchetypeGraph(rows, this.onArchetypeCreated, this.onArchetypeGrown);
+    this.spawnState = {
+      isIterating: () => this.iterating,
+      graph: this.graph,
+      entityTable: this.entityTable,
+    };
     this.commands = new CommandBuffer(
       config?.commandCapacity ?? DEFAULT_COMMAND_CAPACITY,
       this.entityTable,
@@ -125,21 +138,23 @@ export class World {
    * @returns 生成したエンティティ
    */
   public spawn(...components: AnyComponentDef[]): Entity {
-    assert(
-      !this.iterating,
-      'World: システム実行中は即時 spawn できません。commands を使ってください',
-    );
-    let arch = this.emptyArchetype();
-    const n = components.length;
-    for (let i = 0; i < n; i++) arch = this.graph.transition(arch, components[i], true);
-    const e = this.entityTable.allocate();
-    this.entityTable.update(e, arch.id, arch.pushRow(e));
-    return e;
+    return spawnOne(this.spawnState, components);
   }
 
   /**
-   * エンティティを即時に破棄する。生存していなければ何もしない。
-   * @param e エンティティ
+   * 同じ構成の `count` 体を一括生成し、最初の Entity を返す (docs/04 §4.2)。
+   * 行をまとめて確保するので 1 体ごとに dirty ビットを立てない。
+   * @param count 生成する体数
+   * @param components 付与するコンポーネント
+   * @returns 最初の Entity。`count` が 0 のときは NULL_ENTITY
+   */
+  public spawnN(count: number, components: readonly AnyComponentDef[]): Entity {
+    return spawnRows(this.spawnState, count, components);
+  }
+
+  /**
+   * エンティティを即時に破棄する。未生存なら何もしない。
+   * @param e 破棄するエンティティ
    */
   public despawn(e: Entity): void {
     assert(!this.iterating, 'World: システム実行中は即時 despawn できません');
@@ -274,9 +289,7 @@ export class World {
       const e = data[i + 1] as Entity;
       if (op === CMD_SPAWN) {
         const n = data[i + 2];
-        let arch = this.emptyArchetype();
-        for (let k = 0; k < n; k++)
-          arch = this.graph.transition(arch, COMPONENT_REGISTRY[data[i + 3 + k]], true);
+        const arch = archetypeOfIds(this.graph, data, i + 3, n);
         this.entityTable.update(e, arch.id, arch.pushRow(e));
         i += 3 + n;
       } else if (op === CMD_DESPAWN) {
@@ -325,16 +338,6 @@ export class World {
     }
     s.params[0] = dt;
     executor.runKernel(kernel, s.query, s.params);
-  }
-
-  /**
-   * 空アーキタイプ (ID 0) を返す。
-   * @returns 空アーキタイプ
-   */
-  private emptyArchetype(): Archetype {
-    const arch = this.graph.getArchetypeById(0);
-    assert(arch !== undefined, 'World: 空アーキタイプがありません');
-    return arch;
   }
 
   /**

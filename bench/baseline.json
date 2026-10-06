@@ -1,1 +1,103 @@
-[]
+[
+  {
+    "scene": "empty",
+    "backend": "webgpu",
+    "build": "embed",
+    "count": 0,
+    "crossOriginIsolated": true,
+    "meanMs": 17.548133333333332,
+    "p50Ms": 17.414999999999054,
+    "p99Ms": 18.42999999999938,
+    "cpuMs": 0.005000025033950806,
+    "cpuP50Ms": 0,
+    "metrics": {}
+  },
+  {
+    "scene": "ecs-move",
+    "backend": "webgpu",
+    "build": "embed",
+    "count": 100000,
+    "crossOriginIsolated": true,
+    "meanMs": 17.726066666666668,
+    "p50Ms": 17.649999999999636,
+    "p99Ms": 18.465000000000146,
+    "cpuMs": 0.5199999809265137,
+    "cpuP50Ms": 0.2750000059604645,
+    "metrics": {
+      "spawnNMs": 8.110000014305115,
+      "spawnChainMs": 26.059999972581863,
+      "setMs": 5.959999978542328,
+      "getMs": 6.534999996423721,
+      "checksum": 150000,
+      "count": 100000,
+      "moveKernelP50Ms": 0.2750000059604645,
+      "moveKernelP99Ms": 0.5150000154972076
+    }
+  },
+  {
+    "scene": "ecs-move",
+    "backend": "webgpu",
+    "build": "embed",
+    "count": 500000,
+    "crossOriginIsolated": true,
+    "meanMs": 17.41621666666667,
+    "p50Ms": 17.424999999999272,
+    "p99Ms": 18.449999999999818,
+    "cpuMs": 1.9599999785423279,
+    "cpuP50Ms": 1.3599999845027924,
+    "metrics": {
+      "spawnNMs": 16.33500000834465,
+      "spawnChainMs": 82.39999997615814,
+      "setMs": 19.314999997615814,
+      "getMs": 19,
+      "checksum": 750000,
+      "count": 500000,
+      "moveKernelP50Ms": 1.354999989271164,
+      "moveKernelP99Ms": 2.320000022649765
+    }
+  },
+  {
+    "scene": "ecs-move",
+    "backend": "webgpu",
+    "build": "embed",
+    "count": 1000000,
+    "crossOriginIsolated": true,
+    "meanMs": 17.41421666666667,
+    "p50Ms": 17.284999999999854,
+    "p99Ms": 18.3799999999992,
+    "cpuMs": 3.490000009536743,
+    "cpuP50Ms": 2.7950000166893005,
+    "metrics": {
+      "spawnNMs": 27.905000001192093,
+      "spawnChainMs": 172.3299999833107,
+      "setMs": 31.76000002026558,
+      "getMs": 34.019999980926514,
+      "checksum": 1500000,
+      "count": 1000000,
+      "moveKernelP50Ms": 2.7899999916553497,
+      "moveKernelP99Ms": 4.064999997615814
+    }
+  },
+  {
+    "scene": "ecs-move",
+    "backend": "webgpu",
+    "build": "parallel",
+    "count": 1000000,
+    "crossOriginIsolated": true,
+    "meanMs": 17.38301666666667,
+    "p50Ms": 17.25500000000011,
+    "p99Ms": 18.31500000000051,
+    "cpuMs": 3.675000011920929,
+    "cpuP50Ms": 2.790000021457672,
+    "metrics": {
+      "spawnNMs": 28.889999985694885,
+      "spawnChainMs": 168.95500001311302,
+      "setMs": 31.5450000166893,
+      "getMs": 33.85999998450279,
+      "checksum": 1500000,
+      "count": 1000000,
+      "moveKernelP50Ms": 2.7850000262260437,
+      "moveKernelP99Ms": 3.8499999940395355
+    }
+  }
+]

@@ -18,7 +18,8 @@ export interface BenchContext {
   /** 単発処理の計測値 (ms)。キーは camelCase で末尾を `Ms` にする。 */
   readonly metrics: Record<string, number>;
   /**
-   * 毎フレームの計測値を記録する。終了時に `${name}P99Ms` として metrics に入る。
+   * 毎フレームの計測値を記録する。終了時に `${name}P50Ms` と `${name}P99Ms` として metrics に入る。
+   * 判定に使うのは P50 である (docs/04 §10)。P99 は外れ値を把握するための参考値。
    * @param name 名前
    * @param ms 値 (ミリ秒)
    */
@@ -69,6 +70,8 @@ export interface BenchResult {
   readonly p99Ms: number;
   /** step の CPU 時間の p99 (ms)。 */
   readonly cpuMs: number;
+  /** step の CPU 時間の中央値 (ms)。判定に使う。 */
+  readonly cpuP50Ms: number;
   /** GPU パス合計の p99 (ms)。timestamp-query がある場合のみ。 */
   readonly gpuMs?: number;
   /** 単発処理・サンプルの計測値 (ms)。 */

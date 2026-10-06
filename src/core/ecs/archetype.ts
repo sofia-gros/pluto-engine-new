@@ -217,6 +217,45 @@ export class Archetype {
   }
 
   /**
+   * `count` 行を連続して追加し、開始行番号を返す。
+   * 1 行ずつ pushRow すると dirty ビットをカラム数だけ markRange で立てるため、
+   * 連続追加では各カラムのゼロ初期化を fill でまとめ、dirty をフィールドごとに 1 回だけ立てる。
+   * entities は 0 (NULL_ENTITY 相当) で埋める。実際の Entity 値は World.spawnN が writeEntityRow で書き込む。
+   * @hot 生成される体数に比例する
+   * @param count 追加する行数
+   * @returns 最初の行番号
+   */
+  public pushRows(count: number): number {
+    assert(!this.isMirror, 'Archetype: ミラーは変更できません');
+    assert(count > 0, 'Archetype: 追加する行数は 1 以上である必要があります');
+    const start = this.count;
+    const end = start + count;
+    assert(end <= this.maxRows, 'Archetype: 最大行数に達しました');
+    if (end > this.entities.length) this.growTo(end);
+    this.count = end;
+    this.entities.fill(0, start, end);
+    const cols = this.columnList;
+    const fieldIds = this.fieldIdList;
+    const len = cols.length;
+    for (let i = 0; i < len; i++) {
+      cols[i].data.fill(0, start, end);
+      this.changeTracker.markRange(fieldIds[i], start, end);
+    }
+    return start;
+  }
+
+  /**
+   * pushRows で確保した行に Entity を書き込む (データ欄は 0 のまま)。
+   * @hot
+   * @param row 行番号
+   * @param entity 書き込む Entity
+   */
+  public writeEntityRow(row: number, entity: Entity): void {
+    assert(!this.isMirror, 'Archetype: ミラーは変更できません');
+    this.entities[row] = entity;
+  }
+
+  /**
    * 最終行を row に移して行を削除する。
    * @hot
    * @param row 削除する行

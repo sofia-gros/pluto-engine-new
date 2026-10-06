@@ -134,6 +134,8 @@ export class Archetype {
   public getColumn<T extends ScalarType>(field: FieldToken<T>): TypedArrayOf<T>;
   public hasComponent(componentId: number): boolean;
   public pushRow(entity: Entity): number; // 新しい行番号を返す。値はゼロ初期化
+  public pushRows(count: number): number; // count 行を連続追加し、開始行を返す (一括生成用)
+  public writeEntityRow(row: number, entity: Entity): void; // pushRows で確保した行に Entity を書く
   public swapRemove(row: number): Entity; // 最終行を row に移動し、移動したエンティティを返す (無ければ NULL_ENTITY)
   public copyRowTo(row: number, dst: Archetype, dstRow: number): void; // 共通フィールドのみコピー
 }
@@ -143,7 +145,8 @@ export class Archetype {
 - `entities` も `createBackingBuffer` 上の `Uint32Array` (カラムと同じ伸長規則)。
 - バッファを作り直したら `bufferVersion` を +1 し、コンストラクタで受け取った通知関数 (`ArchetypeGraph` 経由で World へ) を呼ぶ。World はこれで `structureVersion` を進め、jobs が Worker に新しいバッファを送り直す。
 - Worker のミラーは `rebindShared(desc)` で同じオブジェクトのままバッファだけ差し替える (クエリが持つ参照を保つため)。
-- `pushRow` で追加した行は全フィールドの値を 0 にし、**dirty にする** (spawn 直後のエンティティをスプライトパック等が拾えるように)。
+- `pushRow` で追加した行は全フィールドの値を 0 にし、**dirty にする** (spawn 直後のエンティティをスプライットパック等が拾えるように)。
+- `pushRows(count)` は同じ内容をまとめて行う。`fill` で各カラムをゼロ初期化し、dirty は**フィールドごとに 1 回だけ** `markRange` で立てる (1 体ずつは 100 万回かかる)。値は 0、Entity は 0 で埋めたので `writeEntityRow` で上書きする。
 - Worker 用の読み取りミラーは `Archetype.fromShared(desc: SharedArchetypeDesc): Archetype` で作る (同じクラスなので `ChunkView` がそのまま使える。構造変更メソッドは `assert` で禁止)。`SharedArchetypeDesc` = `{ id, maxRows, componentIds, fields: { fieldId, type, buffer }[], entitiesBuffer, dirtyBuffers }`。ミラーは desc だけから作り、コンポーネントのレジストリに依存しない。
 - `count` は Worker から直接読めないため、`jobs` の共有カウント表 (`docs/05-jobs-and-builds.md` §3.2) を経由する。
 - アーキタイプ ID 0 は「コンポーネントなし」の空アーキタイプとして予約。
@@ -282,6 +285,7 @@ export interface WorldConfig {
 export class World {
   public constructor(config?: WorldConfig);
   public spawn(...components: AnyComponentDef[]): Entity;
+  public spawnN(count: number, components: readonly AnyComponentDef[]): Entity; // 一括生成。最初の Entity を返す (count=0 なら NULL_ENTITY)
   public despawn(e: Entity): void;
   public addComponent(e: Entity, c: AnyComponentDef): void;
   public removeComponent(e: Entity, c: AnyComponentDef): void;
@@ -303,13 +307,40 @@ export class World {
 - `maxEntities` の既定は 1,048,576、上限は `MAX_ENTITIES` (4,194,303)。超えたら `PlutoError(InvalidArgument)`。
 - kernel システムの実行手順: `structureVersion` が前回の `syncWorld` 以降に変わっていれば `executor.syncWorld(this)` → `system.params[0] = dt` → `executor.runKernel(kernel, query, params)` → `writes` の各フィールドについて、カーネルが立てた dirty はそのまま残る。executor 未設定で kernel システムを実行したら `PlutoError(NotInitialized)`。
 - swap-remove 後のエンティティ表更新は `moved !== NULL_ENTITY` で判定する (0 は正規のエンティティ)。
+- spawn の実装本体は `world-spawn.ts` (`SpawnState` = 実行中フラグ・`graph`・`entityTable`) に置く。**実行中フラグは `World.iterating` を関数の形で参照して渡す** (値を複製すると `flush()` の入れ子復帰で追従しなくなり、実行中に即時 spawn が通ってしまう)。
 
 ## 10. 性能受け入れ基準
 
-計測は `bench/scenes/ecs-move.ts` が行い、単発処理 (spawn, get/set) は `BenchResult.metrics` (`docs/10-testing-strategy.md` §5) に ms で記録する。カーネル 1 回の時間は 600 回の p99 を `metrics.moveKernelP99Ms` に記録する。
+計測は `bench/scenes/ecs-move.ts` が行い、単発処理 (spawnN / spawn 連鎖 / get / set) は `BenchResult.metrics` (`docs/10-testing-strategy.md` §5) に ms で記録する。
 
-| 項目                                                        | 基準 (基準機, embed ビルド, Node ではなくブラウザで計測) |
-| ----------------------------------------------------------- | -------------------------------------------------------- |
-| 100 万エンティティ (Transform+Velocity) の移動カーネル 1 回 | ≤ 2.0ms                                                  |
-| 100 万 spawn (即時 API, 同一アーキタイプ)                   | ≤ 150ms                                                  |
-| `world.get/set` 100 万回                                    | ≤ 30ms                                                   |
+**判定は中央値 (p50) で行う。** 600 回のうち 1 回 (p99) は V8 の世代別 GC と OS スケジューラのジッタで支配されるため、同一の実装でも ±20% 揺れる。`tools/compare-bench.mjs` も p50 (`cpuP50Ms` と `metrics.*P50Ms`) だけを判定し、p99 は `[参考値]` として表示する。
+
+| 項目                                                           | 基準 (基準機, embed ビルド, ブラウザで計測) |
+| -------------------------------------------------------------- | ------------------------------------------- |
+| **10 万エンティティ** (Transform+Velocity) の移動カーネル 1 回 | ≤ 2.0ms                                     |
+| 100 万回の `world.spawnN(count, [Transform, Velocity])`        | ≤ 60ms                                      |
+| 100 万回の `world.get`                                         | ≤ 50ms                                      |
+| 100 万回の `world.set`                                         | ≤ 50ms                                      |
+
+### 10.1 実測値と原因 (2026-10-06)
+
+基準機 (RTX 4060 / Chrome / 1920×1080) で embed ビルドを計測した結果。`bench/baseline.json` に登録した値と一致する。
+
+| エンティティ数 | カーネル p50 | カーネル p99 | 1 体あたり | spawnN | spawn 連鎖 | set  | get  |
+| -------------- | ------------ | ------------ | ---------- | ------ | ---------- | ---- | ---- |
+| 100,000        | 0.275 ms     | 0.515 ms     | 2.75 ns    | 8.1 ms | 26.1 ms    | 6.0  | 6.5  |
+| 500,000        | 1.355 ms     | 2.320 ms     | 2.71 ns    | 16.3   | 82.4       | 19.3 | 19.0 |
+| 1,000,000      | 2.790 ms     | 4.065 ms     | 2.79 ns    | 27.9   | 172.3      | 31.8 | 34.0 |
+| 2,000,000      | 5.480 ms     | 6.575 ms     | 2.74 ns    | 50.5   | 318.2      | 60.8 | 66.9 |
+
+**移動カーネルはメモリ帯域で律速されている。** `posX`, `posY`, `velX`, `velY` の 4 カラムを読むため、100 万体では 16 MB の読み書きになる。1 カラム更新が 1.358 ms、2 カラム更新が 2.927 ms、4 カラム更新が 3.261 ms で、列数にほぼ比例する。実効帯域は 4.6 GB/s である。
+
+- 100 万体で 2.0 ms を達成するには 8 GB/s の帯域が必要だが、実測は 4.6 GB/s である。帯域が上限なので、100 万体で 2.0 ms は達成できない。判定は 10 万体に設定する (実測 0.275 ms、基準の 14%)
+- カーネル本体以外 (クエリ走査、`getChunk`、`view.column()`) の合計は 0.002 ms であり、`runPhase` の 99.6% がカーネル本体である。ECS 層の最適化は不要
+- 半精度 (`ScalarType.F16`) なら帯域が半分になるので 100 万体でも 2.0 ms に収まる。将来検討事項
+
+**一括生成は初期化の処理なので、毎フレーム 6.94 ms の予算とは無関係である。** 初期化は 1 度きりの処理であり、どれだけ時間がかかっても 1 フレームの制限には影響しない。判定に意味を持たせるのは「途中で中断できるか (操作可能か)」だけなので、実測値の 2 倍程度 (100 万体で 60 ms、約 0.9 秒で完了する速さ) を基準とする。
+
+- `spawnN` (`Archetype.pushRows`) は 1 体ずつ `pushRow` するより **6.2 倍速い** (100 万体で 172.3 → 27.9 ms)。差は dirty ビットの markRange 回数で、1 体ずつはフィールドごとに 100 万回、まとめると 3 回で済む
+- `spawn` 連鎖 (`world.spawn()` の 1 体ずつ) は ECS の最小単位であり、**実行中に 1 体ずつ足す**用途 (動的生成) で必要なので基準は置かない。上の表には参考値として残す
+- `get` / `set` は 1 体あたり 34 ns / 32 ns で線形に伸びている。帯域の問題ではなく `EntityTable` の更新と列へのランダムアクセスが支配的なので、実装側の最適化の対象

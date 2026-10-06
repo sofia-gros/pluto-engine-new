@@ -34,6 +34,55 @@ describe('Archetype', () => {
     expect(dirty(a, Hp.hp.fieldId)).toEqual([[0, 1]]);
   });
 
+  it('pushRows は開始行を返し、count 行をゼロ初期化して 1 範囲だけ dirty にする', () => {
+    const a = new Archetype(1, [Pos, Hp], 100);
+    const start = a.pushRows(70);
+    expect(start).toBe(0);
+    expect(a.count).toBe(70);
+    for (let i = 0; i < 70; i++) {
+      expect(a.entities[i]).toBe(0); // writeEntityRow するまでは NULL_ENTITY 相当
+      expect(a.getColumn(Pos.x)[i]).toBe(0);
+      expect(a.getColumn(Hp.hp)[i]).toBe(0);
+    }
+    // markRange をフィールドごとに 1 回しか呼ばないので 64 行ブロック 2 個が 1 範囲に結合される
+    expect(dirty(a, Pos.x.fieldId)).toEqual([[0, 70]]);
+    expect(dirty(a, Hp.hp.fieldId)).toEqual([[0, 70]]);
+  });
+
+  it('pushRows は既存の行の後に連結し、writeEntityRow で Entity を書き込む', () => {
+    const a = new Archetype(1, [Hp], 100);
+    a.pushRow(makeEntity(7, 0));
+    expect(a.pushRows(3)).toBe(1);
+    expect(a.count).toBe(4);
+    a.writeEntityRow(2, makeEntity(8, 0));
+    expect(a.entities[1]).toBe(0);
+    expect(a.entities[2]).toBe(makeEntity(8, 0));
+    expect(dirty(a, Hp.hp.fieldId)).toEqual([[0, 4]]);
+  });
+
+  it('pushRows は初期行数を超えて伸長しても之前的データと Entity が保たれる', () => {
+    const a = new Archetype(1, [Hp], 10_000);
+    a.pushRow(makeEntity(5, 0));
+    a.getColumn(Hp.hp)[0] = 55;
+    expect(a.pushRows(INITIAL_ARCHETYPE_ROWS + 10)).toBe(1);
+    expect(a.getColumn(Hp.hp)[0]).toBe(55);
+    expect(a.entities[0]).toBe(makeEntity(5, 0));
+    expect(a.count).toBe(INITIAL_ARCHETYPE_ROWS + 11);
+    expect(dirty(a, Hp.hp.fieldId)).toEqual([[0, INITIAL_ARCHETYPE_ROWS + 11]]);
+  });
+
+  it('pushRows は 0 以下・最大行数超過・ミラーで assert が失敗する', () => {
+    const a = new Archetype(1, [Pos], 10);
+    expect(() => a.pushRows(0)).toThrow(PlutoError);
+    expect(() => a.pushRows(-1)).toThrow(PlutoError);
+    expect(() => a.pushRows(11)).toThrow(PlutoError);
+    const mirror = Archetype.fromShared(a.toShared());
+    expect(() => mirror.pushRows(1)).toThrow(PlutoError);
+    expect(() => {
+      mirror.writeEntityRow(0, makeEntity(0, 0));
+    }).toThrow(PlutoError);
+  });
+
   it('swapRemove は最終行を穴に移し、移動したエンティティを返す。末尾なら NULL_ENTITY', () => {
     const a = new Archetype(1, [Hp], 10);
     for (let i = 0; i < 3; i++) {

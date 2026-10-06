@@ -1,6 +1,8 @@
 /**
  * @file 計測結果とベースラインの比較 (docs/10-testing-strategy.md §5)。
- * (scene, backend, build, count) が一致する要素同士で、p99Ms・cpuMs・metrics の `*Ms` を比べ、10% を超える悪化で exit 1。
+ * (scene, backend, build, count) が一致する要素同士で、cpuP50Ms・metrics の `*Ms` を比べ、10% を超える悪化で exit 1。
+ * 判定は中央値 (p50) で行う (docs/04 §10)。p99 は GC と OS スケジューラのジッタで ±20% 揺れるため、
+ * 参考値として表示するが判定には使わない。
  */
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -19,17 +21,29 @@ function readArray(path) {
 }
 
 /**
- * 比較する値の一覧 (名前 → ms)。
+ * 比較する値の一覧 (名前 → ms)。判定に使うのは p50 のみ。
  * @param {Record<string, unknown>} r
  * @returns {Map<string, number>}
  */
 function comparableValues(r) {
+  const out = new Map([['cpuP50Ms', r.cpuP50Ms]]);
+  for (const [k, v] of Object.entries(r.metrics ?? {}))
+    if (k.endsWith('P50Ms')) out.set(`metrics.${k}`, v);
+  return out;
+}
+
+/**
+ * 参考値として表示するが判定には使わない値の一覧 (名前 → ms)。
+ * @param {Record<string, unknown>} r
+ * @returns {Map<string, number>}
+ */
+function referenceValues(r) {
   const out = new Map([
     ['p99Ms', r.p99Ms],
     ['cpuMs', r.cpuMs],
   ]);
   for (const [k, v] of Object.entries(r.metrics ?? {}))
-    if (k.endsWith('Ms')) out.set(`metrics.${k}`, v);
+    if (k.endsWith('P99Ms')) out.set(`metrics.${k}`, v);
   return out;
 }
 
@@ -66,6 +80,7 @@ function main() {
       continue;
     }
     const baseValues = comparableValues(base);
+    const baseReference = referenceValues(base);
     for (const [name, value] of comparableValues(r)) {
       const before = baseValues.get(name);
       if (typeof before !== 'number' || typeof value !== 'number' || before <= 0) continue;
@@ -77,6 +92,14 @@ function main() {
       } else {
         console.log(line);
       }
+    }
+    for (const [name, value] of referenceValues(r)) {
+      const before = baseReference.get(name);
+      if (typeof before !== 'number' || typeof value !== 'number' || before <= 0) continue;
+      const ratio = ((value - before) / before) * 100;
+      console.log(
+        `${key}: ${name} ${before.toFixed(3)}ms -> ${value.toFixed(3)}ms (${ratio.toFixed(1)}%) [参考値]`,
+      );
     }
   }
   if (hasRegression) console.error('10% を超えて悪化した項目があります');

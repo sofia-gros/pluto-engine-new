@@ -145,6 +145,7 @@ pluto-engine/
 | `src/core/ecs/query.ts`           | `Query` (all/none 条件、該当アーキタイプのキャッシュ、チャンク列挙)                   | HOT | T-1.8  |
 | `src/core/ecs/command-buffer.ts`  | 構造変更 (spawn/despawn/add/remove) の遅延キュー                                      | HOT | T-1.9  |
 | `src/core/ecs/system.ts`          | `defineSystem()` と `Phase` 定数、システム記述子型                                    | -   | T-1.9  |
+| `src/core/ecs/world-spawn.ts`     | `World` の spawn 責務 (即時 spawn と一括 spawn の処理本体)                            | HOT | T-R.5  |
 | `src/core/ecs/world.ts`           | `World`: 上記をまとめる。spawn/despawn/query/システム実行/同期点                      | -   | T-1.9  |
 
 ## 10. src/jobs — ジョブシステム (仕様: `docs/05-jobs-and-builds.md`)

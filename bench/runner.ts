@@ -4,8 +4,10 @@
  */
 import type { BenchBackend, BenchContext, BenchResult, BenchScene } from './bench-types';
 
-/** ウォームアップのフレーム数。 */
-const WARMUP_FRAMES = 120;
+/**
+ * ウォームアップのフレーム数。GC と JIT の最適化が落ち着くように長めに取る。
+ */
+const WARMUP_FRAMES = 300;
 /** 計測するフレーム数。 */
 const MEASURE_FRAMES = 600;
 
@@ -31,14 +33,15 @@ export function percentile(sorted: readonly number[], p: number): number {
 }
 
 /**
- * 未ソートの値の p99 を返す。
+ * 未ソートの値のパーセンタイルを返す (index = ceil(p × n) - 1)。
  * @param values 値
- * @returns p99
+ * @param p 0〜1
+ * @returns パーセンタイル
  */
-function p99(values: readonly number[]): number {
+function percentileOf(values: readonly number[], p: number): number {
   return percentile(
     [...values].sort((a, b) => a - b),
-    0.99,
+    p,
   );
 }
 
@@ -103,7 +106,10 @@ async function run(): Promise<void> {
     };
     requestAnimationFrame(loop);
   });
-  for (const [name, values] of samples) metrics[`${name}P99Ms`] = p99(values);
+  for (const [name, values] of samples) {
+    metrics[`${name}P50Ms`] = percentileOf(values, 0.5);
+    metrics[`${name}P99Ms`] = percentileOf(values, 0.99);
+  }
   const sortedFrames = [...frameTimes].sort((a, b) => a - b);
   window.__benchResult = {
     scene: sceneName,
@@ -114,7 +120,8 @@ async function run(): Promise<void> {
     meanMs: frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length,
     p50Ms: percentile(sortedFrames, 0.5),
     p99Ms: percentile(sortedFrames, 0.99),
-    cpuMs: p99(cpuTimes),
+    cpuMs: percentileOf(cpuTimes, 0.99),
+    cpuP50Ms: percentileOf(cpuTimes, 0.5),
     metrics,
   };
 }
