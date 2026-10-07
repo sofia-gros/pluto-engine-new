@@ -3,13 +3,15 @@
  * 使い方: node tools/run-bench.mjs [--scene <name|all>] [--count <n>] [--backend webgpu|webgl2] [--build parallel|embed] [--headless] [--no-compare]
  * 保存後に tools/compare-bench.mjs でベースラインと比較する (`--no-compare` で省略)。
  * プロジェクトの vite.config.ts で Vite サーバーを起動し、`--build` に合わせて define を上書きする (__DEBUG__ = false)。
- * Chromium は headed・WebGPU 有効で起動する。`--headless` は機能確認用で、その数値は性能判断に使わない。
+ * ブラウザは **Firefox** を使う (2026-10-06 ユーザー指示。ブラウザテストと同じに統一)。
+ * WebGPU は既定で有効だが、明示的に `dom.webgpu.enabled` を指定する。
+ * `--headless` は機能確認用で、その数値は性能判断に使わない。
  *
  * **vsync は解除しない。** `--disable-gpu-vsync` と `--disable-frame-rate-limit` を付けると逆に 60Hz に固定される
  * (実測: フラグなしで rAF 140.7fps = ディスプレイの 143Hz、付けると 57.7fps = 17.34ms。headless も同じ 57.7fps)。
  * そのためフレーム時間 (p50Ms) はこの構成では判断材料にならないため、判定は `cpuP50Ms` で行う (docs/04 §10)。
  */
-import { chromium } from '@playwright/test';
+import { firefox } from '@playwright/test';
 import { createServer } from 'vite';
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -73,9 +75,15 @@ async function main() {
     },
   });
   await server.listen();
-  const browser = await chromium.launch({
+  const browser = await firefox.launch({
     headless: opts.headless,
-    args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan'],
+    launchOptions: {
+      firefoxUserPrefs: {
+        'dom.webgpu.enabled': true,
+        'dom.webgpu.workers.enabled': true,
+        'gfx.webrender.all': true,
+      },
+    },
   });
   const results = [];
   let hasError = false;

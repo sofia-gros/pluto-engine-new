@@ -105,3 +105,15 @@ export type {
 } from './core/ecs';
 export { defineKernel, KernelBufferSlot, createScheduler } from './jobs';
 export type { KernelBuffers, KernelDef, KernelFn, KernelId, Scheduler } from './jobs';
+export {
+  Transform,
+  WorldTransform,
+  Parent,
+  HierarchyDepth,
+  MAX_HIERARCHY_DEPTH,
+  RootWorldTransformKernel,
+  TransformRootSystem,
+  TransformHierarchySystem,
+  composeHierarchicalWorlds,
+  degreesToRadians,
+} from './transform';

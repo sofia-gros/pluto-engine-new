@@ -3,9 +3,20 @@ import type { PlutoTestOptions } from './tests/browser/helpers/harness-test';
 
 /**
  * ブラウザテスト設定 (docs/10-testing-strategy.md §3)。
+ * **ブラウザは Firefox を使う** (2026-10-06 ユーザー指示。Chromium から変更)。
  * プロジェクト: webgpu / webgl2 / embed。CI では `--project=webgl2` で WebGPU を対象から外す。
  * embed は `pnpm test:browser:embed` (embed ビルドを作ってから実行) で使う。
+ *
+ * Firefox は WebGPU を既定で無効化しているため、webgpu プロジェクトと WebGPU ベンチでは
+ * `dom.webgpu.enabled` を true にする。共有メモリ (SharedArrayBuffer) は COOP/COEP 前提で
+ * 動作するので crossOriginIsolated は true になる (harness.spec.ts が検証している)。
  */
+const firefoxWebGpuPrefs: Record<string, string | number | boolean> = {
+  'dom.webgpu.enabled': true,
+  'dom.webgpu.workers.enabled': true,
+  'gfx.webrender.all': true,
+};
+
 export default defineConfig<PlutoTestOptions>({
   testDir: './tests/browser',
   fullyParallel: true,
@@ -23,21 +34,19 @@ export default defineConfig<PlutoTestOptions>({
     {
       name: 'webgpu',
       use: {
-        ...devices['Desktop Chrome'],
+        ...devices['Desktop Firefox'],
         plutoBackend: 'webgpu',
         plutoBuild: 'src',
-        launchOptions: {
-          args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan'],
-        },
+        launchOptions: { firefoxUserPrefs: firefoxWebGpuPrefs },
       },
     },
     {
       name: 'webgl2',
-      use: { ...devices['Desktop Chrome'], plutoBackend: 'webgl2', plutoBuild: 'src' },
+      use: { ...devices['Desktop Firefox'], plutoBackend: 'webgl2', plutoBuild: 'src' },
     },
     {
       name: 'embed',
-      use: { ...devices['Desktop Chrome'], plutoBackend: 'webgl2', plutoBuild: 'embed' },
+      use: { ...devices['Desktop Firefox'], plutoBackend: 'webgl2', plutoBuild: 'embed' },
     },
   ],
   webServer: {

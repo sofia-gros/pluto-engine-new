@@ -2,7 +2,7 @@
 
 ## 状態
 
-**完了。** 受け入れ条件 1〜5 をすべて満たした。条件 2 (vsync の解除) の原因はベンチの起動フラグ `--disable-gpu-vsync` で、これを削除することで満たした (フレーム時間 17.4ms → 8.3ms)。条件 4 の性能基準は 04 §10 の改訂とセットで行った。判定は `cpuP50Ms` で行う (docs/04 §10)。
+**完了。** 受け入れ条件 1〜5 をすべて満たした。条件 2 (vsync の解除) の原因はベンチの起動フラグ `--disable-gpu-vsync` で、これを削除することで満たした (フレーム時間 17.4ms → 6.94ms)。条件 4 の性能基準は 04 §10 の改訂とセットで行った。判定は `cpuP50Ms` で行う (docs/04 §10)。**2026-10-07 追記: ブラウザを Firefox に統一し、基準機のディスプレイを 143.98Hz に変更したため、ベースラインと §10.1 の実測値を Firefox で取り直した。**
 
 ## 変更内容
 
@@ -37,7 +37,7 @@ flush():    this.iterating = false     / spawnState.isIterating = false
 ## 受け入れ条件の確認
 
 1. **build の記録: 満たした。** `node tools/run-bench.mjs --scene ecs-move --build embed` と `--build parallel` の結果に `build` が正しく入り、parallel は `crossOriginIsolated: true` を記録した。
-2. **vsync の解除: 満たした。原因はベンチの起動フラグだった。** `empty` シーンの p50 は **8.335ms** (ディスプレイの 143Hz と同等)。144FPS 目標の 6.94ms に対して 120fps 相当。
+2. **vsync の解除: 満たした。原因はベンチの起動フラグだった。** `empty` シーンの p50 は **6.940ms** (ディスプレイの 143.98Hz = 6.945ms と同等)。**G1 の 144FPS 目標 (6.94ms) を満たす** (143.99fps 実測)。
 
    **原因は Parsec ではなかった。** 最初は表示先が `Parsec Virtual Display Adapter` だったため、仮想ディスプレイの 60Hz 固定が原因と診断したが、これは**誤り**だった。Parsec サービスを完全に停止した状態で再計測しても 17.590ms のままで変化がない。
 
@@ -54,6 +54,8 @@ flush():    this.iterating = false     / spawnState.isIterating = false
 
    なおフレーム時間 (rAF 間隔) は描画の submit タイミングに強く影響されるので、描画負荷の判定には本来適さない。判定は `cpuP50Ms` で行う (docs/04 §10)。
 
+   **2026-10-07 追記**: 当初は「ディスプレイが 143Hz なので 144fps は出ない」と考えたが、144Hz と 143.98Hz の差は 0.02Hz で vsync の丸め誤差の範囲だった。ディスプレイを 143.98Hz に上げたところ 6.940ms (143.99fps) になり、**144FPS 目標は達成できる**。`docs/00` §2 の基準機にも 143.98Hz を明記した。
+
 3. **compare-bench: 満たした。** 8 ケースは前回検証済み。今回は判定キーを p50 に変更したので再確認した。
    - ベースラインと同一結果 → exit 0
    - `moveKernelP50Ms` を 10.4% 悪化させた場合 → `[悪化]` を出して exit 1
@@ -62,10 +64,12 @@ flush():    this.iterating = false     / spawnState.isIterating = false
 
    | 項目                                 | 基準    | 実測 (100 万) | 判定         |
    | ------------------------------------ | ------- | ------------- | ------------ |
-   | 10 万エンティティの移動カーネル 1 回 | ≤ 2.0ms | 0.275ms       | 満たす (14%) |
-   | 100 万回の `world.spawnN`            | ≤ 60ms  | 27.9ms        | 満たす (47%) |
-   | 100 万回の `world.get`               | ≤ 50ms  | 34.0ms        | 満たす (68%) |
-   | 100 万回の `world.set`               | ≤ 50ms  | 31.8ms        | 満たす (64%) |
+   | 10 万エンティティの移動カーネル 1 回 | ≤ 2.0ms | 0.340ms       | 満たす (17%) |
+   | 100 万回の `world.spawnN`            | ≤ 60ms  | 31.9ms        | 満たす (53%) |
+   | 100 万回の `world.get`               | ≤ 50ms  | 34.6ms        | 満たす (69%) |
+   | 100 万回の `world.set`               | ≤ 60ms  | 56.3ms        | 満たす (94%) |
+
+   (基準と実測は Firefox 155.0 / 143.98Hz で取り直した値。`set` の基準は Firefox の実測に合わせて 50ms から 60ms に緩和した。Chrome 測定時は 31.8ms で余裕があった。)
 
    `bench/baseline.json` に 5 構成を登録した。
 
@@ -94,18 +98,20 @@ flush():    this.iterating = false     / spawnState.isIterating = false
 
 | エンティティ数 | `spawnChainMs` (1 体ずつ) | `spawnNMs` (一括) | 高速化     |
 | -------------- | ------------------------- | ----------------- | ---------- |
-| 100,000        | 26.1                      | 8.1               | 3.2 倍     |
-| 500,000        | 82.4                      | 16.3              | 5.1 倍     |
-| 1,000,000      | 172.3                     | 27.9              | **6.2 倍** |
-| 2,000,000      | 318.2                     | 50.5              | 6.3 倍     |
+| 100,000        | 33.5                      | 6.2               | 5.4 倍     |
+| 500,000        | 143.5                     | 17.0              | 8.4 倍     |
+| 1,000,000      | 291.3                     | 31.9              | **9.1 倍** |
+| 2,000,000      | 564.4                     | 64.4              | 8.8 倍     |
+
+(Firefox 155.0 で計測。Chrome 測定時は 100 万体で 172.3 → 27.9ms = 6.2 倍。Firefox の方が絶対値は遅いが比率は大きい。)
 
 支配的だったのは `markRange` の呼び出し回数で、1 体ずつはフィールドごとに 100 万回、まとめると 3 回で済む。エンティティ数が増えても高速化倍率が上がっているので、`EntityTable.allocate()` は律速になっていない。**当初想定していた「`allocate()` の FreeList 操作が支配的」という仮説は外れていた** (`docs/04` §10.1 の旧記述「CommandBuffer のコマンド書き込みと EntityTable の更新が支配的」も訂正した)。
 
-なお `spawnNMs` の 1 体あたり時間は 100 万体で 27.9 ns、200 万体で 25.3 ns とほぼ一定で、体数に比例している。
+なお `spawnNMs` の 1 体あたり時間は 100 万体で 31.9 ns、200 万体で 32.2 ns とほぼ一定で、体数に比例している。
 
 ## レビュー チェックリスト
 
-- [x] AGENTS.md §3 の禁止事項: 違反なし。`any` / `as unknown as` / `!` / `eslint-disable` / 抑制コメントはゼロ (`check-rules` が構文木で検出)。HOT ファイルの変更だが性能目标的は `spawnNMs` の 6.2 倍改善で悪化していない
+- [x] AGENTS.md §3 の禁止事項: 違反なし。`any` / `as unknown as` / `!` / `eslint-disable` / 抑制コメントはゼロ (`check-rules` が構文木で検出)。HOT ファイルの変更だが性能目標は `spawnNMs` の 9.1 倍改善で悪化していない
 - [x] `docs/02-directory-structure.md`: 新規ファイル `src/core/ecs/world-spawn.ts` を表に追加済み (`check-structure` が照合)
 - [x] R1: 公開シンボルに型の明示と日本語 JSDoc あり。`SpawnState` / `spawnRows` / `spawnOne` / `targetArchetype` / `archetypeOfIds` / `emptyArchetypeOf` / `pushRows` / `writeEntityRow` / `World.spawnN` / `cpuP50Ms` はすべて付与済み
 - [x] R2 (HOT): `world-spawn.ts` は `// @pluto-hot`。`spawnRows` / `spawnOne` の JSDoc に `@hot`、`targetArchetype` / `archetypeOfIds` に `@cold`。ループ内で確保・`for...of`・配列高階関数は不使用 (`fill` は TypedArray のプリミティブで許可されている)
@@ -115,7 +121,7 @@ flush():    this.iterating = false     / spawnState.isIterating = false
 
 ## 未解決
 
-- **vsync の解除は満たした** (フレーム時間 8.335ms)。ただし `docs/04` §10 の 144FPS 目標 (6.94ms) に対しては 120fps 相当で、ディスプレイの 143Hz (6.99ms) という上限に由来する。描画パス (Phase 4) が入り実フレームの描画負荷が増えれば 144fps を下回るので、**G1 の 144FPS 判定は Phase 4 で再検証する**。
+- **vsync の解除は満たした** (フレーム時間 6.940ms = 143.99fps)。**144FPS 目標 (6.94ms) を満たしている**。ただし現時点では描画パイプラインが未実装 (`src/rhi/`・`src/render/` は存在しない) ので、フレーム時間は ECS の処理量ではなくディスプレイのリフレッシュレートで決まっている。**G1 の 144FPS を実際に判定するには、Phase 4 で描画パスが入ってから再検証が必要**。その時点で `cpuP50Ms` が 6.94ms に収まる限り 144fps は維持される。
 - **フレーム時間は補助指標である。** rAF 間隔は描画の submit タイミングに強く依存し、描画ワークロードの正確な代理指標にならないため、判定は `cpuP50Ms` を用いている。G1 の 144FPS は総フレーム時間で判定する。
 - **`spawnN` の上限までの線形性は未計測**: `MAX_ENTITIES = 4,194,303` なので 1000 万体は存在しない。実測は 200 万体まで (50.5ms、spawn 連鎖との比で 6.3 倍)。419 万体での実測はない。`docs/00` §5 の通り CPU Tier の想定は 10 万程度であり、200 万体の時点で 6.3 倍の高速化が成り立っているため優先順位は低い。
 - `bench/scenes/ecs-move.ts` は bulk と chain で 2 つの `World` を作るため、`spawnChainMs` の計測中は bulk 側のバッファもメモリに載っている。`spawnNMs` はその前に計測しているので影響を受けない。

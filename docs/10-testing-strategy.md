@@ -5,7 +5,7 @@
 | 種類           | ツール                  | 場所                    | 対象                                                       | 実行コマンド               |
 | -------------- | ----------------------- | ----------------------- | ---------------------------------------------------------- | -------------------------- |
 | ユニット       | Vitest (Node)           | `tests/unit/`           | GPU を使わない全コード                                     | `pnpm test`                |
-| ブラウザ       | Playwright (Chromium)   | `tests/browser/`        | RHI・シェーダ・レンダラ・Worker・入力                      | `pnpm test:browser`        |
+| ブラウザ       | Playwright (Firefox)    | `tests/browser/`        | RHI・シェーダ・レンダラ・Worker・入力                      | `pnpm test:browser`        |
 | ゴールデン画像 | Playwright + pixelmatch | `tests/browser/golden/` | 描画結果                                                   | `pnpm test:browser` に含む |
 | パリティ       | Vitest / Playwright     | 各モジュール            | Serial と Threaded の結果一致、WebGPU と WebGL2 の結果一致 | 同上                       |
 | ベンチ         | Playwright + `bench/`   | `bench/`                | 性能                                                       | `pnpm bench`               |
@@ -59,7 +59,7 @@
    - API は `expectGolden(page: Page, name: string): Promise<void>` (`testInfo` は `test.info()` で取得)。保存先は `tests/browser/golden/<backend>/<name>.png` (`<backend>` はハーネスの `backend` パラメータ。プロジェクト名ではない)。
    - 更新は Playwright 標準の `pnpm test:browser --update-snapshots` (`testInfo.config.updateSnapshots`) で行い、**更新理由をレビュー記録に書く**。差分画像を目視確認せずに更新してはならない。
    - ゴールデン画像が存在しないときは **失敗** にする (黙って新規作成しない。新規作成も `--update-snapshots` のときだけ)。
-4. WebGPU テストは Chromium を `--enable-unsafe-webgpu --enable-features=Vulkan` 等で起動 (`playwright.config.ts`)。WebGPU が使えない環境 (CI) では **`--project=webgl2` を CLI で指定して** WebGPU プロジェクトを実行対象から外す (テストコード内での `test.skip` は禁止)。
+4. **ブラウザは Firefox を使う** (2026-10-06 ユーザー指示。Chromium から変更)。WebGPU は既定で無効化されているので、`webgpu` プロジェクトは `firefoxUserPrefs` で `dom.webgpu.enabled` と `dom.webgpu.workers.enabled` を true にする (`playwright.config.ts`)。WebGPU が使えない環境 (CI) では **`--project=webgl2` を CLI で指定して** WebGPU プロジェクトを実行対象から外す (テストコード内での `test.skip` は禁止)。
 5. Worker / SharedArrayBuffer テストは dev server の COOP/COEP ヘッダ付きで実行。
 6. プロジェクトとハーネスの対応: `webgpu` → `harness.html?backend=webgpu`、`webgl2` → `?backend=webgl2`、`embed` → `?backend=webgl2&build=embed` (embed ビルド成果物 `/dist/embed/pluto.debug.js` を読み込む。事前に `pnpm build:embed` が必要で、`pnpm test:browser:embed` がそれを行う)。spec は URL を直書きせず、プロジェクトの `use` に置いたパラメータからハーネス URL を組み立てるヘルパ (`tests/browser/helpers/`) を使う。
 7. ハーネスは `backend` / `build` パラメータを検証し、不正値なら例外で止める。
@@ -83,7 +83,8 @@
   - `gpuMs`: `timestamp-query` がある場合のみ、GPU パス合計の p99。
   - パーセンタイルは昇順ソート後の `index = ceil(p × n) - 1`。
 - **フレーム時間は補助指標であり、描画ワークロードの代理指標にはならない。** rAF 間隔は描画の submit タイミングに強く依存するためである。**判定は `cpuP50Ms` で行い、G1 の 144FPS のような総フレーム時間の目標だけは、描画パス (Phase 4) が入ってからフレーム時間で判定する。**
-- `tools/run-bench.mjs` の引数: `--scene <name|all>` (既定 `all`)、`--count <n>` (既定はシーンの `defaultCount`)、`--backend webgpu|webgl2` (既定 `webgpu`)、`--build parallel|embed` (既定 `embed`)。プロジェクトの `vite.config.ts` を使って Vite サーバーを起動し、`define` を `--build` に合わせて上書きし (`__DEBUG__ = false`)、COOP/COEP ヘッダを付ける。Chromium は **headed**・WebGPU フラグ付きで起動し、ウォームアップ 300 フレーム後に 600 フレーム計測する。**起動は 1 シーン 20〜30 秒で完了する。** ブラウザが開いてからログが出るまで間があるため、出力がない場合はしばらく待つこと (タイムアウトは 180 秒)。
+- `tools/run-bench.mjs` の引数: `--scene <name|all>` (既定 `all`)、`--count <n>` (既定はシーンの `defaultCount`)、`--backend webgpu|webgl2` (既定 `webgpu`)、`--build parallel|embed` (既定 `embed`)。プロジェクトの `vite.config.ts` を使って Vite サーバーを起動し、`define` を `--build` に合わせて上書きし (`__DEBUG__ = false`)、COOP/COEP ヘッダを付ける。ブラウザは **Firefox** (テストと同じ) を headed で起動し、WebGPU は `dom.webgpu.enabled` を明示する。ウォームアップ 300 フレーム後に 600 フレーム計測する。**起動は 1 シーン 20〜30 秒で完了する。** ブラウザが開いてからログが出るまで間があるため、出力がない場合はしばらく待つこと (タイムアウトは 180 秒)。
+- **フレーム時間 (`p50Ms`) はディスプレイのリフレッシュレートで頭打ちになる。** 基準機は 143.98Hz なので、エンジン如何使用でも 6.945ms 未満にはならない。**判定は `cpuP50Ms` で行う** (docs/04 §10)。
 - 結果は `BenchResult[]` (`{ scene, backend, build, count, crossOriginIsolated, meanMs, p50Ms, p99Ms, cpuMs, cpuP50Ms, gpuMs?, metrics? }`) として `bench/results/latest.json` に保存する。
 - `tools/compare-bench.mjs` は `bench/baseline.json` (`BenchResult[]`) と **`(scene, backend, build, count)` が一致する要素同士** を比較し、`p99Ms`・`cpuMs`・各 `metrics` のいずれかが 10% を超えて悪化したら exit 1。ベースラインが空配列なら「ベースラインなし」で exit 0、JSON が不正・配列でない場合は exit 1、対応するベースラインがない結果は「新規」と表示して exit 0。
 - ベンチの数値は **同一マシンでの相対比較のみ** に使う。CI では実行しない。

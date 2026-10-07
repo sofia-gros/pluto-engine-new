@@ -47,7 +47,7 @@ pluto-engine/
 | `eslint.config.js`         | ESLint flat config (`docs/03-coding-standards.md` §ESLint)                            | -   | T-0.2  |
 | `vite.config.ts`           | ビルド設定。`--mode parallel` / `--mode embed` で `__PARALLEL__` を切替               | -   | T-0.3  |
 | `vitest.config.ts`         | ユニットテスト設定 (カバレッジ閾値含む)                                               | -   | T-0.4  |
-| `playwright.config.ts`     | ブラウザテスト設定 (Chromium, WebGPU 有効フラグ)                                      | -   | T-0.5  |
+| `playwright.config.ts`     | ブラウザテスト設定 (Firefox、WebGPU 有効プレフ)                                       | -   | T-0.5  |
 | `.github/workflows/ci.yml` | CI (verify, unit test, build, browser test(WebGL2))                                   | -   | T-0.6  |
 | `README.md`                | パッケージ概要・導入方法・最小コード例 (`docs/09-api-design.md` §3)                   | -   | T-10.4 |
 | `CHANGELOG.md`             | 変更履歴 (`docs/11-build-and-release.md` §8)                                          | -   | T-10.4 |

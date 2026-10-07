@@ -5,6 +5,8 @@
  */
 import { runWorkerLoop } from './jobs';
 import type { FromWorkerMessage, ToWorkerMessage } from './jobs';
+// 組込カーネルの登録表をメインと同じにする (docs/05 §3.3)。
+import './transform';
 
 runWorkerLoop({
   post: (message: FromWorkerMessage): void => {
