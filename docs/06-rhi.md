@@ -392,7 +392,7 @@ export interface RenderPassDesc {
 | `BlendMode` が `Opaque` ではないとき `caps.floatBlend` が false                   | `PlutoError(UnsupportedFeature)`       |
 | `DepthStencilDesc.format` が `Depth24Plus` / `Depth32Float` 以外                  | `PlutoError(InvalidArgument)`          |
 | `workgroupSize` のいずれかが 1 未満                                               | `PlutoError(InvalidArgument)`          |
-| `workgroupSize` の経が `caps.maxComputeInvocationsPerWorkgroup` を超える          | `PlutoError(InvalidArgument)`          |
+| `workgroupSize` の積が `caps.maxComputeInvocationsPerWorkgroup` を超える          | `PlutoError(InvalidArgument)`          |
 | `workgroupSize` の各維が `caps.maxComputeWorkgroupSize` を超える                  | `PlutoError(InvalidArgument)`          |
 | `load === LoadAction.Clear` なのに `clearColor` / `clearDepth` が無い             | `PlutoError(InvalidArgument)`          |
 | `TextureWriteDesc` の範囲がテクスチャの尺寸・layer を超える                       | `PlutoError(InvalidArgument)`          |

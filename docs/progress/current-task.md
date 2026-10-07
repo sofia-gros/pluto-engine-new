@@ -1,70 +1,122 @@
-# T-2.4 Transform (変換・階層)
+# T-3.2 RHI WebGPU 実装 (実施計画)
 
 ## 目的
 
-`src/transform/` を新規作成し、ローカル `Transform` から親を辿ってワールド行列 `WorldTransform` を計算する変換カーネルと、それを `Phase.PostUpdate` で深さ順にスケジュールするシステムを作る。`src/worker-main.ts` に変換カーネルを登録し、`src/lowlevel.ts` から re-export する。
+`docs/06-rhi.md` §4・§4.1 が定義する RHI インターフェースを WebGPU で実装する。
+`src/rhi/webgpu/` に 7 ファイルを作る。T-3.3 (WebGL2) と T-3.4 (デバイス生成) の土台になる。
 
-**階層の親参照はメインスレッド走査とする (ユーザー承認 2026-10-06)。** カーネルには自チャンクの `ChunkView` しか渡らない (`docs/05` §2) ので、親が別のアーキタイプにあると `view.column()` では引けない。実際 `ContainerHandle` は `Transform`/`Parent`/`HierarchyDepth`、`SpriteHandle` は `Transform`/`WorldTransform`/`Sprite`/`SpriteSlot` なので親子でアーキタイプが異なる。そのため:
+RHI は「バックエンド差を隠す薄い抽象」なので、この層では `GPUDevice` を扱い、
+`RhiDevice` を満たすラッパーを返すだけにする。上位層は `RHI インターフェースしか
+触らないという規則はここを守る。
 
-- **深さ 0 (親なし)**: カーネルで並列計算する (`defineKernel` を使う。並列化が必要な 100 万スプライトはこのケース)
-- **深さ 1〜8**: `transform-system.ts` がメインスレッドで `world.get()` を辿って合成する
+## 作成するファイル (docs/02 §12 と完全一致)
 
-`KernelBufferSlot` の追加 (`docs/05` §3.2「追加はタスクの指示がある場合のみ」) は行わない。循環参照の検出も T-5.6 (`ContainerHandle`) の責務なので行わない。
+| ファイル                              | 責務                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| `src/rhi/webgpu/webgpu-convert.ts`    | RHI 定数から WebGPU 定数への変換表 (純関数)                           |
+| `src/rhi/webgpu/webgpu-buffer.ts`     | `GPUBuffer` のラッパー。`readBufferAsync` を持つ                      |
+| `src/rhi/webgpu/webgpu-texture.ts`    | `GPUTexture` と `GPUSampler` のラッパー                               |
+| `src/rhi/webgpu/webgpu-bind-group.ts` | レイアウト・パイプラインレイアウト・バインドグループのラッパー        |
+| `src/rhi/webgpu/webgpu-pipeline.ts`   | シェーダモジュールと render / compute パイプラインのラッパー          |
+| `src/rhi/webgpu/webgpu-encoder.ts`    | コマンドエンコーダとパスのラッパー。**HOT**                           |
+| `src/rhi/webgpu/webgpu-device.ts`     | `RhiDevice` の実装。caps の判定、デバイスロスト監視、スワップチェーン |
 
-## 参照ドキュメント
+## 実装の要点
 
-- `docs/12-roadmap.md` Phase 2 (T-2.4 の行と受け入れ条件)
-- `docs/02-directory-structure.md` §11 (ファイル一覧・責務)
-- `docs/03-coding-standards.md` §1.2 (HOT ファイルのテンプレート)
-- `docs/04-memory-and-ecs.md` §3.1・§5・§9 (コンポーネント定義・ChunkView・World)
-- `docs/05-jobs-and-builds.md` §2・§3.3 (カーネル契約・Worker エントリ)
-- `docs/01-architecture.md` §3〜4 (フェーズ。transform は `Phase.PostUpdate`)
-- `docs/07-renderer.md` §11 (入力カラム `WorldTransform.{a,b,c,d,tx,ty}`)
-- `docs/09-api-design.md` §container (最大深さ 8・循環は `PlutoError(InvalidArgument)`)
+### 定数変換 (`webgpu-convert.ts`)
 
-## 作成・編集するファイル (02 §11 と完全一致)
+`docs/06` §5 の並びを前提にした表を置く。`BufferUsage` と `TextureUsage` は
+ビットフラグなので、変換表で 1 ビットずつ並べて合成する。
 
-| パス                                    | 責務                                                         |
-| --------------------------------------- | ------------------------------------------------------------ |
-| `src/transform/index.ts`                | 公開窓口 (re-export のみ)                                    |
-| `src/transform/transform-components.ts` | `Transform` / `WorldTransform` / `Parent` / `HierarchyDepth` |
-| `src/transform/transform-kernels.ts`    | ローカル→ワールド行列計算カーネル (深さ順、HOT)              |
-| `src/transform/transform-system.ts`     | カーネルを深さ順にスケジュールするシステム                   |
-| `src/worker-main.ts`                    | 変換カーネルのモジュールを import に追加 (変更)              |
-| `src/lowlevel.ts`                       | transform を re-export (変更)                                |
-| `tests/unit/transform/*.test.ts`        | ユニットテスト (新規)                                        |
+圧縮フォーマット (BC7 / ETC2 / ASTC) は WebGPU では
+`GPUCompressedTextureFormat` になる。ETask は 3 つの feature 名に対応する。
+`RGBA16Float` は `float32-blendable` が無いとレンダーターゲットにできないので、
+`webgpu-texture.ts` で `validateTextureDesc` を先に呼ぶ。
 
-## 実装ステップ
+### 検証の呼び出し位置
 
-1. **コンポーネント定義** (`transform-components.ts`)
-   - `Transform`: `x, y, rotation, scaleX, scaleY` (F32)。`docs/04` §3.1 の例どおり
-   - `WorldTransform`: `a, b, c, d, tx, ty` (F32)。`docs/07` §11 が入力に使う 6 フィールド
-   - `Parent`: `parent: U32` (Entity ハンドル)。`NULL_ENTITY` は親なし
-   - `HierarchyDepth`: `depth: U32`。`MAX_HIERARCHY_DEPTH = 8`
-2. **カーネル** (`transform-kernels.ts`, HOT)
-   - 深さ 0 (親なし) のワールド行列 = ローカル行列 を計算するカーネル
-   - `view.column()` をループ前にローカルへキャッシュする (R2 §5)
-   - `WorldTransform` の 6 フィールドをすべて書き、`view.markDirty()` で dirty を立てる
-3. **システム** (`transform-system.ts`)
-   - `Phase.PostUpdate` のシステム 1 個。深さ 0 はカーネルに委譲する
-   - 深さ 1〜8 はメインスレッドで `world.get()` を辿って合成する
-   - クエリは `{ all: [Transform, WorldTransform, HierarchyDepth] }`
-4. **公開** (`index.ts` / `lowlevel.ts` / `worker-main.ts`)
-   - `lowlevel.ts` に `Transform` / `WorldTransform` / `Parent` / `HierarchyDepth` / `MAX_HIERARCHY_DEPTH` / カーネル / システムを re-export
-   - `worker-main.ts` に `import './transform'` を追加し、Worker 側でもカーネル表が一致するようにする
-5. **テスト** (`tests/unit/transform/`)
-   - コンポーネント定義のフィールド名と型
-   - 根 (親なし) のワールド行列がローカルと一致
-   - 参照実装 (`affine2dMultiply` の逐次乗算) と一致
-   - 回転・スケールの合成
+`src/rhi/validate.ts` の 9 関数を `create*` の直前に呼ぶ。これは `docs/06`
+§5.1.1 が要求している。`createBindGroupDesc` は `caps` を要求するので、
+`webgpu-device.ts` が保持する caps を渡す。
 
-## 完了条件 (受け入れ条件のコピー)
+### エンコーダのプール (`webgpu-encoder.ts`、HOT)
 
-1. 変換カーネルを `src/worker-main.ts` に登録する。`src/lowlevel.ts` に transform を re-export
-2. 深さ 8 の階層でワールド行列が参照実装 (`affine2d` の逐次乗算) と 1e-5 以内で一致
+`docs/06` §4 の注記「エンコーダ・パスオブジェクトはフレーム毎に新規生成しない
+実装にする」に従う。`GPUCommandEncoder` は 1 フレームで 1 個しか作れないので、
 
-## 決定事項 (2026-10-06 ユーザー承認済み)
+1. コンストラクタで 2 個作る (描画パスとコピー用の予備)。
+2. `submit` 後に使用済み印を付け、次の `createCommandEncoder` で再利用する。
+3. 予備も使用中なら `PlutoError(InvalidState)` を投げる。
 
-- **階層の親参照はメインスレッド走査。** 深さ 0 のみカーネル、深さ 1〜8 は `world.get()` で合成する。理由は上「目的」を参照
-- **循環参照の検出はしない。** 循環を作る API が T-5.6 (`ContainerHandle`) の責務なので、そこで検出する
-- `WorldTransform` のフィールド名は `a, b, c, d, tx, ty` に固定する (`docs/07` §11 が入力カラムとして要求している)
+パスオブジェクト (描画パス、コンピュートパス) もプールから借りる。パスごとに
+`GPUTextureView` の配列と `GPUViewport` の値が必要だが、初期化時に確保した
+フィールドへ書き込むだけにする。**このため `RhiRenderPass` の実装は
+コンストラクタで確保したフィールドだけを使い、フレーム中に `new` しない。**
+
+### 間接描画
+
+`caps.indirectDraw` は `GPUDevice.features` に `indirect-first-instance` があるかで
+決める。`docs/06` §2 の `requiredFeatures` は `indirect-first-instance` を
+要求していないので、無い環境では `false` になる。
+
+### シェーダのエントリポイント
+
+`docs/06` §6 の固定名に従う。`GPUShaderModule` はシェーダごとに 1 つだけ作る。
+頂点とフラグメントは別々 (`vertexShader` と `fragmentShader` が別_descriptor)。
+Compute は `cs_` 接頭辞のエントリポイントが存在することを前提に、`entryPoint` を
+`cs_main` に固定する。
+
+### エラーチェック
+
+`docs/06` §9 に従い、`__DEBUG__` 時だけ `pushErrorScope('validation')` を
+パイプライン生成時に使い、`popErrorScope()` の結果で `PlutoError` を投げる。
+release 時は框架の検査だけを行う。
+
+### デバイスロスト
+
+`docs/06` §8 に従い、`device.lost` を監視して `onDeviceLost` を発火する。
+自動復旧はしない (v1 の範囲外)。
+
+## 実装手順
+
+1. `webgpu-convert.ts` を作る。定数変換表と、ビットフラグ合成関数。
+2. `webgpu-buffer.ts` を作る。`readBufferAsync` は `mapAsync` を待つ。
+   HOT ではないが、フレーム中に呼ばない前提の関数に `@cold` を付ける。
+3. `webgpu-texture.ts` を作る。`writeTexture` の `bytesPerRow` の計算
+   (256 の倍数 / ブロックサイズの倍数) を含む。
+4. `webgpu-bind-group.ts` を作る。`createPipelineLayout` も含める。
+5. `webgpu-pipeline.ts` を作る。WGSL から `GPUShaderModule` を作る。
+6. `webgpu-encoder.ts` を作る。**1 行目に `// @pluto-hot` を書く。export 関数には
+   必ず `@hot` か `@cold` を付ける。** フレーム中にオブジェクトリテラルを
+   作らない (テーブルや配列はモジュールトップで確保する)。
+7. `webgpu-device.ts` を作る。他 6 ファイルを組み合わせ、`RhiDevice` を満たす。
+8. ユニットテストを書く (`tests/unit/rhi/`)。WebGPU 実機が必要な部分は
+   T-3.4 のブラウザテストに委ねる。
+9. `pnpm verify` と `pnpm build` を通す。
+
+## 受け入れる条件
+
+`docs/12` は「受け入れ条件 (T-3.4 で一括検証)」とだけ書いてあるので、T-3.2
+自体の受け入れ条件は無い。代わりにここで守るべき条件を確定する。
+
+1. `pnpm verify` がエラー 0・警告 0 で成功する。
+2. `pnpm build` の `check-bundle` が OK。**embed ビルドに WebGPU 実装が
+   混入しても Worker 依赖が増えないこと** (現在の parallel / embed の検証が
+   退化していない)。
+3. 新規 7 ファイルすべてに対応するユニットテストが存在する。
+4. 公開シンボルすべてに日本語 JSDoc がある。`webgpu-encoder.ts` の export 関数
+   には `@hot` か `@cold` が付いている。
+5. `docs/02` §12 の表に無いファイルを作らない。`tools/check-structure.mjs` が OK。
+6. WebGPU 実機での動作 (描画・compute・間接描画・圧縮テクスチャ) は
+   **T-3.4 で検証する**。ここで Node テストとして可能なのは変換表と
+   ラッパーの構造だけ。
+
+## 意図的にやらないこと
+
+- **`tests/browser/rhi/*.spec.ts` は作らない。** `docs/12` はこれを T-3.4 の
+  ファイルとして挙げている。ブラウザで WebGPU を実際に動かすのは T-3.4。
+- **`create-device.ts` は作らない。** T-3.4 の責務。`webgpu-device.ts` は
+  既に用意された `GPUDevice` を受け取る形にする。
+- **頂点バッファ API は作らない。** `docs/06` §4 の頂点バッファの注記どおり。
+- **`webgpu/index.ts` は作らない。** `docs/02` §12 に無い。バックエンド実装は
+  `rhi/` 内部以外から import できない (`.agents/rules/03-architecture.md`)。
