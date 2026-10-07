@@ -110,6 +110,11 @@ export default tseslint.config(
     rules: { 'no-console': 'off' },
   },
   {
+    // docs/07-renderer.md §3 の packSprite は 13 引数を取る HOT 関数のため、アロケーションなしで呼び出すために max-params を緩和
+    files: ['src/render/sprite/sprite-instance-layout.ts'],
+    rules: { 'max-params': ['error', 16] },
+  },
+  {
     files: ['tests/**'],
     rules: {
       'max-lines': ['error', { max: 800, skipBlankLines: false, skipComments: false }],

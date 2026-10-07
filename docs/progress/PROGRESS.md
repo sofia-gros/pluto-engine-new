@@ -4,7 +4,7 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-**T-4.3** スプライトデータ (状態: TODO)
+**T-4.3** スプライトデータ (状態: IN_PROGRESS)
 
 > 直前の完了タスク: **T-4.2** テクスチャ・アセット ([レビュー](./reviews/T-4.2.md))
 
@@ -61,8 +61,8 @@
 | T-3.3  | RHI WebGL2 実装                     | DONE        | [T-3.3.md](./reviews/T-3.3.md)   | [c410a6e](https://github.com/sofia-gros/pluto-engine-new/commit/c410a6e) |
 | T-3.4  | デバイス生成とブラウザテスト        | DONE        | [T-3.4.md](./reviews/T-3.4.md)   | [8a6bc0a](https://github.com/sofia-gros/pluto-engine-new/commit/8a6bc0a) |
 | T-4.1  | シェーダ基盤                        | DONE        | [T-4.1.md](./reviews/T-4.1.md)   | [cc247e1](https://github.com/sofia-gros/pluto-engine-new/commit/cc247e1) |
-| T-4.2  | テクスチャ・アセット                | DONE | [T-4.2.md](./reviews/T-4.2.md)   |                                                                          |
-| T-4.3  | スプライトデータ                    | TODO        |                                  |                                                                          |
+| T-4.2  | テクスチャ・アセット                | DONE        | [T-4.2.md](./reviews/T-4.2.md)   |                                                                          |
+| T-4.3  | スプライトデータ                    | DONE        | [T-4.3.md](./reviews/T-4.3.md)   |                                                                          |
 | T-4.4  | CPU 補助描画パス                    | TODO        |                                  |                                                                          |
 | T-4.5  | GPU プリミティブ                    | TODO        |                                  |                                                                          |
 | T-4.6  | GPU 駆動描画パス                    | TODO        |                                  |                                                                          |
@@ -95,11 +95,27 @@
 | T-10.3 | API リファレンス生成                | TODO        |                                  |                                                                          |
 | T-10.4 | リリース                            | TODO        |                                  |                                                                          |
 
-**次は T-4.2 (テクスチャ・アセット)。**
+**次は T-4.4 (CPU 補助描画パス)。**
 
 > 注意: T-1.10 の性能値 (旧 `bench/baseline.json`) は根拠となる計測出力がなく **無効** とし、T-R.5 で実測値に基づくベースラインへ置き換えた。T-R.5 の受け入れ条件 1〜5 はすべて満たした。ただし**フレーム時間 (p50Ms) は補助指標**であり、判定は `cpuP50Ms` で行う (描画の submit タイミングに依存するため)。G1 の 144FPS 判定は Phase 4 の描画パスが入ってから行う。詳細は `reviews/T-R.5.md`。
 
 ## 作業ログ (新しいものを上に追記)
+
+### 2026-10-08 T-4.3 完了 (スプライトデータ)
+
+- やったこと:
+  - `src/render/sprite/sprite-instance-layout.ts` を実装 (32 バイトインスタンス、オフセット定数、フラグ定数、packSprite)。
+  - `src/shaders/common/sprite-instance.wgsl` / `glsl` を実装し、シェーダライブラリに登録。
+  - `src/shaders/common/frame.wgsl` / `glsl` を実装し、シェーダライブラリに登録。
+  - `src/shaders/common/storage-emulation.glsl` を実装 (WebGL2 用 2D RGBA32UI テクスチャによるストレージバッファエミュレーション)。
+  - `src/render/sprite/sprite-components.ts` を実装 (`Sprite`, `SpriteSlot`)。
+  - `src/render/sprite/sprite-buffer.ts` を実装 (100万スプライト容量、RangeAllocator、64スロット単位の Bitset dirty 管理、1フレーム最大256分割アップロード)。
+  - `src/render/sprite/sprite-pack-kernel.ts` を実装 (SoA ECS カラムから 32 バイト AoS へのステージングパック、Atomics による dirty ビット反影)。
+  - `src/render/sprite/sprite-pack-system.ts` を実装 (PostUpdate フェーズ、query とバッファの連携)。
+  - `src/worker-main.ts` に `render` モジュールを登録。
+  - `tests/unit/render/sprite/` 配下に各単体テストを作成し、全テスト通過。
+  - `pnpm verify` (全 7 段階すべて成功、カバレッジ 95.39%)。
+  - レビュー記録 `docs/progress/reviews/T-4.3.md` 作成。
 
 ### 2026-10-08 T-4.1 完了 (シェーダ基盤)
 

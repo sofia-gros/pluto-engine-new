@@ -9,6 +9,11 @@ import cameraGlsl from './common/camera.glsl?raw';
 import cameraWgsl from './common/camera.wgsl?raw';
 import constantsGlsl from './common/constants.glsl?raw';
 import constantsWgsl from './common/constants.wgsl?raw';
+import frameGlsl from './common/frame.glsl?raw';
+import frameWgsl from './common/frame.wgsl?raw';
+import spriteInstanceGlsl from './common/sprite-instance.glsl?raw';
+import spriteInstanceWgsl from './common/sprite-instance.wgsl?raw';
+import storageEmulationGlsl from './common/storage-emulation.glsl?raw';
 
 /** 1 本のシェーダのソースコード表現 (docs/06-rhi.md §6 互換)。 */
 export interface ShaderSource {
@@ -30,6 +35,14 @@ const BUILTIN_INCLUDES: Readonly<Record<string, string>> = {
   'common/camera': cameraWgsl,
   'common/camera.wgsl': cameraWgsl,
   'common/camera.glsl': cameraGlsl,
+  'common/sprite-instance': spriteInstanceWgsl,
+  'common/sprite-instance.wgsl': spriteInstanceWgsl,
+  'common/sprite-instance.glsl': spriteInstanceGlsl,
+  'common/frame': frameWgsl,
+  'common/frame.wgsl': frameWgsl,
+  'common/frame.glsl': frameGlsl,
+  'common/storage-emulation': storageEmulationGlsl,
+  'common/storage-emulation.glsl': storageEmulationGlsl,
 };
 
 /**
