@@ -174,29 +174,29 @@ pluto-engine/
 
 ## 12. src/rhi — GPU 抽象層 (仕様: `docs/06-rhi.md`)
 
-| パス                                   | 責務                                                                                                                                                                                     | HOT | タスク |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------ |
-| `src/rhi/index.ts`                     | 公開窓口 (インターフェース・型・`createDevice` のみ。バックエンド実装は非公開)                                                                                                           | -   | T-3.1  |
-| `src/rhi/types.ts`                     | 列挙定数 (`BufferUsage`, `TextureFormat`, `BlendMode` 等) と記述子型                                                                                                                     | -   | T-3.1  |
-| `src/rhi/device.ts`                    | `RhiDevice`, `RhiBuffer`, `RhiTexture`, `RhiSampler`, `RhiBindGroup`, `RhiRenderPipeline`, `RhiComputePipeline`, `RhiCommandEncoder`, `RhiRenderPass`, `RhiComputePass` インターフェース | -   | T-3.1  |
-| `src/rhi/capabilities.ts`              | `RhiCapabilities` (compute, indirect, timestampQuery, maxTextureLayers 等)                                                                                                               | -   | T-3.1  |
-| `src/rhi/shader-source.ts`             | `ShaderSource` 型 (`wgsl` / `glslVertex` / `glslFragment`)                                                                                                                               | -   | T-3.1  |
-| `src/rhi/create-device.ts`             | WebGPU → WebGL2 の順でデバイス生成を試みる唯一の場所                                                                                                                                     | -   | T-3.4  |
-| `src/rhi/webgpu/webgpu-device.ts`      | WebGPU 版 `RhiDevice`                                                                                                                                                                    | -   | T-3.2  |
-| `src/rhi/webgpu/webgpu-buffer.ts`      | WebGPU 版バッファ                                                                                                                                                                        | -   | T-3.2  |
-| `src/rhi/webgpu/webgpu-texture.ts`     | WebGPU 版テクスチャ・サンプラ                                                                                                                                                            | -   | T-3.2  |
-| `src/rhi/webgpu/webgpu-pipeline.ts`    | WebGPU 版 render/compute パイプライン                                                                                                                                                    | -   | T-3.2  |
-| `src/rhi/webgpu/webgpu-bind-group.ts`  | WebGPU 版バインドグループ                                                                                                                                                                | -   | T-3.2  |
-| `src/rhi/webgpu/webgpu-encoder.ts`     | WebGPU 版コマンドエンコーダ・パス                                                                                                                                                        | HOT | T-3.2  |
-| `src/rhi/webgpu/webgpu-convert.ts`     | RHI 定数 → WebGPU 定数の変換表                                                                                                                                                           | -   | T-3.2  |
-| `src/rhi/webgl2/webgl2-device.ts`      | WebGL2 版 `RhiDevice`                                                                                                                                                                    | -   | T-3.3  |
-| `src/rhi/webgl2/webgl2-buffer.ts`      | WebGL2 版バッファ (STORAGE はデータテクスチャでエミュレート)                                                                                                                             | -   | T-3.3  |
-| `src/rhi/webgl2/webgl2-texture.ts`     | WebGL2 版テクスチャ・サンプラ                                                                                                                                                            | -   | T-3.3  |
-| `src/rhi/webgl2/webgl2-pipeline.ts`    | WebGL2 版プログラム生成・リフレクション                                                                                                                                                  | -   | T-3.3  |
-| `src/rhi/webgl2/webgl2-bind-group.ts`  | バインドグループ → UBO/テクスチャユニット割当                                                                                                                                            | -   | T-3.3  |
-| `src/rhi/webgl2/webgl2-encoder.ts`     | コマンドを即時 GL 呼び出しに変換                                                                                                                                                         | HOT | T-3.3  |
-| `src/rhi/webgl2/webgl2-state-cache.ts` | GL 状態キャッシュ (冗長な状態変更を除去)                                                                                                                                                 | HOT | T-3.3  |
-| `src/rhi/webgl2/webgl2-convert.ts`     | RHI 定数 → GL 定数の変換表                                                                                                                                                               | -   | T-3.3  |
+| パス                                   | 責務                                                                                                                                                                                                                                            | HOT | タスク |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------ |
+| `src/rhi/index.ts`                     | 公開窓口 (インターフェース・型・`createDevice` のみ。バックエンド実装は非公開)                                                                                                                                                                  | -   | T-3.1  |
+| `src/rhi/types.ts`                     | 列挙定数 (`BufferUsage`, `TextureUsage`, `TextureFormat`, `BlendMode`, `LoadAction` 等) と記述子型 (`BufferDesc` 〜 `RenderPassDesc`。docs/06 §5・§5.1)                                                                                         | -   | T-3.1  |
+| `src/rhi/device.ts`                    | `RhiDevice`, `RhiCommandEncoder`, `RhiRenderPass`, `RhiComputePass` と GPU リソースのインターフェース (`RhiBuffer`, `RhiTexture`, `RhiSampler`, `RhiBindGroupLayout`, `RhiBindGroup`, `RhiRenderPipeline`, `RhiComputePipeline`, `RhiQuerySet`) | -   | T-3.1  |
+| `src/rhi/capabilities.ts`              | `RhiCapabilities` (compute, indirect, timestampQuery, maxTextureLayers 等)                                                                                                                                                                      | -   | T-3.1  |
+| `src/rhi/shader-source.ts`             | `ShaderSource` 型 (`wgsl` / `glslVertex` / `glslFragment`)                                                                                                                                                                                      | -   | T-3.1  |
+| `src/rhi/create-device.ts`             | WebGPU → WebGL2 の順でデバイス生成を試みる唯一の場所                                                                                                                                                                                            | -   | T-3.4  |
+| `src/rhi/webgpu/webgpu-device.ts`      | WebGPU 版 `RhiDevice`                                                                                                                                                                                                                           | -   | T-3.2  |
+| `src/rhi/webgpu/webgpu-buffer.ts`      | WebGPU 版バッファ                                                                                                                                                                                                                               | -   | T-3.2  |
+| `src/rhi/webgpu/webgpu-texture.ts`     | WebGPU 版テクスチャ・サンプラ                                                                                                                                                                                                                   | -   | T-3.2  |
+| `src/rhi/webgpu/webgpu-pipeline.ts`    | WebGPU 版 render/compute パイプライン                                                                                                                                                                                                           | -   | T-3.2  |
+| `src/rhi/webgpu/webgpu-bind-group.ts`  | WebGPU 版バインドグループ                                                                                                                                                                                                                       | -   | T-3.2  |
+| `src/rhi/webgpu/webgpu-encoder.ts`     | WebGPU 版コマンドエンコーダ・パス                                                                                                                                                                                                               | HOT | T-3.2  |
+| `src/rhi/webgpu/webgpu-convert.ts`     | RHI 定数 → WebGPU 定数の変換表                                                                                                                                                                                                                  | -   | T-3.2  |
+| `src/rhi/webgl2/webgl2-device.ts`      | WebGL2 版 `RhiDevice`                                                                                                                                                                                                                           | -   | T-3.3  |
+| `src/rhi/webgl2/webgl2-buffer.ts`      | WebGL2 版バッファ (STORAGE はデータテクスチャでエミュレート)                                                                                                                                                                                    | -   | T-3.3  |
+| `src/rhi/webgl2/webgl2-texture.ts`     | WebGL2 版テクスチャ・サンプラ                                                                                                                                                                                                                   | -   | T-3.3  |
+| `src/rhi/webgl2/webgl2-pipeline.ts`    | WebGL2 版プログラム生成・リフレクション                                                                                                                                                                                                         | -   | T-3.3  |
+| `src/rhi/webgl2/webgl2-bind-group.ts`  | バインドグループ → UBO/テクスチャユニット割当                                                                                                                                                                                                   | -   | T-3.3  |
+| `src/rhi/webgl2/webgl2-encoder.ts`     | コマンドを即時 GL 呼び出しに変換                                                                                                                                                                                                                | HOT | T-3.3  |
+| `src/rhi/webgl2/webgl2-state-cache.ts` | GL 状態キャッシュ (冗長な状態変更を除去)                                                                                                                                                                                                        | HOT | T-3.3  |
+| `src/rhi/webgl2/webgl2-convert.ts`     | RHI 定数 → GL 定数の変換表                                                                                                                                                                                                                      | -   | T-3.3  |
 
 ## 13. src/assets — アセット読込 (GPU 非依存。CPU データまでを担当)
 
@@ -434,14 +434,15 @@ pluto-engine/
 
 ## 23. tests/ (パターンで許可)
 
-| パターン                                  | 責務                                                                             |
-| ----------------------------------------- | -------------------------------------------------------------------------------- |
-| `tests/unit/<src と同じ相対パス>.test.ts` | Node 上のユニットテスト。対応する `src/` ファイルが存在しなければならない        |
-| `tests/unit/_helpers/*.ts`                | ユニットテスト共通ヘルパ                                                         |
-| `tests/browser/<モジュール名>/*.spec.ts`  | Playwright ブラウザテスト (モジュール名は `src/` のモジュール名、または `smoke`) |
-| `tests/browser/fixtures/*`                | ブラウザテスト用 HTML/TS ハーネス                                                |
-| `tests/browser/helpers/*.ts`              | ブラウザテスト共通ヘルパ (ゴールデン画像比較など)                                |
-| `tests/browser/golden/<backend>/*.png`    | ゴールデン画像 (`webgpu` / `webgl2`)                                             |
+| パターン                                     | 責務                                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `tests/unit/<src と同じ相対パス>.test.ts`    | Node 上のユニットテスト。対応する `src/` ファイルが存在しなければならない             |
+| `tests/unit/_helpers/*.ts`                   | ユニットテスト共通ヘルパ                                                              |
+| `tests/browser/<モジュール名>/*.spec.ts`     | Playwright ブラウザテスト (モジュール名は `src/` のモジュール名、または `smoke`)      |
+| `tests/browser/fixtures/*`                   | ブラウザテスト用 HTML/TS ハーネス                                                     |
+| `tests/browser/fixtures/assets/<name>/*.png` | ブラウザテスト・ゴールデン画像生成の入力スプライト (64×64、`name` はアニメーション名) |
+| `tests/browser/helpers/*.ts`                 | ブラウザテスト共通ヘルパ (ゴールデン画像比較など)                                     |
+| `tests/browser/golden/<backend>/*.png`       | ゴールデン画像 (`webgpu` / `webgl2`)                                                  |
 
 ## 24. bench/ と examples/ (パターンで許可)
 

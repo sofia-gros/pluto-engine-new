@@ -4,11 +4,15 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-**T-2.4** Transform (状態: IN_PROGRESS)
+**T-3.1** RHI インターフェース (状態: IN_PROGRESS)
 
 > 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.5 は完了し、T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
 >
 > 2026-10-07: **ブラウザを Firefox に統一** (ユーザー指示)。ブラウザテストとベンチ (`tools/run-bench.mjs`) の両方。基準機のディスプレイを 143.98Hz に変更したところ **144FPS 目標 (6.94ms) を満たした** (143.99fps 実測)。
+>
+> 2026-10-07: **T-3.1 で `docs/06` の仕様欠落を補完した (E-003 / `docs/12` D-21)。** 第四章が参照する記述子型 10 個と GPU リソース 8 インターフェースが未定義だったため、`docs/06` §5 に定数 4 種 (`TextureUsage`・`CullMode`・`LoadAction`・`ColorWrite`)、§5.1 に記述子型、§4.1 にリソースインターフェースを追記した。
+>
+> 2026-10-07: **画像デバッグ用のスプライトを `tests/browser/fixtures/assets/` に置いた (ユーザー指示)。** 外部の `public-assets` フォルダの 72 枚 (全 64x64 / 32bpp ARGB、8 アニメーションフォルダ、合計 0.03MB) をそのまま複製した。`docs/02` §23 に許可パターンを、`tools/check-structure.mjs` の `TEST_PATTERNS` に検査を追加した。
 
 > **引き継ぎ**: 次のエージェントは最初に [handoff.md](./handoff.md) を読むこと (2026-10-06 作成)。
 
@@ -40,9 +44,9 @@
 | T-R.3  | core の是正                         | DONE        | [T-R.3.md](./reviews/T-R.3.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
 | T-R.4  | jobs の再実装と World 連携          | DONE        | [T-R.4.md](./reviews/T-R.4.md)   | [b9ff2f1](https://github.com/sofia-gros/pluto-engine-new/commit/b9ff2f1) |
 | T-R.5  | ベンチ基盤の是正と ECS ベンチ再計測 | DONE        | [T-R.5.md](./reviews/T-R.5.md)   | [3fa1f5c](https://github.com/sofia-gros/pluto-engine-new/commit/3fa1f5c) |
-| T-2.3  | スケジューラ選択とパリティ          | DONE        | [T-2.3.md](./reviews/T-2.3.md)   | (未コミット・指示待ち)                                                   |
-| T-2.4  | Transform                           | IN_PROGRESS |                                  | (未コミット)                                                             |
-| T-3.1  | RHI インターフェース                | TODO        |                                  |                                                                          |
+| T-2.3  | スケジューラ選択とパリティ          | DONE        | [T-2.3.md](./reviews/T-2.3.md)   | [6674140](https://github.com/sofia-gros/pluto-engine-new/commit/6674140) |
+| T-2.4  | Transform                           | DONE        | [T-2.4.md](./reviews/T-2.4.md)   | [6674140](https://github.com/sofia-gros/pluto-engine-new/commit/6674140) |
+| T-3.1  | RHI インターフェース                | IN_PROGRESS |                                  | (未コミット)                                                             |
 | T-3.2  | RHI WebGPU 実装                     | TODO        |                                  |                                                                          |
 | T-3.3  | RHI WebGL2 実装                     | TODO        |                                  |                                                                          |
 | T-3.4  | デバイス生成とブラウザテスト        | TODO        |                                  |                                                                          |

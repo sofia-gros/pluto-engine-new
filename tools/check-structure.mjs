@@ -32,6 +32,7 @@ const TEST_PATTERNS = [
   /^tests\/unit\/.+\.test\.ts$/,
   /^tests\/unit\/_helpers\/[^/]+\.ts$/,
   /^tests\/browser\/fixtures\/[^/]+$/,
+  /^tests\/browser\/fixtures\/assets\/[^/]+\/.+\.png$/,
   /^tests\/browser\/helpers\/[^/]+\.ts$/,
   /^tests\/browser\/golden\/(webgpu|webgl2)\/[^/]+\.png$/,
 ];

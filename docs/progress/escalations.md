@@ -43,6 +43,27 @@
 - 対応結果: 変更後の WSL での参考値は moveKernelP99Ms が embed 8.47ms / parallel 14.91ms (変更前は 18.82 / 188.96)。詳細は `reviews/T-R.5.md`。
 
 <!-- 形式:
+## E-003 (2026-10-07, T-3.1)
+
+- 状況: Phase 3 の入口 T-3.1 (RHI インターフェース) を着手したが、`docs/06-rhi.md` §4 の `RhiDevice` が参照する記述子型 10 個と GPU リソースのインターフェースが、`docs/` のどこにも定義されていなかった。T-3.1 の成果物そのものが仕様として欠落している状態。
+- 証拠: `docs/` 全体を検索した結果、一致したのは `docs/06-rhi.md` の使用箇所のみ (定義 0 件)。
+
+  | 種類           | 型                                                                                                                                                                                                                              | 定義の有無 |
+  | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+  | 記述子型       | `BufferDesc`, `TextureDesc`, `SamplerDesc`, `BindGroupLayoutDesc`, `BindGroupDesc`, `RenderPipelineDesc`, `ComputePipelineDesc`, `TextureWriteDesc`, `RenderPassDesc` (加えて §5.1 で使う `BindGroupLayoutEntryDesc`, `BindGroupEntryDesc`, `ColorTargetDesc`, `DepthStencilDesc`, `ColorAttachmentDesc`) | なし       |
+  | リソース       | `RhiBuffer`, `RhiTexture`, `RhiSampler`, `RhiBindGroup`, `RhiBindGroupLayout`, `RhiRenderPipeline`, `RhiComputePipeline`, `RhiQuerySet`                                                                                            | なし       |
+  | 定数           | テクスチャ用途を表す `TextureUsage` 相当、`CullMode`, `LoadAction`, `ColorWrite`                                                                                                                                                  | なし       |
+
+  加えて `docs/02` §12 の `src/rhi/device.ts` の責務一覧に `RhiBindGroupLayout` と `RhiQuerySet` が無く、`docs/06` §4 が要求するものと食い違っていた。
+
+- 選択肢:
+  1. **(推奨) `docs/06` に定義を追記してから実装する。** 方針 (§1「WebGPU のモデルに寄せた薄い抽象」) と既存定数 (§5) から導出し、`§5` に定数 4 種、`§5.1` に記述子型、`§4.1` にリソースインターフェースを追記する。仕様を完成させてからコードを書く。
+  2. 最小構成 (バッファ・テクスチャ・サンプラ・レンダーパスのみ) を先に実装し、パイプライン系は T-3.2 と並行して詰める。T-3.1 は部分完了。
+  3. 実装を保留し、`docs/06` の補完だけを今回の作業にする。
+- 推奨: 1。
+- ユーザー回答: 「docs/06 に定義を追記してから実装 (推奨)」(2026-10-07)。選択肢 1 を採用。`docs/12` の決定事項 **D-21** として記録し、`docs/02` §12 の `device.ts` 責務一覧と `tests/browser/fixtures/assets/` の許可パターンをこれに合わせて更新した。
+- 対応結果: `docs/06` §5・§5.1・§4.1・§5.1.1 と `docs/12` D-21、`docs/02` §12・§23 を改訂済み。実装は T-3.1 で着手する。
+
 ## E-001 (YYYY-MM-DD, T-x.y)
 - 状況:
 - 選択肢:
