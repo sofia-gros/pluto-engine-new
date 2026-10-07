@@ -4,7 +4,7 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-**T-3.3** RHI WebGL2 実装 (状態: TODO)
+**T-3.4** デバイス生成とブラウザテスト (状態: TODO)
 
 > 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.5 は完了し、T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
 >
@@ -19,6 +19,8 @@
 > 2026-10-07: **`.delta/` を `.prettierignore` に追加した。** 作業元のツールが作った作業領域で `format:check` が失敗していた。git 側は `.git/info/exclude` が対応済みだった。削除はしていない。
 >
 > 2026-10-07: **T-3.2 で WebGPU 実装 7 ファイルを作った。** ブラウザのグローバル定数は仕様値の数値で持ち、`buildCapabilities` は convert に置いた。`writeTimestamp` は現行 `@webgpu/types` に無いため未実装 (T-3.4 で判断)。テスト 55 件は Node で検証できる部分に絞り、実機動作は T-3.4 に委ねる。
+>
+> 2026-10-08: **T-3.3 で WebGL2 実装 8 ファイルを作った。** 書き込みストレージ・compute・間接描画は作らず例外にする。読み取りストレージはデータテクスチャで代替する。割り当ては宣言順で解決し、個数の不一致は生成時に検出する。テスト 78 件は GL 偽物で検証し、実機動作は T-3.4 に委ねる。
 
 > **引き継ぎ**: 次のエージェントは最初に [handoff.md](./handoff.md) を読むこと (2026-10-06 作成)。
 
@@ -53,8 +55,8 @@
 | T-2.3  | スケジューラ選択とパリティ          | DONE | [T-2.3.md](./reviews/T-2.3.md)   | [6674140](https://github.com/sofia-gros/pluto-engine-new/commit/6674140) |
 | T-2.4  | Transform                           | DONE | [T-2.4.md](./reviews/T-2.4.md)   | [6674140](https://github.com/sofia-gros/pluto-engine-new/commit/6674140) |
 | T-3.1  | RHI インターフェース                | DONE | [T-3.1.md](./reviews/T-3.1.md)   | [8f40cdd](https://github.com/sofia-gros/pluto-engine-new/commit/8f40cdd) |
-| T-3.2  | RHI WebGPU 実装                     | DONE | [T-3.2.md](./reviews/T-3.2.md)   | (未コミット)                                                             |
-| T-3.3  | RHI WebGL2 実装                     | TODO |                                  |                                                                          |
+| T-3.2  | RHI WebGPU 実装                     | DONE | [T-3.2.md](./reviews/T-3.2.md)   | [3b1c1c3](https://github.com/sofia-gros/pluto-engine-new/commit/3b1c1c3) |
+| T-3.3  | RHI WebGL2 実装                     | DONE | [T-3.3.md](./reviews/T-3.3.md)   | (未コミット)                                                             |
 | T-3.4  | デバイス生成とブラウザテスト        | TODO |                                  |                                                                          |
 | T-4.1  | シェーダ基盤                        | TODO |                                  |                                                                          |
 | T-4.2  | テクスチャ・アセット                | TODO |                                  |                                                                          |
