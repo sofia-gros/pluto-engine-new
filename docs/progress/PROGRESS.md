@@ -4,9 +4,9 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-**T-4.1** シェーダ基盤 (状態: TODO)
+**T-4.2** テクスチャ・アセット (状態: TODO)
 
-> 直前の完了タスク: **T-3.4** デバイス生成とブラウザテスト ([レビュー](./reviews/T-3.4.md))
+> 直前の完了タスク: **T-4.1** シェーダ基盤 ([レビュー](./reviews/T-4.1.md))
 
 > 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.5 は完了し、T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
 >
@@ -60,7 +60,7 @@
 | T-3.2  | RHI WebGPU 実装                     | DONE | [T-3.2.md](./reviews/T-3.2.md)   | [3b1c1c3](https://github.com/sofia-gros/pluto-engine-new/commit/3b1c1c3) |
 | T-3.3  | RHI WebGL2 実装                     | DONE | [T-3.3.md](./reviews/T-3.3.md)   | [c410a6e](https://github.com/sofia-gros/pluto-engine-new/commit/c410a6e) |
 | T-3.4  | デバイス生成とブラウザテスト        | DONE | [T-3.4.md](./reviews/T-3.4.md)   | [8a6bc0a](https://github.com/sofia-gros/pluto-engine-new/commit/8a6bc0a) |
-| T-4.1  | シェーダ基盤                        | TODO |                                  |                                                                          |
+| T-4.1  | シェーダ基盤                        | DONE | [T-4.1.md](./reviews/T-4.1.md)   | (未コミット)                                                             |
 | T-4.2  | テクスチャ・アセット                | TODO |                                  |                                                                          |
 | T-4.3  | スプライトデータ                    | TODO |                                  |                                                                          |
 | T-4.4  | CPU 補助描画パス                    | TODO |                                  |                                                                          |
@@ -95,11 +95,28 @@
 | T-10.3 | API リファレンス生成                | TODO |                                  |                                                                          |
 | T-10.4 | リリース                            | TODO |                                  |                                                                          |
 
-**次は T-4.1 (シェーダ基盤)。**
+**次は T-4.2 (テクスチャ・アセット)。**
 
 > 注意: T-1.10 の性能値 (旧 `bench/baseline.json`) は根拠となる計測出力がなく **無効** とし、T-R.5 で実測値に基づくベースラインへ置き換えた。T-R.5 の受け入れ条件 1〜5 はすべて満たした。ただし**フレーム時間 (p50Ms) は補助指標**であり、判定は `cpuP50Ms` で行う (描画の submit タイミングに依存するため)。G1 の 144FPS 判定は Phase 4 の描画パスが入ってから行う。詳細は `reviews/T-R.5.md`。
 
 ## 作業ログ (新しいものを上に追記)
+
+### 2026-10-08 T-4.1 完了 (シェーダ基盤)
+
+- やったこと:
+  - `src/shaders/raw.d.ts` を作成し、Vite の `?raw` クエリに対する型定義を配備した (`export = content;` で ESLint 規則をクリア)。
+  - `src/shaders/common/constants.wgsl` / `constants.glsl` を実装し、`docs/07-renderer.md` §2 の全 18 定数を定義した。
+  - `src/shaders/common/camera.wgsl` / `camera.glsl` を実装し、`docs/07-renderer.md` §6 の 64 バイト std140 カメラ uniform 構造体を定義した。
+  - `src/shaders/preprocess.ts` を実装し、`#include` 再帰展開、循環インクルード検出、include once、`#define` および `#ifdef` / `#ifndef` 条件分岐の展開を完備した。
+  - `src/shaders/shader-library.ts` を実装し、組み込み共通インクルードの解決とプリプロセス済み `ShaderSource` の提供インターフェースを配備した。
+  - `src/shaders/index.ts` から公開窓口を提供した。
+  - `tests/unit/shaders/` に単体テスト 3 ファイル (16 件) を作成し全件合格を確認した。
+- 証拠:
+  - `pnpm verify` → **全 7 段階成功** (check:structure / boundaries / rules、typecheck、lint、format:check、test:coverage: 99.32% Lines、単体テスト 66 ファイル 450 件通過)。
+  - `pnpm test:browser --project=webgl2` → **20 passed (18.7s)**。
+  - `pnpm build` → **check-bundle: OK**。
+- 未解決:
+  - 特になし。すべての受け入れ条件を満たした。
 
 ### 2026-10-08 T-3.4 完了 (デバイス生成とブラウザテスト)
 
