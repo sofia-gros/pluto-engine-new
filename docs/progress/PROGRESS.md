@@ -59,7 +59,7 @@
 | T-3.1  | RHI インターフェース                | DONE | [T-3.1.md](./reviews/T-3.1.md)   | [8f40cdd](https://github.com/sofia-gros/pluto-engine-new/commit/8f40cdd) |
 | T-3.2  | RHI WebGPU 実装                     | DONE | [T-3.2.md](./reviews/T-3.2.md)   | [3b1c1c3](https://github.com/sofia-gros/pluto-engine-new/commit/3b1c1c3) |
 | T-3.3  | RHI WebGL2 実装                     | DONE | [T-3.3.md](./reviews/T-3.3.md)   | [c410a6e](https://github.com/sofia-gros/pluto-engine-new/commit/c410a6e) |
-| T-3.4  | デバイス生成とブラウザテスト        | DONE | [T-3.4.md](./reviews/T-3.4.md)   | (未コミット)                                                             |
+| T-3.4  | デバイス生成とブラウザテスト        | DONE | [T-3.4.md](./reviews/T-3.4.md)   | [8a6bc0a](https://github.com/sofia-gros/pluto-engine-new/commit/8a6bc0a) |
 | T-4.1  | シェーダ基盤                        | TODO |                                  |                                                                          |
 | T-4.2  | テクスチャ・アセット                | TODO |                                  |                                                                          |
 | T-4.3  | スプライトデータ                    | TODO |                                  |                                                                          |
