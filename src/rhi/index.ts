@@ -1,7 +1,10 @@
 /**
  * @file rhi モジュールの公開窓口 (docs/06-rhi.md §1・§4、`docs/02` §12)。
- * インターフェースと定数だけを公開する。`rhi/webgpu/**` と `rhi/webgl2/**` は
- * モジュール外から import できない (docs/02 §12)。
+ * インターフェースと定数だけを公開する。`rhi/webgpu/**` と `rhi/webgl2/**` と
+ * `rhi/validate.ts` はモジュール外から import できない (docs/02 §12)。
+ *
+ * `DATA_TEXTURE_WIDTH` と `DATA_TEXTURE_TEXEL_BYTES` は WebGL2 バックエンドの
+ * エミュレーション専用なので公開しない (2026-10-07, D-22)。
  */
 export {
   BufferUsage,
@@ -17,6 +20,7 @@ export {
   AddressMode,
   ShaderStage,
   BindingType,
+  SWAPCHAIN_FORMAT,
 } from './types';
 export type {
   BufferDesc,

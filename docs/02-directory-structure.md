@@ -177,10 +177,11 @@ pluto-engine/
 | パス                                   | 責務                                                                                                                                                                                                                                            | HOT | タスク |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------ |
 | `src/rhi/index.ts`                     | 公開窓口 (インターフェース・型・`createDevice` のみ。バックエンド実装は非公開)                                                                                                                                                                  | -   | T-3.1  |
-| `src/rhi/types.ts`                     | 列挙定数 (`BufferUsage`, `TextureUsage`, `TextureFormat`, `BlendMode`, `LoadAction` 等) と記述子型 (`BufferDesc` 〜 `RenderPassDesc`。docs/06 §5・§5.1)                                                                                         | -   | T-3.1  |
+| `src/rhi/types.ts`                     | 列振定数 (`BufferUsage`, `TextureUsage`, `TextureFormat`, `BlendMode`, `LoadAction`, `SWAPCHAIN_FORMAT`, `DATA_TEXTURE_*` 等) と記述子型 (`BufferDesc` 〜 `RenderPassDesc`。docs/06 §5・§5.1)                                                   | -   | T-3.1  |
 | `src/rhi/device.ts`                    | `RhiDevice`, `RhiCommandEncoder`, `RhiRenderPass`, `RhiComputePass` と GPU リソースのインターフェース (`RhiBuffer`, `RhiTexture`, `RhiSampler`, `RhiBindGroupLayout`, `RhiBindGroup`, `RhiRenderPipeline`, `RhiComputePipeline`, `RhiQuerySet`) | -   | T-3.1  |
-| `src/rhi/capabilities.ts`              | `RhiCapabilities` (compute, indirect, timestampQuery, maxTextureLayers 等)                                                                                                                                                                      | -   | T-3.1  |
+| `src/rhi/capabilities.ts`              | `RhiCapabilities` 17 プロパティ (compute, indirectDraw, timestampQuery, maxTextureSize, minUniformBufferOffsetAlignment, maxComputeInvocationsPerWorkgroup 等。docs/06 §3)                                                                      | -   | T-3.1  |
 | `src/rhi/shader-source.ts`             | `ShaderSource` 型 (`wgsl` / `glslVertex` / `glslFragment`)                                                                                                                                                                                      | -   | T-3.1  |
+| `src/rhi/validate.ts`                  | `docs/06` §5.1.1 の検証規則を全バックエンド共通で実装する。`create*` の前に呼び、選反は `PlutoError` を送出する。バックエンド別には公開しない                                                                                                   | -   | T-3.1  |
 | `src/rhi/create-device.ts`             | WebGPU → WebGL2 の順でデバイス生成を試みる唯一の場所                                                                                                                                                                                            | -   | T-3.4  |
 | `src/rhi/webgpu/webgpu-device.ts`      | WebGPU 版 `RhiDevice`                                                                                                                                                                                                                           | -   | T-3.2  |
 | `src/rhi/webgpu/webgpu-buffer.ts`      | WebGPU 版バッファ                                                                                                                                                                                                                               | -   | T-3.2  |
@@ -230,67 +231,67 @@ pluto-engine/
 
 ## 15. src/shaders — シェーダソース (仕様: `docs/07-renderer.md`)
 
-| パス                                                    | 責務                                                              | HOT | タスク |
-| ------------------------------------------------------- | ----------------------------------------------------------------- | --- | ------ |
-| `src/shaders/index.ts`                                  | 公開窓口                                                          | -   | T-4.1  |
-| `src/shaders/raw.d.ts`                                  | `*.wgsl?raw` / `*.glsl?raw` のモジュール型宣言                    | -   | T-4.1  |
-| `src/shaders/preprocess.ts`                             | `#include "x"` / `#define` 展開の自前プリプロセッサ               | -   | T-4.1  |
-| `src/shaders/shader-library.ts`                         | 全シェーダを `?raw` で import し、名前 → `ShaderSource` を返す    | -   | T-4.1  |
-| `src/shaders/common/constants.wgsl`                     | 共通定数 (WORKGROUP_SIZE 等。TS の値と一致させる)                 | -   | T-4.1  |
-| `src/shaders/common/constants.glsl`                     | 同 GLSL 版                                                        | -   | T-4.1  |
-| `src/shaders/common/camera.wgsl`                        | カメラ uniform 構造体                                             | -   | T-4.1  |
-| `src/shaders/common/camera.glsl`                        | 同 GLSL 版                                                        | -   | T-4.1  |
-| `src/shaders/common/sprite-instance.wgsl`               | スプライトインスタンス構造体とデコード関数                        | -   | T-4.3  |
-| `src/shaders/common/sprite-instance.glsl`               | 同 GLSL 版 (データテクスチャから読む)                             | -   | T-4.3  |
-| `src/shaders/common/frame.wgsl`                         | フレームテーブル構造体                                            | -   | T-4.3  |
-| `src/shaders/common/frame.glsl`                         | 同 GLSL 版                                                        | -   | T-4.3  |
-| `src/shaders/common/storage-emulation.glsl`             | WebGL2 データテクスチャ読取ヘルパ (`fetchU32x4(index)` 等)        | -   | T-4.3  |
-| `src/shaders/sprite/sprite.wgsl`                        | スプライト描画 (vertex pulling)                                   | -   | T-4.4  |
-| `src/shaders/sprite/sprite.vert.glsl`                   | 同 GLSL 頂点                                                      | -   | T-4.4  |
-| `src/shaders/sprite/sprite.frag.glsl`                   | 同 GLSL フラグメント                                              | -   | T-4.4  |
-| `src/shaders/scan/prefix-sum.wgsl`                      | 排他的プレフィックスサム (decoupled look-back なし、3 パス方式)   | -   | T-4.5  |
-| `src/shaders/sort/radix-sort.wgsl`                      | 32bit キー/値 LSD 基数ソート (4bit × 8 パス)                      | -   | T-4.5  |
-| `src/shaders/cull/reset-args.wgsl`                      | indirect 引数のリセット                                           | -   | T-4.6  |
-| `src/shaders/cull/sprite-cull.wgsl`                     | スプライトの視錐台カリングと opaque/transparent への振り分け      | -   | T-4.6  |
-| `src/shaders/cull/sort-keys.wgsl`                       | 半透明スプライトのソートキー生成                                  | -   | T-4.6  |
-| `src/shaders/spatial/spatial-hash.wgsl`                 | GPU 空間ハッシュ (セル計算・カウント・スキャッタ)                 | -   | T-6.1  |
-| `src/shaders/particles/particle-emit.wgsl`              | パーティクル生成                                                  | -   | T-6.2  |
-| `src/shaders/particles/particle-update.wgsl`            | パーティクル更新・スプライトバッファ書込                          | -   | T-6.2  |
-| `src/shaders/particles/particle-update.gpgpu.frag.glsl` | 同 WebGL2 GPGPU 版                                                | -   | T-6.2  |
-| `src/shaders/crowd/flow-field.wgsl`                     | Eikonal 方程式 (Fast Iterative Method) によるフローフィールド計算 | -   | T-6.3  |
-| `src/shaders/crowd/flow-field.gpgpu.frag.glsl`          | 同 WebGL2 GPGPU 版 (ヤコビ反復)                                   | -   | T-6.3  |
-| `src/shaders/crowd/crowd-steer.wgsl`                    | フローフィールドのサンプリングと速度更新                          | -   | T-6.3  |
-| `src/shaders/crowd/crowd-steer.gpgpu.frag.glsl`         | 同 WebGL2 GPGPU 版                                                | -   | T-6.3  |
-| `src/shaders/crowd/crowd-pbd.wgsl`                      | 位置ベース群衆の衝突回避制約 (ヤコビ)                             | -   | T-6.4  |
-| `src/shaders/fluid/stable-fluids.wgsl`                  | 格子流体 (移流・発散・圧力ヤコビ・投影)                           | -   | T-7.1  |
-| `src/shaders/fluid/stable-fluids.gpgpu.frag.glsl`       | 同 WebGL2 GPGPU 版                                                | -   | T-7.1  |
-| `src/shaders/fluid/pbf.wgsl`                            | Position Based Fluids                                             | -   | T-7.2  |
-| `src/shaders/fluid/mls-mpm.wgsl`                        | MLS-MPM (P2G / グリッド更新 / G2P)                                | -   | T-7.3  |
-| `src/shaders/fluid/fluid-render.wgsl`                   | 粒子流体の深度スプラット・平滑化・合成                            | -   | T-7.4  |
-| `src/shaders/fluid/fluid-render.vert.glsl`              | 同 GLSL 頂点 (格子流体の可視化用)                                 | -   | T-7.4  |
-| `src/shaders/fluid/fluid-render.frag.glsl`              | 同 GLSL フラグメント                                              | -   | T-7.4  |
-| `src/shaders/text/msdf.wgsl`                            | MSDF テキスト描画                                                 | -   | T-9.2  |
-| `src/shaders/text/msdf.vert.glsl`                       | 同 GLSL 頂点                                                      | -   | T-9.2  |
-| `src/shaders/text/msdf.frag.glsl`                       | 同 GLSL フラグメント                                              | -   | T-9.2  |
-| `src/shaders/tilemap/tilemap.wgsl`                      | タイルマップチャンク描画                                          | -   | T-9.3  |
-| `src/shaders/tilemap/tilemap.vert.glsl`                 | 同 GLSL 頂点                                                      | -   | T-9.3  |
-| `src/shaders/tilemap/tilemap.frag.glsl`                 | 同 GLSL フラグメント                                              | -   | T-9.3  |
-| `src/shaders/graphics/shape.wgsl`                       | ベクタ図形描画                                                    | -   | T-9.4  |
-| `src/shaders/graphics/shape.vert.glsl`                  | 同 GLSL 頂点                                                      | -   | T-9.4  |
-| `src/shaders/graphics/shape.frag.glsl`                  | 同 GLSL フラグメント                                              | -   | T-9.4  |
-| `src/shaders/lighting/light-simple.wgsl`                | 点光源の加算合成 (両バックエンド共通機能)                         | -   | T-9.5  |
-| `src/shaders/lighting/light-simple.frag.glsl`           | 同 GLSL 版                                                        | -   | T-9.5  |
-| `src/shaders/lighting/jfa.wgsl`                         | Jump Flooding による SDF 生成                                     | -   | T-9.5  |
-| `src/shaders/lighting/radiance-cascades.wgsl`           | Radiance Cascades 2D GI (WebGPU のみ)                             | -   | T-9.5  |
-| `src/shaders/post/fullscreen.wgsl`                      | フルスクリーン三角形 + コピー                                     | -   | T-4.7  |
-| `src/shaders/post/fullscreen.vert.glsl`                 | 同 GLSL 頂点                                                      | -   | T-4.7  |
-| `src/shaders/post/blit.frag.glsl`                       | GLSL コピー                                                       | -   | T-4.7  |
-| `src/shaders/post/solid-color.wgsl`                     | ビューポート全面の単色合成 (カメラの fade / flash)                | -   | T-5.5  |
-| `src/shaders/post/solid-color.frag.glsl`                | 同 GLSL 版 (頂点は `fullscreen.vert.glsl` を共用)                 | -   | T-5.5  |
-| `src/shaders/post/bloom.wgsl`                           | ブルーム (ダウン/アップサンプル)                                  | -   | T-9.7  |
-| `src/shaders/post/bloom.frag.glsl`                      | 同 GLSL 版                                                        | -   | T-9.7  |
-| `src/shaders/post/tonemap.wgsl`                         | トーンマップ + カラーマトリクス                                   | -   | T-9.7  |
-| `src/shaders/post/tonemap.frag.glsl`                    | 同 GLSL 版                                                        | -   | T-9.7  |
+| パス                                                    | 責務                                                                           | HOT | タスク |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------ | --- | ------ |
+| `src/shaders/index.ts`                                  | 公開窓口                                                                       | -   | T-4.1  |
+| `src/shaders/raw.d.ts`                                  | `*.wgsl?raw` / `*.glsl?raw` のモジュール型宣言                                 | -   | T-4.1  |
+| `src/shaders/preprocess.ts`                             | `#include "x"` / `#define` 展開の自前プリプロセッサ                            | -   | T-4.1  |
+| `src/shaders/shader-library.ts`                         | 全シェーダを `?raw` で import し、名前 → `ShaderSource` を返す                 | -   | T-4.1  |
+| `src/shaders/common/constants.wgsl`                     | 共通定数 (WORKGROUP_SIZE 等。TS の値と一致させる)                              | -   | T-4.1  |
+| `src/shaders/common/constants.glsl`                     | 同 GLSL 版                                                                     | -   | T-4.1  |
+| `src/shaders/common/camera.wgsl`                        | カメラ uniform 構造体                                                          | -   | T-4.1  |
+| `src/shaders/common/camera.glsl`                        | 同 GLSL 版                                                                     | -   | T-4.1  |
+| `src/shaders/common/sprite-instance.wgsl`               | スプライトインスタンス構造体とデコード関数                                     | -   | T-4.3  |
+| `src/shaders/common/sprite-instance.glsl`               | 同 GLSL 版 (データテクスチャから読む)                                          | -   | T-4.3  |
+| `src/shaders/common/frame.wgsl`                         | フレームテーブル構造体                                                         | -   | T-4.3  |
+| `src/shaders/common/frame.glsl`                         | 同 GLSL 版                                                                     | -   | T-4.3  |
+| `src/shaders/common/storage-emulation.glsl`             | WebGL2 データテクスチャ読取ヘルパ (`pluto_fetch(tex, texelIndex)`。docs/06 §7) | -   | T-4.3  |
+| `src/shaders/sprite/sprite.wgsl`                        | スプライト描画 (vertex pulling)                                                | -   | T-4.4  |
+| `src/shaders/sprite/sprite.vert.glsl`                   | 同 GLSL 頂点                                                                   | -   | T-4.4  |
+| `src/shaders/sprite/sprite.frag.glsl`                   | 同 GLSL フラグメント                                                           | -   | T-4.4  |
+| `src/shaders/scan/prefix-sum.wgsl`                      | 排他的プレフィックスサム (decoupled look-back なし、3 パス方式)                | -   | T-4.5  |
+| `src/shaders/sort/radix-sort.wgsl`                      | 32bit キー/値 LSD 基数ソート (4bit × 8 パス)                                   | -   | T-4.5  |
+| `src/shaders/cull/reset-args.wgsl`                      | indirect 引数のリセット                                                        | -   | T-4.6  |
+| `src/shaders/cull/sprite-cull.wgsl`                     | スプライトの視錐台カリングと opaque/transparent への振り分け                   | -   | T-4.6  |
+| `src/shaders/cull/sort-keys.wgsl`                       | 半透明スプライトのソートキー生成                                               | -   | T-4.6  |
+| `src/shaders/spatial/spatial-hash.wgsl`                 | GPU 空間ハッシュ (セル計算・カウント・スキャッタ)                              | -   | T-6.1  |
+| `src/shaders/particles/particle-emit.wgsl`              | パーティクル生成                                                               | -   | T-6.2  |
+| `src/shaders/particles/particle-update.wgsl`            | パーティクル更新・スプライトバッファ書込                                       | -   | T-6.2  |
+| `src/shaders/particles/particle-update.gpgpu.frag.glsl` | 同 WebGL2 GPGPU 版                                                             | -   | T-6.2  |
+| `src/shaders/crowd/flow-field.wgsl`                     | Eikonal 方程式 (Fast Iterative Method) によるフローフィールド計算              | -   | T-6.3  |
+| `src/shaders/crowd/flow-field.gpgpu.frag.glsl`          | 同 WebGL2 GPGPU 版 (ヤコビ反復)                                                | -   | T-6.3  |
+| `src/shaders/crowd/crowd-steer.wgsl`                    | フローフィールドのサンプリングと速度更新                                       | -   | T-6.3  |
+| `src/shaders/crowd/crowd-steer.gpgpu.frag.glsl`         | 同 WebGL2 GPGPU 版                                                             | -   | T-6.3  |
+| `src/shaders/crowd/crowd-pbd.wgsl`                      | 位置ベース群衆の衝突回避制約 (ヤコビ)                                          | -   | T-6.4  |
+| `src/shaders/fluid/stable-fluids.wgsl`                  | 格子流体 (移流・発散・圧力ヤコビ・投影)                                        | -   | T-7.1  |
+| `src/shaders/fluid/stable-fluids.gpgpu.frag.glsl`       | 同 WebGL2 GPGPU 版                                                             | -   | T-7.1  |
+| `src/shaders/fluid/pbf.wgsl`                            | Position Based Fluids                                                          | -   | T-7.2  |
+| `src/shaders/fluid/mls-mpm.wgsl`                        | MLS-MPM (P2G / グリッド更新 / G2P)                                             | -   | T-7.3  |
+| `src/shaders/fluid/fluid-render.wgsl`                   | 粒子流体の深度スプラット・平滑化・合成                                         | -   | T-7.4  |
+| `src/shaders/fluid/fluid-render.vert.glsl`              | 同 GLSL 頂点 (格子流体の可視化用)                                              | -   | T-7.4  |
+| `src/shaders/fluid/fluid-render.frag.glsl`              | 同 GLSL フラグメント                                                           | -   | T-7.4  |
+| `src/shaders/text/msdf.wgsl`                            | MSDF テキスト描画                                                              | -   | T-9.2  |
+| `src/shaders/text/msdf.vert.glsl`                       | 同 GLSL 頂点                                                                   | -   | T-9.2  |
+| `src/shaders/text/msdf.frag.glsl`                       | 同 GLSL フラグメント                                                           | -   | T-9.2  |
+| `src/shaders/tilemap/tilemap.wgsl`                      | タイルマップチャンク描画                                                       | -   | T-9.3  |
+| `src/shaders/tilemap/tilemap.vert.glsl`                 | 同 GLSL 頂点                                                                   | -   | T-9.3  |
+| `src/shaders/tilemap/tilemap.frag.glsl`                 | 同 GLSL フラグメント                                                           | -   | T-9.3  |
+| `src/shaders/graphics/shape.wgsl`                       | ベクタ図形描画                                                                 | -   | T-9.4  |
+| `src/shaders/graphics/shape.vert.glsl`                  | 同 GLSL 頂点                                                                   | -   | T-9.4  |
+| `src/shaders/graphics/shape.frag.glsl`                  | 同 GLSL フラグメント                                                           | -   | T-9.4  |
+| `src/shaders/lighting/light-simple.wgsl`                | 点光源の加算合成 (両バックエンド共通機能)                                      | -   | T-9.5  |
+| `src/shaders/lighting/light-simple.frag.glsl`           | 同 GLSL 版                                                                     | -   | T-9.5  |
+| `src/shaders/lighting/jfa.wgsl`                         | Jump Flooding による SDF 生成                                                  | -   | T-9.5  |
+| `src/shaders/lighting/radiance-cascades.wgsl`           | Radiance Cascades 2D GI (WebGPU のみ)                                          | -   | T-9.5  |
+| `src/shaders/post/fullscreen.wgsl`                      | フルスクリーン三角形 + コピー                                                  | -   | T-4.7  |
+| `src/shaders/post/fullscreen.vert.glsl`                 | 同 GLSL 頂点                                                                   | -   | T-4.7  |
+| `src/shaders/post/blit.frag.glsl`                       | GLSL コピー                                                                    | -   | T-4.7  |
+| `src/shaders/post/solid-color.wgsl`                     | ビューポート全面の単色合成 (カメラの fade / flash)                             | -   | T-5.5  |
+| `src/shaders/post/solid-color.frag.glsl`                | 同 GLSL 版 (頂点は `fullscreen.vert.glsl` を共用)                              | -   | T-5.5  |
+| `src/shaders/post/bloom.wgsl`                           | ブルーム (ダウン/アップサンプル)                                               | -   | T-9.7  |
+| `src/shaders/post/bloom.frag.glsl`                      | 同 GLSL 版                                                                     | -   | T-9.7  |
+| `src/shaders/post/tonemap.wgsl`                         | トーンマップ + カラーマトリクス                                                | -   | T-9.7  |
+| `src/shaders/post/tonemap.frag.glsl`                    | 同 GLSL 版                                                                     | -   | T-9.7  |
 
 ## 16. src/compute — GPU 汎用プリミティブ
 

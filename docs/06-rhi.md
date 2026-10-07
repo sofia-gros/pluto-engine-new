@@ -41,11 +41,17 @@ export interface RhiCapabilities {
   readonly maxTextureArrayLayers: number;
   readonly maxStorageBufferBytes: number; // WebGL2: データテクスチャの上限から算出
   readonly maxComputeWorkgroupSize: number; // WebGL2: 0
+  readonly maxComputeInvocationsPerWorkgroup: number; // WebGPU: adapter.limits / WebGL2: 0
+  readonly minUniformBufferOffsetAlignment: number; // WebGPU: adapter.limits (既定 256) / WebGL2: 256
+  readonly minStorageBufferOffsetAlignment: number; // WebGPU: adapter.limits (既定 256) / WebGL2: 256
   readonly textureCompressionBC7: boolean; // WebGPU: 'texture-compression-bc' / WebGL2: EXT_texture_compression_bptc
   readonly textureCompressionETC2: boolean; // WebGPU: 'texture-compression-etc2' / WebGL2: WEBGL_compressed_texture_etc
   readonly textureCompressionASTC: boolean; // WebGPU: 'texture-compression-astc' / WebGL2: WEBGL_compressed_texture_astc (4x4 LDR)
 }
 ```
+
+- **`maxComputeInvocationsPerWorkgroup`・`minUniformBufferOffsetAlignment`・`minStorageBufferOffsetAlignment` は 2026-10-07 追記 (D-22)。** 当初これらが無く、§5.1.1 の「`offsetBytes` は 256 の倍数」「ワークグループの積は 1024 以下」という固定値になっていた。WebGPU の仕様ではどちらも **デバイスの limit** であって固定値ではない (WebGPU Editor's Draft 2026-09-23: 「`bufferBinding.offset` は `limits.minUniformBufferOffsetAlignment` の倍数」「`maxComputeInvocationsPerWorkgroup` は device limit で既定 256、仕様上の最低保証はなし」)。第一章「能力差は隠さない」に従い `caps` に出して検証に使う。
+- 圧縮フォーマットと `RGBA16Float` の扱いは §5 の注記を参照。
 
 ## 4. インターフェース (`src/rhi/device.ts`)
 
@@ -242,9 +248,14 @@ export const TextureUsage = {
 export const CullMode = { None: 0, Front: 1, Back: 2 } as const;
 export const LoadAction = { Clear: 0, Load: 1 } as const;
 export const ColorWrite = { Red: 1, Green: 2, Blue: 4, Alpha: 8 } as const; // ビットフラグ
+export const SWAPCHAIN_FORMAT = TextureFormat.BGRA8Unorm;
+export const DATA_TEXTURE_WIDTH = 2048; // WebGL2 のストレージバッファ代替の texel 数 (= 32KB/行)
+export const DATA_TEXTURE_TEXEL_BYTES = 16; // RGBA32UI の 1 texel = 16 バイト
 ```
 
-- 圧縮フォーマット (10〜12) は **サンプル専用** (レンダーターゲット・ストレージ不可)。`writeTexture` には 4×4 ブロック単位のバイト列を渡し、幅・高さ・オフセットは 4 の倍数でなければならない (違反は `PlutoError(InvalidArgument)`)。非対応デバイスで生成すると `PlutoError(UnsupportedFeature)`。
+- **圧縮フォーマット (10〜12) はサンプル専用** (レンダーターゲット・ストレージ不可)。`writeTexture` には 4×4 ブロック単位のバイト列を渡し、幅・高さ・オフセットは 4 の倍数でなければならない (違反は `PlutoError(InvalidArgument)`)。非対応デバイスで生成すると `PlutoError(UnsupportedFeature)`。
+- **`RGBA16Float` (2) は `caps.floatRenderTarget` が false のデバイスでは生成できない** (2026-10-07 追記)。WebGPU は `float16` RT の既定保証がなく、`createTexture` の検証エラーになる。RHI はこれを `PlutoError(UnsupportedFeature)` に写す。`caps` には追加しない (「浮動小数点の RT が使えるか」は既に `floatRenderTarget` で判われるため)。なおら `caps.floatRenderTarget` が true でも **`RGBA32Float` (3) のブレンドは `floatBlend` が false のときに使えない**。ブレンドの支持は §5 の `BlendMode` と別に `caps.floatBlend` で判定する。
+- **`SWAPCHAIN_FORMAT`・`DATA_TEXTURE_WIDTH`・`DATA_TEXTURE_TEXEL_BYTES` は 2026-10-07 追記 (D-22)。** 当初は `TextureFormat` の表に無く、§7 が `DATA_TEXTURE_WIDTH = 2048` を本文中で直接使っていた。`getCurrentTexture()` が返す format は **`SWAPCHAIN_FORMAT` (= `bgra8unorm`) に固定**する。`navigator.gpu.getPreferredCanvasFormat()` には合わせない (第一章の「バックエンド差を隠す」に従い、`caps` に差を出するより固定する)。
 - **`TextureUsage` と `ColorWrite` は 2026-10-07 追記 (D-21)。** 当初は `BufferUsage` しか定数が無く、`TextureDesc` の用途ビットを表すものが定義されていなかった。WebGPU の `GPUTextureUsage` と同じ 5 種をビットフラグで持つ。`BindingType.Texture` は `TextureUsage.TextureBinding`、`BindingType.StorageTexture` は `TextureUsage.StorageBinding` を要求する。
 - `BlendMode` は **固定機能ブレンドの合成結果**だけで表現する (WebGL2 の固定機能と同じ)。`ColorWrite` で個別チャンネルの有効・無効を指定できるが、ブレンド式そのものは `BlendMode` から一意に決まる。
 - ミップマップは **使わない** (`mipLevelCount` は無い)。KTX2 もレベル 0 のみ (docs/07 §アトラス)。
@@ -291,7 +302,7 @@ export interface BindGroupLayoutDesc {
 export interface BindGroupEntryDesc {
   readonly type: number; // BindingType。layout の対応エントリと一致すること
   readonly buffer?: RhiBuffer; // UniformBuffer / StorageBuffer のとき必須
-  readonly offsetBytes?: number; // buffer ありのとき。0 以外は 256 の倍数
+  readonly offsetBytes?: number; // buffer ありのとき。0 以外は caps の整列値の倍数 (§5.1.1)
   readonly sizeBytes?: number; // buffer ありのとき (Storage のみ)
   readonly texture?: RhiTexture; // Texture / StorageTexture のとき必須
   readonly sampler?: RhiSampler; // Sampler のとき必須
@@ -357,28 +368,41 @@ export interface RenderPassDesc {
 
 ### 5.1.1 検証規則
 
-`create*` は **同期的に** 検証し、違反は次の例外を送出する。バックエンドの実装差で検査を省略してはならない。
+`create*` は **同期的に** 検証し、违反は次の例外を送出する。バックエンドの実装差で検査を省略してはならない。**検証は `src/rhi/validate.ts` に全バックエンド共通で実装する** (2026-10-07 追記, D-22)。デバイスに依存する上限は `caps` から渡す。
 
-| 条件                                                                      | エラー                           |
-| ------------------------------------------------------------------------- | -------------------------------- |
-| `BufferDesc.sizeBytes` が 1 未満                                          | `PlutoError(InvalidArgument)`    |
-| `BufferDesc.usage` が 0                                                   | `PlutoError(InvalidArgument)`    |
-| `BufferUsage.MapRead` と他のビットを同時に指定                            | `PlutoError(InvalidArgument)`    |
-| `TextureDesc.width` / `height` が 1 未満、または `usage` が 0             | `PlutoError(InvalidArgument)`    |
-| `dimension === D2` かつ `layers !== 1`                                    | `PlutoError(InvalidArgument)`    |
-| 圧縮フォーマット (10〜12) に `RenderAttachment` / `StorageBinding` を指定 | `PlutoError(InvalidArgument)`    |
-| 圧縮フォーマットを非対応デバイスで指定                                    | `PlutoError(UnsupportedFeature)` |
-| `BindGroupEntryDesc.type` が layout の対応エントリと異なる                | `PlutoError(InvalidArgument)`    |
-| `offsetBytes !== 0` かつ 256 の倍数でない                                 | `PlutoError(InvalidArgument)`    |
-| `layouts` の長さが 4 を超える                                             | `PlutoError(InvalidArgument)`    |
-| `colorTargets` の長さが 0 または 3 以上                                   | `PlutoError(InvalidArgument)`    |
-| `DepthStencilDesc.format` が `Depth24Plus` / `Depth32Float` 以外          | `PlutoError(InvalidArgument)`    |
-| `workgroupSize` のいずれかが 1 未満、または積が 1024 超                   | `PlutoError(InvalidArgument)`    |
-| `load === LoadAction.Clear` なのに `clearColor` / `clearDepth` が無い     | `PlutoError(InvalidArgument)`    |
-| `TextureWriteDesc` の範囲がテクスチャの寸法・layer を超える               | `PlutoError(InvalidArgument)`    |
-| `ColorAttachmentDesc.view` の `usage` に `RenderAttachment` が無い        | `PlutoError(InvalidArgument)`    |
-| `caps.compute === false` のデバイスで `createComputePipeline`             | `PlutoError(UnsupportedFeature)` |
-| `caps.timestampQuery === false` のデバイスで `createQuerySet`             | 例外ではなく `null` (§4 の通り)  |
+| 条件                                                                              | エラー                                 |
+| --------------------------------------------------------------------------------- | -------------------------------------- |
+| `BufferDesc.sizeBytes` が 1 未満                                                  | `PlutoError(InvalidArgument)`          |
+| `BufferDesc.usage` が 0                                                           | `PlutoError(InvalidArgument)`          |
+| `BufferUsage.MapRead` を含むとき、`CopyDst` 以外のビットを指定                    | `PlutoError(InvalidArgument)`          |
+| `TextureDesc.width` / `height` が 1 未満、または `usage` が 0                     | `PlutoError(InvalidArgument)`          |
+| `dimension === D2` かつ `layers !== 1`                                            | `PlutoError(InvalidArgument)`          |
+| `width` / `height` が `caps.maxTextureSize` を超える                              | `PlutoError(InvalidArgument)`          |
+| `layers` が `caps.maxTextureArrayLayers` を超える                                 | `PlutoError(InvalidArgument)`          |
+| 圧缮フォーマット (10〔12) に `RenderAttachment` / `StorageBinding` を指定         | `PlutoError(InvalidArgument)`          |
+| 圧缮フォーマットを非対応デバイスで指定                                            | `PlutoError(UnsupportedFeature)`       |
+| `TextureFormat.RGBA16Float` を `caps.floatRenderTarget` が false のデバイスで指定 | `PlutoError(UnsupportedFeature)`       |
+| `BindGroupEntryDesc.type` が layout の対応エントリと異なる                        | `PlutoError(InvalidArgument)`          |
+| `BindGroupEntryDesc` の要素数が layout の `entries` と異なる                      | `PlutoError(InvalidArgument)`          |
+| `BindGroupEntryDesc` が `type` に必要なリソースを指していない                     | `PlutoError(InvalidArgument)`          |
+| `offsetBytes !== 0` かつ caps の整列値の倍数でない (`type` で分小)                | `PlutoError(InvalidArgument)`          |
+| `layouts` の長さが 4 を超える                                                     | `PlutoError(InvalidArgument)`          |
+| `colorTargets` の長さが 0 または 3 以上                                           | `PlutoError(InvalidArgument)`          |
+| float の `ColorTargetDesc.format` を `caps.floatRenderTarget` が false など指定   | `PlutoError(UnsupportedFeature)`       |
+| `BlendMode` が `Opaque` ではないとき `caps.floatBlend` が false                   | `PlutoError(UnsupportedFeature)`       |
+| `DepthStencilDesc.format` が `Depth24Plus` / `Depth32Float` 以外                  | `PlutoError(InvalidArgument)`          |
+| `workgroupSize` のいずれかが 1 未満                                               | `PlutoError(InvalidArgument)`          |
+| `workgroupSize` の経が `caps.maxComputeInvocationsPerWorkgroup` を超える          | `PlutoError(InvalidArgument)`          |
+| `workgroupSize` の各維が `caps.maxComputeWorkgroupSize` を超える                  | `PlutoError(InvalidArgument)`          |
+| `load === LoadAction.Clear` なのに `clearColor` / `clearDepth` が無い             | `PlutoError(InvalidArgument)`          |
+| `TextureWriteDesc` の範囲がテクスチャの尺寸・layer を超える                       | `PlutoError(InvalidArgument)`          |
+| `ColorAttachmentDesc.view` の `usage` に `RenderAttachment` が無い                | `PlutoError(InvalidArgument)`          |
+| `caps.compute === false` のデバイスで `createComputePipeline`                     | `PlutoError(UnsupportedFeature)`       |
+| `caps.timestampQuery === false` のデバイスで `createQuerySet`                     | 例外ではなく `null` を返す (§4 の通り) |
+
+- **`MapRead` の規則は 2026-10-07 に正した (D-22)。** 初版は「`MapRead` と他のビットを同時に指定しない」と定めていた。WebGPU の規格は「`MAP_READ` を含む場合、`COPY_DST` 以外のフラグは指定できない」となっている。`MAP_READ | COPY_DST` は `readBufferAsync` に必要なので、初版の規則のままではそのコンビネーションを作れなかった。
+- **`offsetBytes` と `workgroupSize` の上限は `caps` から渡す (D-22)。** 初版は「256 の倍数」と「積が 1024 以下」と固定していた。WebGPU には 1024 という定数は無く、検証は `limits.minUniformBufferOffsetAlignment` と `limits.maxComputeInvocationsPerWorkgroup` (既定 256、adapter 依存) に対している。
+- **検証の分担は 2026-10-07 に定めた (D-22)。** 検証ルールはバックエンドに非依存で、できるだけデバイス値 (`caps`) を引き取る形にする。
 
 ## 6. シェーダソース (`src/rhi/shader-source.ts`)
 

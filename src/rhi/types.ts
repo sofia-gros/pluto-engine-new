@@ -95,7 +95,20 @@ export const CullMode = { None: 0, Front: 1, Back: 2 } as const;
 export const LoadAction = { Clear: 0, Load: 1 } as const;
 
 /** 書き込む色チャンネル。ビットフラグ。省略時は全チャンネル。 */
-export const ColorWrite = { Red: 1, Green: 2, Blue: 4, Alpha: 8 } as const;
+
+export const ColorWrite = { Red: 1, Green: 2, Blue: 4, Alpha: 8 } as const; // ビットフラグ
+
+/**
+ * スワップチェーンが使うテクスチャ書式。`bgra8unorm` に固定する (docs/06 §5 の注記)。
+ * `navigator.gpu.getPreferredCanvasFormat()` には合わせない。
+ */
+export const SWAPCHAIN_FORMAT = TextureFormat.BGRA8Unorm;
+
+/** WebGL2 でストレージバッファを代替するデータテクスチャの texel 数 (32KB/行)。 */
+export const DATA_TEXTURE_WIDTH = 2048;
+
+/** データテクスチャ 1 texel のバイト数 (`RGBA32UI` = 4 つの u32)。 */
+export const DATA_TEXTURE_TEXEL_BYTES = 16;
 
 // ------------------------------------------------------- 記述子型 (§5.1)
 
@@ -158,7 +171,7 @@ export interface BindGroupEntryDesc {
   /** バッファ。`UniformBuffer` / `StorageBuffer` 系では必須。 */
   readonly buffer?: RhiBuffer;
   /** バッファ内の開始バイト。0 以外は 256 の倍数。 */
-  readonly offsetBytes?: number;
+  readonly offsetBytes?: number; // buffer ありのとき。0 以外は caps の整列値の倍数 (§5.1.1)
   /** 使用するバイト数 (ストレージバッファのみ)。 */
   readonly sizeBytes?: number;
   /** テクスチャ。`Texture` / `StorageTexture` では必須。 */

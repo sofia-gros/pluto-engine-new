@@ -5,3 +5,4 @@ bench/results/
 test-results/
 playwright-report/
 pnpm-lock.yaml
+.delta/

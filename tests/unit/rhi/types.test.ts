@@ -7,9 +7,12 @@ import {
   ColorWrite,
   CompareFunc,
   CullMode,
+  DATA_TEXTURE_TEXEL_BYTES,
+  DATA_TEXTURE_WIDTH,
   FilterMode,
   LoadAction,
   ShaderStage,
+  SWAPCHAIN_FORMAT,
   TextureDimension,
   TextureFormat,
   TextureUsage,
@@ -104,6 +107,16 @@ describe('rhi 定数', () => {
 
   it('ColorWrite は 4 ビット (D-21)', () => {
     expect(ColorWrite).toEqual({ Red: 1, Green: 2, Blue: 4, Alpha: 8 });
+  });
+
+  it('SWAPCHAIN_FORMAT は bgra8unorm に固定する (D-22)', () => {
+    expect(SWAPCHAIN_FORMAT).toBe(TextureFormat.BGRA8Unorm);
+  });
+
+  it('データテクスチャの定数は docs/06 §7 の値 (D-22)', () => {
+    expect(DATA_TEXTURE_WIDTH).toBe(2048);
+    expect(DATA_TEXTURE_TEXEL_BYTES).toBe(16);
+    expect(DATA_TEXTURE_WIDTH * DATA_TEXTURE_TEXEL_BYTES).toBe(32768);
   });
 
   it('ビットフラグ定数は 1 ビットずつで、同じ表の中でビットを共有しない', () => {

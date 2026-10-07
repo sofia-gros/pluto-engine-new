@@ -27,6 +27,12 @@ export interface RhiCapabilities {
   readonly maxStorageBufferBytes: number;
   /** ワークグループの 1 次元あたりの最大要素数。WebGL2 は 0。 */
   readonly maxComputeWorkgroupSize: number;
+  /** 1 ワークグループあたりの合計起動数の上限。WebGPU は adapter.limits、WebGL2 は 0。 */
+  readonly maxComputeInvocationsPerWorkgroup: number;
+  /** ユニフォームバッファの `offsetBytes` の最小の倍数。WebGPU は adapter.limits、WebGL2 は 256。 */
+  readonly minUniformBufferOffsetAlignment: number;
+  /** ストレージバッファの `offsetBytes` の最小の倍数。WebGPU は adapter.limits、WebGL2 は 256。 */
+  readonly minStorageBufferOffsetAlignment: number;
   /** BC7 が使えるか。WebGPU は `texture-compression-bc`、WebGL2 は `EXT_texture_compression_bptc`。 */
   readonly textureCompressionBC7: boolean;
   /** ETC2 が使えるか。WebGPU は `texture-compression-etc2`、WebGL2 は `WEBGL_compressed_texture_etc`。 */

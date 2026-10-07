@@ -16,6 +16,7 @@ const VALUE_EXPORTS = [
   'TextureDimension',
   'TextureFormat',
   'TextureUsage',
+  'SWAPCHAIN_FORMAT',
 ] as const;
 
 describe('rhi 公開窓口', () => {

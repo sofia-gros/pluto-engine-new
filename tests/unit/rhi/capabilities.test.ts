@@ -14,6 +14,9 @@ const DOCUMENTED_KEYS = [
   'maxTextureArrayLayers',
   'maxStorageBufferBytes',
   'maxComputeWorkgroupSize',
+  'maxComputeInvocationsPerWorkgroup',
+  'minUniformBufferOffsetAlignment',
+  'minStorageBufferOffsetAlignment',
   'textureCompressionBC7',
   'textureCompressionETC2',
   'textureCompressionASTC',
@@ -32,6 +35,9 @@ const WEBGPU: RhiCapabilities = {
   maxTextureArrayLayers: 256,
   maxStorageBufferBytes: 134217728,
   maxComputeWorkgroupSize: 256,
+  maxComputeInvocationsPerWorkgroup: 256,
+  minUniformBufferOffsetAlignment: 256,
+  minStorageBufferOffsetAlignment: 256,
   textureCompressionBC7: true,
   textureCompressionETC2: true,
   textureCompressionASTC: true,
@@ -50,6 +56,9 @@ const WEBGL2: RhiCapabilities = {
   maxTextureArrayLayers: 256,
   maxStorageBufferBytes: 67108864,
   maxComputeWorkgroupSize: 0,
+  maxComputeInvocationsPerWorkgroup: 0,
+  minUniformBufferOffsetAlignment: 256,
+  minStorageBufferOffsetAlignment: 256,
   textureCompressionBC7: true,
   textureCompressionETC2: true,
   textureCompressionASTC: false,
@@ -75,7 +84,7 @@ describe('rhi 能力', () => {
     expect(WEBGL2.timestampQuery).toBe(false);
   });
 
-  it('プロパティ名は docs/06 §3 の 14 個とちょうど一致する', () => {
+  it('プロパティ名は docs/06 §3 の 17 個とちょうど一致する', () => {
     expect(Object.keys(WEBGPU).sort()).toEqual([...DOCUMENTED_KEYS].sort());
     expect(Object.keys(WEBGL2).sort()).toEqual([...DOCUMENTED_KEYS].sort());
   });

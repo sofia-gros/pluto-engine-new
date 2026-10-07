@@ -13,6 +13,10 @@
 > 2026-10-07: **T-3.1 で `docs/06` の仕様欠落を補完した (E-003 / `docs/12` D-21)。** 第四章が参照する記述子型 10 個と GPU リソース 8 インターフェースが未定義だったため、`docs/06` §5 に定数 4 種 (`TextureUsage`・`CullMode`・`LoadAction`・`ColorWrite`)、§5.1 に記述子型、§4.1 にリソースインターフェースを追記した。
 >
 > 2026-10-07: **画像デバッグ用のスプライトを `tests/browser/fixtures/assets/` に置いた (ユーザー指示)。** 外部の `public-assets` フォルダの 72 枚 (全 64x64 / 32bpp ARGB、8 アニメーションフォルダ、合計 0.03MB) をそのまま複製した。`docs/02` §23 に許可パターンを、`tools/check-structure.mjs` の `TEST_PATTERNS` に検査を追加した。
+>
+> 2026-10-07: **D-22 で旧規格との不一致を正した。** `docs/06` §5.1.1 の検証規則 3 件が WebGPU 規格と逆っていた (`MapRead` の使い方、`offsetBytes` の整列値、`workgroupSize` の上限)。`RhiCapabilities` に limit 3 種を追加し、検証ルールを `src/rhi/validate.ts` に集約した。
+>
+> 2026-10-07: **`.delta/` を `.prettierignore` に追加した。** 作業元のツールが作った目配で `format:check` が失敗していた。git 側は `.git/info/exclude` が已対応していた。削除はしていない。
 
 > **引き継ぎ**: 次のエージェントは最初に [handoff.md](./handoff.md) を読むこと (2026-10-06 作成)。
 
@@ -46,7 +50,7 @@
 | T-R.5  | ベンチ基盤の是正と ECS ベンチ再計測 | DONE        | [T-R.5.md](./reviews/T-R.5.md)   | [3fa1f5c](https://github.com/sofia-gros/pluto-engine-new/commit/3fa1f5c) |
 | T-2.3  | スケジューラ選択とパリティ          | DONE        | [T-2.3.md](./reviews/T-2.3.md)   | [6674140](https://github.com/sofia-gros/pluto-engine-new/commit/6674140) |
 | T-2.4  | Transform                           | DONE        | [T-2.4.md](./reviews/T-2.4.md)   | [6674140](https://github.com/sofia-gros/pluto-engine-new/commit/6674140) |
-| T-3.1  | RHI インターフェース                | IN_PROGRESS |                                  | (未コミット)                                                             |
+| T-3.1  | RHI インターフェース                | IN_PROGRESS | [T-3.1.md](./reviews/T-3.1.md)   | (未コミット)                                                             |
 | T-3.2  | RHI WebGPU 実装                     | TODO        |                                  |                                                                          |
 | T-3.3  | RHI WebGL2 実装                     | TODO        |                                  |                                                                          |
 | T-3.4  | デバイス生成とブラウザテスト        | TODO        |                                  |                                                                          |
