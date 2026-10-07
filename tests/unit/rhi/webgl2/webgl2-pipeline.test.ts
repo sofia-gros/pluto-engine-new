@@ -66,7 +66,7 @@ function fakeGl(compileOk = true): WebGL2RenderingContext {
     getProgramParameter: (...args: unknown[]): unknown => {
       const pname = args[1] as number;
       if (pname === 0x8a36) return reflection.blocks;
-      if (pname === 0x8b4c) return reflection.samplers;
+      if (pname === 0x8b86) return reflection.samplers;
       return true;
     },
     getProgramInfoLog: (): string => 'ERROR: link error',

@@ -173,7 +173,7 @@ export function expectedSamplerType(entry: BindGroupEntryDesc): number | null {
   if (entry.texture instanceof WebGlTexture) {
     return entry.texture.dimension === TextureDimension.D2Array ? 0x8dc1 : 0x8b5e;
   }
-  if (entry.buffer instanceof WebGlBuffer && entry.buffer.isStorage) return 0x8ddc;
+  if (entry.buffer instanceof WebGlBuffer && entry.buffer.isStorage) return 0x8dd2;
   return null;
 }
 

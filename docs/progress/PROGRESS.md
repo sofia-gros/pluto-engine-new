@@ -4,7 +4,9 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-**T-3.4** デバイス生成とブラウザテスト (状態: TODO)
+**T-4.1** シェーダ基盤 (状態: TODO)
+
+> 直前の完了タスク: **T-3.4** デバイス生成とブラウザテスト ([レビュー](./reviews/T-3.4.md))
 
 > 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.5 は完了し、T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
 >
@@ -56,8 +58,8 @@
 | T-2.4  | Transform                           | DONE | [T-2.4.md](./reviews/T-2.4.md)   | [6674140](https://github.com/sofia-gros/pluto-engine-new/commit/6674140) |
 | T-3.1  | RHI インターフェース                | DONE | [T-3.1.md](./reviews/T-3.1.md)   | [8f40cdd](https://github.com/sofia-gros/pluto-engine-new/commit/8f40cdd) |
 | T-3.2  | RHI WebGPU 実装                     | DONE | [T-3.2.md](./reviews/T-3.2.md)   | [3b1c1c3](https://github.com/sofia-gros/pluto-engine-new/commit/3b1c1c3) |
-| T-3.3  | RHI WebGL2 実装                     | DONE | [T-3.3.md](./reviews/T-3.3.md)   | (未コミット)                                                             |
-| T-3.4  | デバイス生成とブラウザテスト        | TODO |                                  |                                                                          |
+| T-3.3  | RHI WebGL2 実装                     | DONE | [T-3.3.md](./reviews/T-3.3.md)   | [c410a6e](https://github.com/sofia-gros/pluto-engine-new/commit/c410a6e) |
+| T-3.4  | デバイス生成とブラウザテスト        | DONE | [T-3.4.md](./reviews/T-3.4.md)   | (未コミット)                                                             |
 | T-4.1  | シェーダ基盤                        | TODO |                                  |                                                                          |
 | T-4.2  | テクスチャ・アセット                | TODO |                                  |                                                                          |
 | T-4.3  | スプライトデータ                    | TODO |                                  |                                                                          |
@@ -93,11 +95,28 @@
 | T-10.3 | API リファレンス生成                | TODO |                                  |                                                                          |
 | T-10.4 | リリース                            | TODO |                                  |                                                                          |
 
-**次は T-2.4 (Transform)。** 全タスクの詳細は `docs/12-roadmap.md` で確定済み (末尾「決定事項」D-1〜D-20)。実施順は T-2.2 → **T-R.1〜T-R.5** → T-2.3 → T-2.4。
+**次は T-4.1 (シェーダ基盤)。**
 
 > 注意: T-1.10 の性能値 (旧 `bench/baseline.json`) は根拠となる計測出力がなく **無効** とし、T-R.5 で実測値に基づくベースラインへ置き換えた。T-R.5 の受け入れ条件 1〜5 はすべて満たした。ただし**フレーム時間 (p50Ms) は補助指標**であり、判定は `cpuP50Ms` で行う (描画の submit タイミングに依存するため)。G1 の 144FPS 判定は Phase 4 の描画パスが入ってから行う。詳細は `reviews/T-R.5.md`。
 
 ## 作業ログ (新しいものを上に追記)
+
+### 2026-10-08 T-3.4 完了 (デバイス生成とブラウザテスト)
+
+- やったこと:
+  - `src/rhi/create-device.ts` を `docs/06` §2 のとおり実装し、`src/rhi/index.ts` と `src/lowlevel.ts` から公開した。
+  - `tests/unit/rhi/create-device.test.ts` を作成し、オプション検証、フォールバック、ログ出力を検証した (6 passed)。
+  - `tests/browser/rhi/` にブラウザテストスイート (`create-device.spec.ts`, `render.spec.ts`, `compute.spec.ts`, `compression.spec.ts`) を作成した。
+  - WebGL2 実機検証において、定数の誤り (`GL_ACTIVE_UNIFORMS`: `0x8b4c` → `0x8b86`、`GL_UNSIGNED_INT_SAMPLER_2D`: `0x8ddc` → `0x8dd2`) を OpenGL ES 3.0 仕様に合わせて是正した。
+  - `tests/browser/golden/webgl2/rhi-quad.png` を生成し、vertex pulling 四角形描画のゴールデン画像テストをパスした。
+  - WebGL2 プロジェクトおよび embed ビルドにて全 20 件のブラウザテストがすべてパスした。
+- 証拠:
+  - `pnpm verify` → **全 7 段階成功** (check:structure / boundaries / rules、typecheck、lint、format:check、test:coverage: 99.32% Lines)。
+  - `pnpm test:browser --project=webgl2` → **20 passed (18.1s)**。
+  - `pnpm test:browser:embed` → **20 passed (19.7s)**。
+  - `pnpm build` → **check-bundle: OK**。
+- 未解決:
+  - 現行マシンの Firefox (Nightly) ヘッドレス環境では WebGPU アダプタが取得できないため、`docs/10` §3 (4) の規定に従い `--project=webgl2` / `:embed` でブラウザテストを実行・合格した (WebGPU 実機テストは WebGPU 対応実行環境にて検証可能)。
 
 ### 2026-10-06 T-R.5 完了 (ベンチ基盤の是正と ECS ベンチ再計測)
 

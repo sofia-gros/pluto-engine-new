@@ -54,3 +54,5 @@ export type {
   RhiComputePipeline,
   RhiQuerySet,
 } from './device';
+export { createDevice } from './create-device';
+export type { CreateDeviceOptions } from './create-device';

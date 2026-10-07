@@ -28,8 +28,8 @@ const GL_COMPILE_STATUS = 0x8b81;
 /** リンク状態。仕様固定値。 */
 const GL_LINK_STATUS = 0x8b82;
 
-/** 有効な uniform の個数。仕様固定値。 */
-const GL_ACTIVE_UNIFORMS = 0x8b4c;
+/** 有効な uniform の個数。仕様固定値 (0x8b86 = ACTIVE_UNIFORMS)。 */
+const GL_ACTIVE_UNIFORMS = 0x8b86;
 
 /** 有効な uniform ブロックの個数。仕様固定値。 */
 const GL_ACTIVE_UNIFORM_BLOCKS = 0x8a36;
@@ -40,8 +40,8 @@ const GL_SAMPLER_2D = 0x8b5e;
 /** `sampler2DArray` の種別。仕様固定値。 */
 const GL_SAMPLER_2D_ARRAY = 0x8dc1;
 
-/** `usampler2D` の種別。仕様固定値。 */
-const GL_UNSIGNED_INT_SAMPLER_2D = 0x8ddc;
+/** `usampler2D` の種別。仕様固定値 (0x8dd2 = SAMPLER_2D_INTEGER)。 */
+const GL_UNSIGNED_INT_SAMPLER_2D = 0x8dd2;
 
 /** パイプラインの生成に使う情報。引数を 6 個以下に保つために束ねる。 */
 export interface WebGlPipelineInfo {

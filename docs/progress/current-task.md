@@ -1,130 +1,60 @@
-# T-3.3 RHI WebGL2 実装 (実施計画)
+# T-3.4 デバイス生成とブラウザテスト (実施計画)
 
 ## 目的
 
-`docs/06-rhi.md` §4・§4.1 が定義する RHI インターフェースを WebGL2 で実装する。
-`src/rhi/webgl2/` に 8 ファイルを作る。WebGPU 版 (T-3.2) と対称の構造にし、
-実機での動作確認は T-3.4 のブラウザテストに委ねる。
+`docs/06-rhi.md` §2 に基づき、WebGPU → WebGL2 の順でデバイス生成を試みる `src/rhi/create-device.ts` を実装し、`rhi/index.ts` および `src/lowlevel.ts` から公開する。
+また、Phase 3 (RHI) の全受け入れ条件 (`docs/12-roadmap.md` T-3.4) をブラウザテスト (`tests/browser/rhi/*.spec.ts`) で実機検証する。
 
-WebGL2 は compute・間接描画・書き込みストレージを持たない。`docs/06` §7 の
-エミュレーション規則に従い、読み取りストレージはデータテクスチャで代替し、
-無い機能は作らない (なんとなくのエミュレートは禁止)。
+## 作成・編集するファイル (docs/02 §12, §23 と完全一致)
 
-## 作成するファイル (docs/02 §12 と完全一致)
+| ファイル                                   | 責務                                                                                            |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `src/rhi/create-device.ts`                 | WebGPU → WebGL2 の順でデバイス生成を試みる唯一の場所 (新規)                                     |
+| `src/rhi/index.ts`                         | `createDevice`, `CreateDeviceOptions` を公開窓口に追加 (変更)                                   |
+| `src/lowlevel.ts`                          | `createDevice`, `CreateDeviceOptions` 等を再公開 (変更)                                         |
+| `tests/unit/rhi/create-device.test.ts`     | `createDevice` のオプション検証とモックによる分岐のユニットテスト (新規)                        |
+| `tests/browser/rhi/create-device.spec.ts`  | バックエンド指定、caps、デバイスロスト等のブラウザテスト (新規)                                 |
+| `tests/browser/rhi/render.spec.ts`         | クリアカラー、四角形描画 (ゴールデン画像)、ストレージ読取四角形、writeBuffer 部分転送 (新規)    |
+| `tests/browser/rhi/compute.spec.ts`        | WebGPU の compute (配列 2 倍) と readBufferAsync、drawIndirect (新規)                           |
+| `tests/browser/rhi/compression.spec.ts`    | 圧縮テクスチャ形式の対応判定、非対応での UnsupportedFeature 送出、対応形式のサンプリング (新規) |
+| `tests/browser/golden/webgpu/rhi-quad.png` | WebGPU 版四角形描画のゴールデン画像 (新規)                                                      |
+| `tests/browser/golden/webgl2/rhi-quad.png` | WebGL2 版四角形描画のゴールデン画像 (新規)                                                      |
 
-| ファイル                               | 責務                                                          |
-| -------------------------------------- | ------------------------------------------------------------- |
-| `src/rhi/webgl2/webgl2-convert.ts`     | RHI 定数から GL 定数への変換表 (純関数)                       |
-| `src/rhi/webgl2/webgl2-buffer.ts`      | Uniform は UBO、Storage 読み取りはデータテクスチャで代替      |
-| `src/rhi/webgl2/webgl2-texture.ts`     | `GLTexture` とサンプラのラッパー                              |
-| `src/rhi/webgl2/webgl2-bind-group.ts`  | バインドグループから UBO binding とテクスチャユニットへの割当 |
-| `src/rhi/webgl2/webgl2-pipeline.ts`    | GLSL のコンパイル・リンクとリフレクション                     |
-| `src/rhi/webgl2/webgl2-encoder.ts`     | 記録したコマンドを即時 GL 呼び出しに変換。**HOT**             |
-| `src/rhi/webgl2/webgl2-state-cache.ts` | GL 状態キャッシュ (冗長な変更を除去)。**HOT**                 |
-| `src/rhi/webgl2/webgl2-device.ts`      | `RhiDevice` の実装。拡張の有無で caps を決める                |
+## 実装ステップ
 
-## 実装の要点
+1. **Step 1: 計画策定と準備 (`pluto-task-start`)**
+   - `docs/progress/current-task.md` を作成。
+   - `docs/progress/PROGRESS.md` を `IN_PROGRESS` に更新。
+2. **Step 2: `create-device.ts` と単体テストの実装 (`pluto-implement`)**
+   - `src/rhi/create-device.ts` を実装。
+   - `src/rhi/index.ts` と `src/lowlevel.ts` に export を追加。
+   - `tests/unit/rhi/create-device.test.ts` で引数検証や fallback ロジックをテスト。
+3. **Step 3: ブラウザテストとゴールデン画像の実装**
+   - `tests/browser/rhi/create-device.spec.ts` (backend 選択、caps の整合性、webgl2 で caps.compute === false)
+   - `tests/browser/rhi/render.spec.ts` (クリアカラー、四角形描画、ストレージ読取四角形、writeBuffer 部分転送)
+   - `tests/browser/rhi/compute.spec.ts` (WebGPU の compute と readBufferAsync、drawIndirect)
+   - `tests/browser/rhi/compression.spec.ts` (caps.textureCompression* と実際の機能の一致、非対応時の UnsupportedFeature、対応形式のサンプリング)
+   - ゴールデン画像の生成 (`tests/browser/golden/<backend>/rhi-quad.png`)
+4. **Step 4: テスト・検証 (`pluto-test`)**
+   - `pnpm verify` がエラー 0・警告 0 で成功することを確認。
+   - `pnpm test:browser --project=webgl2` および `pnpm test:browser --project=webgpu` が全件成功することを確認。
+5. **Step 5: レビュー・完了 (`pluto-review` / `pluto-task-finish`)**
+   - `docs/progress/reviews/T-3.4.md` を作成。
+   - `docs/progress/PROGRESS.md` を `DONE` に更新。
 
-### 定数変換 (`webgl2-convert.ts`)
+## 受け入れ条件 (docs/12-roadmap.md T-3.4)
 
-T-3.2 と同じくブラウザのグローバル (`gl.FLOAT` など) を使わない。
-`WebGL2RenderingContext` の定数は仕様固定値なので数値で持つ。
-`BlendMode` 6 種は `gl.blendFuncSeparate` の係数に展開する。
-
-### バッファ (`webgl2-buffer.ts`)
-
-- `Uniform` 用途は UBO (`gl.createBuffer` + `uniformBlockBinding`)。
-- `Storage` 読み取り用途は `RGBA32UI` のデータテクスチャ
-  (幅 `DATA_TEXTURE_WIDTH = 2048`、1 texel = 16 バイト) に載せる。
-- `Storage` 書き込み用途は **作らない**。`validate.ts` で弾く前に、
-  `createBuffer` で `StorageBufferReadWrite` を要求されたら
-  `PlutoError(UnsupportedFeature)` にする。
-- `MapRead` は `gl.getBufferSubData` で読む。コールドパス専用。
-
-### テクスチャ (`webgl2-texture.ts`)
-
-圧縮 3 形式は拡張 (`EXT_texture_compression_bptc` ほか) の有無で判定し、
-`validateTextureDesc` を先に呼ぶ。`writeTexture` は `texImage2D` /
-`texSubImage2D` を使う。`ImageBitmap` は `texImage2D` が直接受け付ける。
-
-### バインドグループ (`webgl2-bind-group.ts`)
-
-`docs/06` §7 の固定割当表に従う。BindGroup index 0〜3 に対し、
-Uniform ブロックは binding 0〜3、テクスチャはユニット 0〜7 に割り当てる。
-パイプライン生成時に GLSL の `uniform` 名から binding を解決する
-(`getUniformBlockIndex` / `getUniformLocation`)。
-
-### パイプライン (`webgl2-pipeline.ts`)
-
-- `ShaderSource.glslVertex` / `glslFragment` が無ければ
-  `PlutoError(UnsupportedFeature)`。WGSL しか無いシェーダは WebGL2 で使えない。
-- `docs/06` §9 に従い、コンパイル失敗時はシェーダ名と行番号付きのログを
-  `PlutoError(ShaderCompileFailed)` に含める。成功時も `__DEBUG__` では
-  プログラムのログを確認する。
-- R4-5 の `#version 300 es` ヘッダはシェーダ側が持つ前提で、backend は
-  先頭の付与をしない (二重付与の防止)。
-
-### エンコーダ (`webgl2-encoder.ts`、HOT)
-
-WebGL2 にコマンドバッファは無いので、記録は RHI 呼び出しの器に溜めて
-`submit` で即時実行する。器の確保はコンストラクタで済ませる。
-1 行目に `// @pluto-hot` を書き、export メソッドには `@hot` を付ける。
-
-- `drawIndirect` は `caps.indirectDraw === false` なので `PlutoError(InvalidState)`。
-- `dispatch` / `dispatchIndirect` は compute が無いので同じく例外。
-- `writeTimestamp` は RHI では任意メソッドなので定義しない
-  (T-3.2 と同じ判断。`docs/06` §4 との整合は T-3.4 で決める)。
-
-### 状態キャッシュ (`webgl2-state-cache.ts`、HOT)
-
-`docs/06` §7 に従い、`gl.enable` などを直接呼ばず全てここ経由にする。
-ブレンド・カリング・ビューポート・シザー・バインドテクスチャの現在値を覚え、
-変わった分だけ GL を叩く。
-
-### デバイス (`webgl2-device.ts`)
-
-- コンストラクタは既存の `WebGL2RenderingContext` を受ける
-  (生成は T-3.4 の `create-device.ts`)。T-3.2 の `WebGpuDevice` と対称。
-- `caps` は拡張の有無で決める。`compute: false`、`indirectDraw: false`、
-  `storageBuffers: true` (読み取り代替あり)、`timestampQuery` は
-  `EXT_disjoint_timer_query_webgl2` の有無。
-- `createComputePipeline` は `validateComputePipelineDesc` が
-  `UnsupportedFeature` を投げるので、そのまま通す。
-- デバイスロストは `webglcontextlost` で `onDeviceLost` を発火する。
-
-## 実装手順
-
-1. `webgl2-convert.ts` を作る。GL 定数の数値表とブレンド係数展開。
-2. `webgl2-state-cache.ts` を作る。**1 行目に `// @pluto-hot`**。
-3. `webgl2-buffer.ts` を作る。用途別の 2 経路 (UBO / データテクスチャ)。
-4. `webgl2-texture.ts` を作る。`texImage2D` 系の転送。
-5. `webgl2-bind-group.ts` を作る。固定割当表。
-6. `webgl2-pipeline.ts` を作る。コンパイル・リンク・リフレクション。
-7. `webgl2-encoder.ts` を作る。器プールと即時実行。
-8. `webgl2-device.ts` を作る。他 7 ファイルを組み合わせる。
-9. ユニットテストを書く (`tests/unit/rhi/webgl2/`)。GL コンテキストは
-   偽物で代替し、実機が必要な部分は T-3.4 に委ねる。
-10. `pnpm verify` と `pnpm build` を通す。
-
-## 受け入れる条件
-
-T-3.2 と同じく T-3.4 で一括検証するので、ここでの条件は以下。
-
-1. `pnpm verify` がエラー 0・警告 0 で成功する。
-2. `pnpm build` の `check-bundle` が OK。
-3. 新規 8 ファイルに対応するユニットテストが存在する。
-4. 公開シンボルすべてに日本語 JSDoc がある。HOT 2 ファイルの export には
-   `@hot` か `@cold` が付いている。
-5. `docs/02` §12 の表に無いファイルを作らない。
-6. GL 実機での動作は **T-3.4 で検証する**。
-
-## 意図的にやらないこと
-
-- **`tests/browser/rhi/*.spec.ts` は作らない。** T-3.4 の責務。
-- **`create-device.ts` は作らない。** T-3.4 の責務。`webgl2-device.ts` は
-  既に用意された `WebGL2RenderingContext` を受け取る形にする。
-- **`.glsl` ファイルは書かない。** backend は受け取った GLSL を編むだけ。
-  シェーダの著述は Phase 4 (T-4.1 以降)。
-- **`webgl2/index.ts` は作らない。** `docs/02` §12 に無い。
-- **書き込みストレージと compute のエミュレートはしない。**
-  `docs/06` §1 の「能力差は隠さない」に従う。
+1. 両バックエンドで:
+   - クリアカラー
+   - vertex pulling による 1 つの四角形描画 (ゴールデン画像)
+   - ストレージ (WebGL2 はデータテクスチャ) から色を読む四角形描画
+   - `writeBuffer` の部分転送
+2. WebGPU のみ:
+   - compute で配列を 2 倍にし `readBufferAsync` で検証
+   - `drawIndirect`
+3. `backend: 'webgl2'` 強制時に `caps.compute === false`
+4. 圧縮テクスチャ (06 §3・§5):
+   - `caps.textureCompression*` が実際の機能・拡張の有無と一致する
+   - `false` の形式で `createTexture` すると `PlutoError(UnsupportedFeature)` (必ず検証する)
+   - `true` の形式は単色ブロックをアップロードしてサンプルした色が期待値 (環境により検証内容を分岐してよいが、`test.skip` は禁止)
+5. `pnpm verify` が警告・エラー 0 で成功
