@@ -6,10 +6,11 @@
  */
 
 import type { World } from '../../core/ecs';
-import type { RhiDevice, RhiRenderPass } from '../../rhi';
+import type { RhiCommandEncoder, RhiDevice, RhiRenderPass } from '../../rhi';
 import type { FrameTable } from '../texture/frame-table';
 import type { SpriteBuffer } from './sprite-buffer';
 import { SpritePathCpuAssisted, type SpritePathTextures } from './sprite-path-cpu-assisted';
+import { SpritePathGpuDriven } from './sprite-path-gpu-driven';
 
 /**
  * スプライトレンダラ初期化オプション。
@@ -17,6 +18,8 @@ import { SpritePathCpuAssisted, type SpritePathTextures } from './sprite-path-cp
 export interface SpriteRendererOptions {
   /** 最大スプライト数 (省略時は spriteBuffer.maxSprites) */
   readonly maxSprites?: number;
+  /** GPU 駆動パスを強制的に無効化するかどうか */
+  readonly forceCpuAssisted?: boolean;
 }
 
 /**
@@ -30,7 +33,10 @@ export class SpriteRenderer {
   /** フレームテーブル */
   public readonly frameTable: FrameTable;
 
-  private readonly cpuAssistedPath: SpritePathCpuAssisted;
+  /** CPU 補助パス */
+  public readonly cpuAssistedPath: SpritePathCpuAssisted;
+  /** GPU 駆動パス (非対応デバイスでは null) */
+  public readonly gpuDrivenPath: SpritePathGpuDriven | null;
 
   /**
    * @param device RHI デバイス
@@ -52,7 +58,6 @@ export class SpriteRenderer {
 
     const maxSprites = options?.maxSprites ?? spriteBuffer.maxSprites;
 
-    // v1 では CPU 補助パスを初期化 (GPU 駆動パスは T-4.6 で追加)
     this.cpuAssistedPath = new SpritePathCpuAssisted(
       device,
       maxSprites,
@@ -60,6 +65,13 @@ export class SpriteRenderer {
       frameTable,
       textures,
     );
+
+    const canUseGpuDriven =
+      !options?.forceCpuAssisted && device.caps.compute && device.caps.indirectDraw;
+
+    this.gpuDrivenPath = canUseGpuDriven
+      ? new SpritePathGpuDriven(device, maxSprites, spriteBuffer, frameTable, textures)
+      : null;
   }
 
   /**
@@ -69,18 +81,26 @@ export class SpriteRenderer {
    * @param cameraData カメラ uniform データ (64 バイト Float32Array)
    * @param cullRect カメラカリング用矩形 [minX, minY, maxX, maxY]
    * @param world ECS ワールド
+   * @param encoder コマンドエンコーダ (GPU 駆動パス利用時に必要)
    */
   public render(
     pass: RhiRenderPass,
     cameraData: Float32Array,
     cullRect: readonly [number, number, number, number],
     world: World,
+    encoder?: RhiCommandEncoder,
   ): void {
     // 1. スプライトバッファとフレームテーブルの dirty 範囲を GPU に同期
     this.spriteBuffer.flushToGpu(this.device);
     this.frameTable.flush(this.device);
 
-    // 2. パスの実行
+    // 2. パスの実行 (GPU 駆動が利用可能かつ encoder が与えられている場合は GPU 駆動パス)
+    if (this.gpuDrivenPath && encoder) {
+      this.device.writeBuffer(this.gpuDrivenPath.cameraBuffer, 0, cameraData);
+      this.gpuDrivenPath.execute(encoder, pass, this.spriteBuffer.highWater);
+      return;
+    }
+
     this.cpuAssistedPath.execute(pass, world, this.spriteBuffer, cameraData, cullRect);
   }
 }

@@ -4,9 +4,9 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-**T-4.5** GPU プリミティブ (状態: IN_PROGRESS)
+**T-4.7** カメラ・レンダーグラフ・レンダラ (状態: IN_PROGRESS)
 
-> 直前の完了タスク: **T-4.4** CPU 補助描画パス ([レビュー](./reviews/T-4.4.md))
+> 直前の完了タスク: **T-4.6** GPU 駆動描画パス ([レビュー](./reviews/T-4.6.md))
 
 > 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.5 は完了し、T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
 >
@@ -64,9 +64,9 @@
 | T-4.2  | テクスチャ・アセット                | DONE        | [T-4.2.md](./reviews/T-4.2.md)   | [f668437](https://github.com/sofia-gros/pluto-engine-new/commit/f668437) |
 | T-4.3  | スプライトデータ                    | DONE        | [T-4.3.md](./reviews/T-4.3.md)   | [2829349](https://github.com/sofia-gros/pluto-engine-new/commit/2829349) |
 | T-4.4  | CPU 補助描画パス                    | DONE        | [T-4.4.md](./reviews/T-4.4.md)   | [0fb2b28](https://github.com/sofia-gros/pluto-engine-new/commit/0fb2b28) |
-| T-4.5  | GPU プリミティブ                    | DONE        | [T-4.5.md](./reviews/T-4.5.md)   | [4f12562](https://github.com/sofia-gros/pluto-engine-new/commit/4f12562) |
-| T-4.6  | GPU 駆動描画パス                    | IN_PROGRESS |                                  |                                                                          |
-| T-4.7  | カメラ・レンダーグラフ・レンダラ    | TODO        |                                  |                                                                          |
+| T-4.5  | GPU プリミティブ                    | DONE        | [T-4.5.md](./reviews/T-4.5.md)   | [51c93a3](https://github.com/sofia-gros/pluto-engine-new/commit/51c93a3) |
+| T-4.6  | GPU 駆動描画パス                    | DONE        | [T-4.6.md](./reviews/T-4.6.md)   |                                                                          |
+| T-4.7  | カメラ・レンダーグラフ・レンダラ    | IN_PROGRESS |                                  |                                                                          |
 | T-5.1  | Game / Scene / Factory / カメラ     | TODO        |                                  |                                                                          |
 | T-5.2  | 入力                                | TODO        |                                  |                                                                          |
 | T-5.3  | トゥイーン・タイムライン            | TODO        |                                  |                                                                          |
@@ -116,6 +116,25 @@
   - `tests/unit/render/sprite/` 配下に各単体テストを作成し、全テスト通過。
   - `pnpm verify` (全 7 段階すべて成功、カバレッジ 95.39%)。
   - レビュー記録 `docs/progress/reviews/T-4.3.md` 作成。
+
+### 2026-10-08 T-4.6 完了 (GPU 駆動描画パス)
+
+- やったこと:
+  - `src/shaders/cull/reset-args.wgsl` を実装し、間接描画引数 (`DrawIndirectArgs` × 3 ビン) および間接ディスパッチ引数 (`DispatchIndirectArgs` for sort) の初期化コンピュートシェーダを配備した。
+  - `src/shaders/cull/sprite-cull.wgsl` を実装し、視錐台カリング (`ENTRY_CULL`) および可視インデックスのプレフィックスサムに基づくスキャッタ (`ENTRY_SCATTER`) を行う WGSL コンピュートシェーダを配備した。
+  - `src/shaders/cull/sort-keys.wgsl` を実装し、Alpha ビンの可視スプライトに対する 32bit ソートキー (`depth` + `materialKey`) 生成 WGSL コンピュートシェーダを配備した。
+  - `src/shaders/scan/prefix-sum.wgsl` に `PREFIX_SUM_VEC4` モードを追加し、3 ビン (Opaque / Alpha / Additive) のカウント集計を並列 4 次元ベクトルプレフィックスサムで一括高速処理可能とした。
+  - `src/shaders/shader-library.ts` に `cull/reset-args`, `cull/sprite-cull`, `cull/sort-keys` を登録した。
+  - `src/render/sprite/sprite-path-gpu-driven.ts` (`// @pluto-hot`, 388 行) を実装し、GPU コンピュート (Reset Args -> Cull -> Prefix Sum -> Scatter -> Sort Keys -> Radix Sort) と間接描画 (`drawIndirect`) を連携する完全 GPU 駆動パスを完備した。
+  - `src/render/sprite/sprite-renderer.ts` に `SpritePathGpuDriven` を統合し、ハードウェアが Compute および indirectDraw をサポートする場合は GPU 駆動パス、それ以外は CPU 補助パスに自動フォールバックする構成を完成した。
+  - `tests/unit/render/sprite/sprite-path-gpu-driven.test.ts` (5 テスト) を実装し、各種状態遷移やバインドグループ構成を検証した。
+  - `tests/browser/render/sprite-gpu-driven.spec.ts` を作成し、WebGL2 での非対応例外検出および WebGPU での CPU 補助パス描画結果との完全一致 (パリティ照合) を確認した。
+- 証拠:
+  - `pnpm verify` → **全 7 段階すべて成功** (check:structure / boundaries / rules, typecheck, lint, format:check, test:coverage: 95.52% Lines, 87 ファイル 520 件の単体テストすべて通過)。
+  - `pnpm test:browser tests/browser/render/sprite-gpu-driven.spec.ts --project=webgl2` → **1 passed (8.7s)**。
+  - `pnpm test:browser tests/browser/render/sprite-gpu-driven.spec.ts --project=webgpu` → **1 passed (7.3s)**。
+  - `pnpm bench` → **悪化 0 件** (ecs-move cpuP50Ms 変動 2.9%、moveKernelP50Ms 変動 2.4% で 10% 以内)。
+- レビュー記録: `docs/progress/reviews/T-4.6.md`
 
 ### 2026-10-08 T-4.5 完了 (GPU プリミティブ)
 

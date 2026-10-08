@@ -69,4 +69,6 @@ export { SpritePackSystem } from './sprite/sprite-pack-system';
 
 export { SpritePathCpuAssisted, type SpritePathTextures } from './sprite/sprite-path-cpu-assisted';
 
+export { SpritePathGpuDriven } from './sprite/sprite-path-gpu-driven';
+
 export { SpriteRenderer, type SpriteRendererOptions } from './sprite/sprite-renderer';

@@ -175,5 +175,8 @@ export {
   FrameTable,
   TextureArrayManager,
   packSprite,
+  SpritePathCpuAssisted,
+  SpritePathGpuDriven,
+  SpriteRenderer,
 } from './render';
 export { GpuPrefixSum, GpuRadixSort } from './compute';

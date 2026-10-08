@@ -9,12 +9,20 @@ struct ScanParams {
   pad1: u32,
 };
 
-@group(0) @binding(0) var<uniform> params: ScanParams;
-@group(0) @binding(1) var<storage, read> inputData: array<u32>;
-@group(0) @binding(2) var<storage, read_write> outputData: array<u32>;
-@group(0) @binding(3) var<storage, read_write> blockSums: array<u32>;
+#ifdef PREFIX_SUM_VEC4
+alias ScanType = vec4<u32>;
+const ZERO_SCAN: ScanType = vec4<u32>(0u, 0u, 0u, 0u);
+#else
+alias ScanType = u32;
+const ZERO_SCAN: ScanType = 0u;
+#endif
 
-var<workgroup> s_block: array<u32, 256>;
+@group(0) @binding(0) var<uniform> params: ScanParams;
+@group(0) @binding(1) var<storage, read> inputData: array<ScanType>;
+@group(0) @binding(2) var<storage, read_write> outputData: array<ScanType>;
+@group(0) @binding(3) var<storage, read_write> blockSums: array<ScanType>;
+
+var<workgroup> s_block: array<ScanType, 256>;
 
 /**
  * 共有メモリ内の 256 要素の包含的プレフィックスサム (Hillis-Steele)。
@@ -22,7 +30,7 @@ var<workgroup> s_block: array<u32, 256>;
 fn workgroup_inclusive_scan(local_id: u32) {
   var offset: u32 = 1u;
   while (offset < 256u) {
-    var temp: u32 = 0u;
+    var temp: ScanType = ZERO_SCAN;
     if (local_id >= offset) {
       temp = s_block[local_id - offset];
     }
@@ -46,17 +54,17 @@ fn exec_block_scan(
   let base = gid * 1024u + lid * 4u;
 
   // 4 要素の読み込み
-  var x0: u32 = 0u;
-  var x1: u32 = 0u;
-  var x2: u32 = 0u;
-  var x3: u32 = 0u;
+  var x0: ScanType = ZERO_SCAN;
+  var x1: ScanType = ZERO_SCAN;
+  var x2: ScanType = ZERO_SCAN;
+  var x3: ScanType = ZERO_SCAN;
   if (base < params.count) { x0 = inputData[base]; }
   if (base + 1u < params.count) { x1 = inputData[base + 1u]; }
   if (base + 2u < params.count) { x2 = inputData[base + 2u]; }
   if (base + 3u < params.count) { x3 = inputData[base + 3u]; }
 
   // 4 要素の局所排他的スキャン
-  let p0 = 0u;
+  let p0 = ZERO_SCAN;
   let p1 = x0;
   let p2 = x0 + x1;
   let p3 = x0 + x1 + x2;
@@ -73,7 +81,7 @@ fn exec_block_scan(
   }
 
   // スレッド単位のブロック内排他的オフセット
-  var thread_offset: u32 = 0u;
+  var thread_offset: ScanType = ZERO_SCAN;
   if (lid > 0u) {
     thread_offset = s_block[lid - 1u];
   }
@@ -95,16 +103,16 @@ fn exec_scan_block_sums(
   let base = lid * 4u;
   let n = params.numBlocks;
 
-  var x0: u32 = 0u;
-  var x1: u32 = 0u;
-  var x2: u32 = 0u;
-  var x3: u32 = 0u;
+  var x0: ScanType = ZERO_SCAN;
+  var x1: ScanType = ZERO_SCAN;
+  var x2: ScanType = ZERO_SCAN;
+  var x3: ScanType = ZERO_SCAN;
   if (base < n) { x0 = blockSums[base]; }
   if (base + 1u < n) { x1 = blockSums[base + 1u]; }
   if (base + 2u < n) { x2 = blockSums[base + 2u]; }
   if (base + 3u < n) { x3 = blockSums[base + 3u]; }
 
-  let p0 = 0u;
+  let p0 = ZERO_SCAN;
   let p1 = x0;
   let p2 = x0 + x1;
   let p3 = x0 + x1 + x2;
@@ -115,7 +123,7 @@ fn exec_scan_block_sums(
 
   workgroup_inclusive_scan(lid);
 
-  var thread_offset: u32 = 0u;
+  var thread_offset: ScanType = ZERO_SCAN;
   if (lid > 0u) {
     thread_offset = s_block[lid - 1u];
   }
