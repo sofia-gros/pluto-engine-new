@@ -183,13 +183,13 @@ describe('rhi 検証: テクスチャ', () => {
     });
   });
 
-  it('デバイス上限を超えると UnsupportedFeature', () => {
+  it('デバイス上限を超えると InvalidArgument', () => {
     expectThrows(() => {
       validateTextureDesc(
         { format: 0, width: 16384, height: 1, layers: 1, usage: 4 },
         caps({ maxTextureSize: 8192 }),
       );
-    }, ErrorCode.UnsupportedFeature);
+    }, ErrorCode.InvalidArgument);
     expectThrows(() => {
       validateTextureDesc(
         {
@@ -202,7 +202,7 @@ describe('rhi 検証: テクスチャ', () => {
         },
         caps({ maxTextureArrayLayers: 256 }),
       );
-    }, ErrorCode.UnsupportedFeature);
+    }, ErrorCode.InvalidArgument);
   });
 
   it('圧縮フォーマットはレンダーターゲットにもストレージにも使えない', () => {

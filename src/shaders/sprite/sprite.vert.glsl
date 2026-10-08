@@ -25,6 +25,7 @@ out vec2 v_uv;
 out vec4 v_tint;
 flat out uint v_page;
 flat out uint v_isCompressed;
+flat out uint v_isOpaque;
 
 void main() {
     vec2 CORNERS[6] = vec2[6](
@@ -82,4 +83,5 @@ void main() {
     v_tint = inst.tint;
     v_page = frame.page;
     v_isCompressed = frame.isCompressed ? 1u : 0u;
+    v_isOpaque = spriteIsOpaque(inst.flags) ? 1u : 0u;
 }

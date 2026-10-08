@@ -65,4 +65,31 @@ describe('Loader', () => {
       expect.fail('asset is not AtlasAsset');
     }
   });
+
+  it('addJson で登録した JSON の読み込みができる', async () => {
+    const payload = { level: 1 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(payload),
+      }),
+    );
+
+    const loader = new Loader();
+    loader.addJson('stage', 'http://example.com/stage.json');
+
+    const progressLogs: number[] = [];
+    loader.on('progress', (e) => {
+      progressLogs.push(e.progress);
+    });
+    loader.on('complete', () => {
+      progressLogs.push(1);
+    });
+
+    const cache = await loader.load();
+    expect(cache.has('stage')).toBe(true);
+    expect(progressLogs[0]).toBe(1.0);
+  });
 });

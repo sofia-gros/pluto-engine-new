@@ -375,7 +375,7 @@ export function buildCapabilities(device: GPUDevice): RhiCapabilities {
     indirectDraw: f.has('indirect-first-instance'),
     storageBuffers: true,
     timestampQuery: f.has('timestamp-query'),
-    floatRenderTarget: hasFloat32,
+    floatRenderTarget: true,
     floatBlend: hasFloat32,
     maxTextureSize: l.maxTextureDimension2D,
     maxTextureArrayLayers: l.maxTextureArrayLayers,

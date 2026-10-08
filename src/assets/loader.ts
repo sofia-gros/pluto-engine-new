@@ -15,6 +15,7 @@ import {
 } from './asset-types';
 import { loadAtlasJson } from './loaders/atlas-loader';
 import { loadImage } from './loaders/image-loader';
+import { loadJson } from './loaders/json-loader';
 
 /**
  * 読み込みリクエストの記述子。
@@ -146,6 +147,21 @@ export class Loader extends EventEmitter<LoaderEvents> {
   }
 
   /**
+   * 汎用 JSON リクエストをキューに追加する。
+   *
+   * @param key アセットキー
+   * @param url JSON の URL
+   * @returns 自身 (メソッドチェーン用)
+   */
+  public addJson(key: AssetKey, url: string): this {
+    return this.add({
+      key,
+      type: AssetType.Json,
+      url,
+    });
+  }
+
+  /**
    * キューに登録された全アセットを並列に読み込む。
    *
    * @returns 読み込み完了後のアセットキャッシュ
@@ -181,6 +197,8 @@ export class Loader extends EventEmitter<LoaderEvents> {
             asset = await loadImage(req.key, req.url);
           } else if (req.type === AssetType.Atlas) {
             asset = await loadAtlasJson(req.key, req.url, req.extra?.imageKey);
+          } else if (req.type === AssetType.Json) {
+            asset = await loadJson(req.key, req.url);
           } else {
             throw new PlutoError(ErrorCode.UnsupportedFeature, '未対応のアセットタイプです。');
           }

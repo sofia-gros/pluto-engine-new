@@ -128,19 +128,19 @@
 - `command === 'serve'` (dev server) のときは mode 名によらず `__PARALLEL__ = true`, `__DEBUG__ = true` (`docs/05-jobs-and-builds.md` §4)。
 - `assetsInclude` に `**/*.wgsl`, `**/*.glsl` は入れない (`?raw` で読む)。
 
-## 6. tools/check-bundle.mjs の要件 (T-0.3)
+## 6. tools/check-bundle.mjs の要件 (T-0.3、T-5.1 で改訂)
 
 - `dist/embed/pluto.js` に文字列 `SharedArrayBuffer`, `new Worker`, `Atomics.wait` が **含まれない** ことを検査。
-- `dist/parallel/pluto-lowlevel.js` に `Atomics.wait` (Worker は `Atomics.waitAsync` を使うため、文字列 `Atomics.waitAsync` も可) が含まれる (Worker がインライン化されている) ことを検査し、含まれなければ **失敗**。
+- `dist/parallel/` 全体 (`pluto.js`, `pluto-lowlevel.js` と共有チャンク) に `new Worker` と `Atomics.wait` (`Atomics.waitAsync` も可) が含まれる (Worker がインライン化されている) ことを検査し、含まれなければ **失敗**。
 
 > [!NOTE]
-> 検査対象は `pluto-lowlevel.js` である。`src/index.ts` は `scene` の re-export と `VERSION` のみであり、`scene` は T-5.1 まで存在しない (`docs/02` §2)。Worker への唯一の導線は `lowlevel` → `jobs` → `createScheduler` なので、parallel 側の Worker 同梱はここで確認する。高レベルエントリ `pluto.js` に Worker が入ることは T-5.1 で `scene` を作ったときに確認する。
+> T-5.1 より前は検査対象が `pluto-lowlevel.js` だけだった。T-5.1 で `scene` が `jobs` を引くようになり、エントリ間でコード分割された共有チャンクに Worker 実体が入るため、`dist/parallel/` 全体を走査する (D-23)。共有チャンク内の `Atomics.or` / `Atomics.add` はカーネルの dirty マーク用で serial でも同じコードを使うため正常であり、Worker 混入の判定には使わない。embed 側はエントリのみ走査する (`buffer-factory.ts` の実行時分岐に文字列が残るため)。
 
 ## 7. CI (`.github/workflows/ci.yml`)
 
 - トリガー: `push`, `pull_request` (ブランチで絞らない)。
 - ジョブ `verify`: `ubuntu-latest`, Node 22, `pnpm install --frozen-lockfile` → `pnpm verify` → `pnpm build`。
-- ジョブ `browser`: `pnpm exec playwright install --with-deps chromium` → `pnpm test:browser --project=webgl2` (CI では WebGPU は対象外)。
+- ジョブ `browser`: `pnpm exec playwright install --with-deps firefox` → `pnpm test:browser --project=webgl2` (CI では WebGPU は対象外。ブラウザは Firefox に統一: `docs/10-testing-strategy.md` §3)。
 - ベンチは CI で実行しない。
 
 ## 8. バージョニング

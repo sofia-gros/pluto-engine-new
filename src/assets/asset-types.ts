@@ -94,6 +94,14 @@ export interface AtlasAsset extends BaseAsset {
 }
 
 /**
+ * 汎用 JSON アセット。
+ */
+export interface JsonAsset extends BaseAsset {
+  readonly type: typeof AssetType.Json;
+  readonly data: unknown;
+}
+
+/**
  * TexturePacker のフレームデータ (生 JSON 形式)。
  */
 export interface TexturePackerRawFrame {

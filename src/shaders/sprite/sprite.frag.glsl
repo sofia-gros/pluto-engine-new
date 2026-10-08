@@ -12,6 +12,7 @@ in vec2 v_uv;
 in vec4 v_tint;
 flat in uint v_page;
 flat in uint v_isCompressed;
+flat in uint v_isOpaque;
 
 out vec4 fragColor;
 
@@ -24,6 +25,9 @@ void main() {
     }
 
     vec4 finalColor = texColor * v_tint;
+    if (v_isOpaque != 0u && finalColor.a < 0.5) {
+        discard;
+    }
     if (finalColor.a <= 0.0) {
         discard;
     }

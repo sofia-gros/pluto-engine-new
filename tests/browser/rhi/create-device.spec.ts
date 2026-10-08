@@ -39,7 +39,8 @@ test.describe('createDevice とバッファ転送 (T-3.4)', () => {
     }, plutoBackend);
 
     expect(result.backend).toBe(plutoBackend);
-    expect(result.hasStorage).toBe(true);
+    // WebGPU はストレージバッファ対応、WebGL2 はデータテクスチャ読取のみ (docs/06 §3)
+    expect(result.hasStorage).toBe(plutoBackend === 'webgpu');
     expect(result.maxTex).toBeGreaterThan(0);
   });
 

@@ -119,12 +119,12 @@ export function validateTextureDesc(desc: TextureDesc, caps: RhiCapabilities): v
     invalid(`TextureDesc.layers は 1 以上ですが ${String(desc.layers)} でした`);
   }
   if (desc.width > caps.maxTextureSize || desc.height > caps.maxTextureSize) {
-    unsupported(
+    invalid(
       `このデバイスのテクスチャ上限は ${String(caps.maxTextureSize)} px ですが ${String(desc.width)}x${String(desc.height)} を要求しました`,
     );
   }
   if (desc.layers > caps.maxTextureArrayLayers) {
-    unsupported(
+    invalid(
       `このデバイスのテクスチャ配列上限は ${String(caps.maxTextureArrayLayers)} 層ですが ${String(desc.layers)} 層を要求しました`,
     );
   }

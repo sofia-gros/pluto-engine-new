@@ -303,7 +303,9 @@ export class SpritePathCpuAssisted {
       this.sortIndices[i] = slot;
       const wb = slot * SPRITE_STRIDE_WORDS;
       const layer = (u32[wb + SPRITE_WORD_ROT_LAYER] >>> 16) & 0x3ff;
-      const sk = (f32[wb + SPRITE_WORD_SORT_KEY] * 1048576.0) | 0;
+      let sortKeyFrac = f32[wb + SPRITE_WORD_SORT_KEY];
+      sortKeyFrac = sortKeyFrac < 0.0 ? 0.0 : sortKeyFrac > 1.0 ? 1.0 : sortKeyFrac;
+      const sk = (sortKeyFrac * 1048575.0) | 0;
       this.sortKeys[i] = ((layer << 20) | (sk & 0xfffff)) >>> 0;
     }
 

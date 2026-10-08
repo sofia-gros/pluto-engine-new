@@ -8,7 +8,7 @@ import type { ShaderSource } from './shader-source';
 
 // ---------------------------------------------------------------- 定数 (§5)
 
-/** バッファの用途。ビットフラグ。`MapRead` は他と併用できない。 */
+/** バッファの用途。ビットフラグ。`MapRead` は `CopyDst` との併用のみ可 (docs/06 §5.1.1)。 */
 export const BufferUsage = {
   Uniform: 1,
   Storage: 2,
@@ -170,7 +170,7 @@ export interface BindGroupEntryDesc {
   readonly type: number;
   /** バッファ。`UniformBuffer` / `StorageBuffer` 系では必須。 */
   readonly buffer?: RhiBuffer;
-  /** バッファ内の開始バイト。0 以外は 256 の倍数。 */
+  /** バッファ内の開始バイト。0 以外は caps の整列値の倍数 (docs/06 §5.1.1)。 */
   readonly offsetBytes?: number; // buffer ありのとき。0 以外は caps の整列値の倍数 (§5.1.1)
   /** 使用するバイト数 (ストレージバッファのみ)。 */
   readonly sizeBytes?: number;
@@ -230,7 +230,7 @@ export interface ComputePipelineDesc {
   readonly computeShader: ShaderSource;
   /** バインドグループレイアウト。長さ 0〜4。 */
   readonly layouts: readonly RhiBindGroupLayout[];
-  /** ワークグループ size `[x, y, z]`。各 1 以上、積は 1024 以下。 */
+  /** ワークグループ size `[x, y, z]`。各 1 以上で `caps.maxComputeInvocationsPerWorkgroup` 以下 (docs/06 §5.1.1)。 */
   readonly workgroupSize: readonly [number, number, number];
 }
 

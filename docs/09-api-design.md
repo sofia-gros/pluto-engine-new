@@ -116,6 +116,9 @@ await Game.create({ parent: document.body, width: 1920, height: 1080, scenes: [M
 
 `image(key, url)` T-5.1, `atlas(key, imageUrl, jsonUrl)` T-5.1, `json(key, url)` T-5.1, `audio(key, url)` T-9.6, `font(key, imageUrl, jsonUrl)` T-9.2, `tilemap(key, url)` T-9.3, `ktx2(key, url)` T-9.1。イベント: `'progress' (0〜1)`, `'complete'`, `'error'`。
 
+> [!NOTE]
+> メソッド名は `Loader` の実装 (`addImage` / `addAtlas` / `addJson`) に従う。このカタログの `image` / `atlas` / `json` は「その種別の読込」全般を指す略記である。
+
 ### 4.7 入力 (`this.input`) — T-5.2
 
 `pointer` (`x, y, worldX, worldY, isDown, justDown, justUp`), `pointers[]`, `keyboard.isDown(KeyCode.X)`, `keyboard.justPressed(k)`, `keyboard.justReleased(k)`, `keyboard.cursors()` (`{ up, down, left, right, space, shift }` の bool ゲッター), `gamepads[i]`, イベント `'pointerdown' | 'pointerup' | 'pointermove' | 'wheel'`。

@@ -268,15 +268,15 @@ describe('webgpu 能力の作り出し', () => {
     expect(caps.textureCompressionASTC).toBe(false);
   });
 
-  it('フィーチャが無いと false になる', () => {
+  it('フィーチャが無いと false になる (floatRenderTarget を除く)', () => {
     const caps = buildCapabilities(fakeDevice([]));
     expect(caps.timestampQuery).toBe(false);
     expect(caps.indirectDraw).toBe(false);
-    expect(caps.floatRenderTarget).toBe(false);
+    expect(caps.floatRenderTarget).toBe(true);
     expect(caps.floatBlend).toBe(false);
   });
 
-  it('float32-blendable があると 32 ビット浮動小数の描画先とブレンドが使える', () => {
+  it('float32-blendable があると 32 ビット浮動小数のブレンドが使える', () => {
     const caps = buildCapabilities(fakeDevice(['float32-blendable']));
     expect(caps.floatRenderTarget).toBe(true);
     expect(caps.floatBlend).toBe(true);

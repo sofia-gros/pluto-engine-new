@@ -19,6 +19,7 @@ struct VertexOutput {
   @location(1) tint: vec4<f32>,
   @location(2) @interpolate(flat) page: u32,
   @location(3) @interpolate(flat) isCompressed: u32,
+  @location(4) @interpolate(flat) isOpaque: u32,
 };
 
 @vertex
@@ -83,6 +84,7 @@ fn vs_main(
   output.tint = tint;
   output.page = page;
   output.isCompressed = select(0u, 1u, isCompressed);
+  output.isOpaque = select(0u, 1u, spriteIsOpaque(inst));
 
   return output;
 }
@@ -97,6 +99,9 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
   }
 
   let finalColor = texColor * input.tint;
+  if (input.isOpaque != 0u && finalColor.a < 0.5) {
+    discard;
+  }
   if (finalColor.a <= 0.0) {
     discard;
   }

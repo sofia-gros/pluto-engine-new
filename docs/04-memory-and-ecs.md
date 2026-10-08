@@ -218,7 +218,7 @@ q.getChunk(globalChunkIndex: number, out: ChunkView): void; // jobs が使う
 - `spawn` は index を即時予約して `Entity` を返す (ただし行はまだない。`isAlive` は false)。
 - 初期値の設定は `cmd.set(entity, field, value)` (数値 1 個ずつ積む)。
 - 適用は `World.flush()` (同期点、`Phase.PostUpdate` の最後に `Game` が呼ぶ)。
-- 容量は `WorldConfig.commandCapacity` (デフォルト 1,048,576)。単位は **コマンド領域の u32 語数** (spawn = 2 + コンポーネント数 語, set = 4 語 など)。超えたら `PlutoError(CapacityExceeded)`。容量チェックはエンティティ index を予約する **前** に行う (失敗時に index を消費しない)。
+- 容量は `WorldConfig.commandCapacity` (デフォルト 1,048,576)。単位は **コマンド領域の u32 語数** (spawn = 3 + コンポーネント数 語 (op, entity, n, id...)、despawn = 2 語、add/remove = 3 語、set = 5 語)。超えたら `PlutoError(CapacityExceeded)`。容量チェックはエンティティ index を予約する **前** に行う (失敗時に index を消費しない)。
 - `spawn` の可変長引数による配列確保を避けるため、HOT 経路では `spawn1(c)` / `spawnN(components: readonly AnyComponentDef[])` を使う (`spawn(...components)` はコールドパス用に残す)。
 
 ### 7.2 直接操作

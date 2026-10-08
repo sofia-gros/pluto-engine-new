@@ -179,13 +179,14 @@ describe('webgl2 デバイス: 能力', () => {
     expect(dev.caps.backend).toBe('webgl2');
     expect(dev.caps.compute).toBe(false);
     expect(dev.caps.indirectDraw).toBe(false);
+    expect(dev.caps.storageBuffers).toBe(false);
     expect(dev.caps.floatRenderTarget).toBe(true);
     expect(dev.caps.floatBlend).toBe(true);
     expect(dev.caps.textureCompressionETC2).toBe(true);
     expect(dev.caps.textureCompressionBC7).toBe(false);
     expect(dev.caps.maxTextureSize).toBe(4096);
     expect(dev.caps.minUniformBufferOffsetAlignment).toBe(256);
-    expect(dev.caps.minStorageBufferOffsetAlignment).toBe(16);
+    expect(dev.caps.minStorageBufferOffsetAlignment).toBe(256);
   });
 
   it('必須拡張が無いと GpuUnavailable になる', () => {
