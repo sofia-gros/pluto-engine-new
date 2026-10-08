@@ -17,6 +17,8 @@ import storageEmulationGlsl from './common/storage-emulation.glsl?raw';
 import spriteFragGlsl from './sprite/sprite.frag.glsl?raw';
 import spriteVertGlsl from './sprite/sprite.vert.glsl?raw';
 import spriteWgsl from './sprite/sprite.wgsl?raw';
+import prefixSumWgsl from './scan/prefix-sum.wgsl?raw';
+import radixSortWgsl from './sort/radix-sort.wgsl?raw';
 
 /** 1 本のシェーダのソースコード表現 (docs/06-rhi.md §6 互換)。 */
 export interface ShaderSource {
@@ -74,6 +76,14 @@ registerShader({
   wgsl: spriteWgsl,
   glslVertex: spriteVertGlsl,
   glslFragment: spriteFragGlsl,
+});
+registerShader({
+  name: 'scan/prefix-sum',
+  wgsl: prefixSumWgsl,
+});
+registerShader({
+  name: 'sort/radix-sort',
+  wgsl: radixSortWgsl,
 });
 
 /**

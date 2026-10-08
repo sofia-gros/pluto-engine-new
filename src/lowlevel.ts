@@ -176,3 +176,4 @@ export {
   TextureArrayManager,
   packSprite,
 } from './render';
+export { GpuPrefixSum, GpuRadixSort } from './compute';

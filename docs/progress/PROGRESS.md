@@ -64,8 +64,8 @@
 | T-4.2  | テクスチャ・アセット                | DONE        | [T-4.2.md](./reviews/T-4.2.md)   | [f668437](https://github.com/sofia-gros/pluto-engine-new/commit/f668437) |
 | T-4.3  | スプライトデータ                    | DONE        | [T-4.3.md](./reviews/T-4.3.md)   | [2829349](https://github.com/sofia-gros/pluto-engine-new/commit/2829349) |
 | T-4.4  | CPU 補助描画パス                    | DONE        | [T-4.4.md](./reviews/T-4.4.md)   | [0fb2b28](https://github.com/sofia-gros/pluto-engine-new/commit/0fb2b28) |
-| T-4.5  | GPU プリミティブ                    | IN_PROGRESS |                                  |                                                                          |
-| T-4.6  | GPU 駆動描画パス                    | TODO        |                                  |                                                                          |
+| T-4.5  | GPU プリミティブ                    | DONE        | [T-4.5.md](./reviews/T-4.5.md)   | [4f12562](https://github.com/sofia-gros/pluto-engine-new/commit/4f12562) |
+| T-4.6  | GPU 駆動描画パス                    | IN_PROGRESS |                                  |                                                                          |
 | T-4.7  | カメラ・レンダーグラフ・レンダラ    | TODO        |                                  |                                                                          |
 | T-5.1  | Game / Scene / Factory / カメラ     | TODO        |                                  |                                                                          |
 | T-5.2  | 入力                                | TODO        |                                  |                                                                          |
@@ -116,6 +116,24 @@
   - `tests/unit/render/sprite/` 配下に各単体テストを作成し、全テスト通過。
   - `pnpm verify` (全 7 段階すべて成功、カバレッジ 95.39%)。
   - レビュー記録 `docs/progress/reviews/T-4.3.md` 作成。
+
+### 2026-10-08 T-4.5 完了 (GPU プリミティブ)
+
+- やったこと:
+  - `src/shaders/scan/prefix-sum.wgsl` を実装し、3 パス方式 (block_scan / scan_block_sums / add_block_sums) の排他的プレフィックスサム WGSL コンピュートシェーダを配備した。プリプロセッサ条件分岐 (`#ifdef ENTRY_...`) で `cs_main` エントリポイントを適応的に生成可能とした。
+  - `src/shaders/sort/radix-sort.wgsl` を実装し、4bit × 8 パス (16 バケット) による LSD 基数ソート WGSL コンピュートシェーダ (ヒストグラム集計・スキャッタ再配置) を配備した。
+  - `src/shaders/shader-library.ts` に `scan/prefix-sum` および `sort/radix-sort` を登録した。
+  - `src/compute/gpu-prefix-sum.ts` (`// @pluto-hot`, 199 行) を実装し、2^20 要素までの排他的プレフィックスサム実行パイプラインを完備した。
+  - `src/compute/gpu-radix-sort.ts` (`// @pluto-hot`, 320 行) を実装し、キー/値ペアの 8 パス基数ソートおよび間接ディスパッチ (`executeIndirect`) を完備した。
+  - `src/compute/index.ts` および `src/lowlevel.ts` から公開窓口を提供した。
+  - `tests/unit/compute/` 配下に単体テスト 2 ファイル (`gpu-prefix-sum.test.ts`, `gpu-radix-sort.test.ts`) を作成し、全 10 件の合格を確認した。
+  - `tests/browser/compute/parity.spec.ts` を作成し、WebGL2 での非対応例外検出および WebGPU での CPU 参照実装との結果完全一致 (パリティ) をブラウザ実機検証した。
+- 証拠:
+  - `pnpm verify` → **全 7 段階すべて成功** (check:structure / boundaries / rules, typecheck, lint, format:check, test:coverage: 95.42% Lines, 86 ファイル 515 件の単体テストすべて通過)。
+  - `pnpm test:browser tests/browser/compute/parity.spec.ts --project=webgl2` → **2 passed (8.8s)**。
+  - `pnpm test:browser tests/browser/compute/parity.spec.ts --project=webgpu` → **2 passed (7.8s)**。
+  - `pnpm bench` → **悪化 0 件** (ecs-move cpuP50Ms 変動 7.1%、moveKernelP50Ms 変動 3.5% で 10% 以内)。
+- レビュー記録: `docs/progress/reviews/T-4.5.md`
 
 ### 2026-10-08 T-4.4 完了 (CPU 補助描画パス)
 
