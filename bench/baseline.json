@@ -99,5 +99,35 @@
       "moveKernelP50Ms": 3.56,
       "moveKernelP99Ms": 5.94
     }
+  },
+  {
+    "scene": "static-sprites",
+    "backend": "webgpu",
+    "build": "embed",
+    "count": 1000000,
+    "crossOriginIsolated": true,
+    "meanMs": 6.94,
+    "p50Ms": 6.94,
+    "p99Ms": 6.96,
+    "cpuMs": 0.02,
+    "cpuP50Ms": 0,
+    "metrics": {
+      "gpuUnavailable": 1
+    }
+  },
+  {
+    "scene": "static-sprites",
+    "backend": "webgl2",
+    "build": "embed",
+    "count": 100000,
+    "crossOriginIsolated": true,
+    "meanMs": 6.94,
+    "p50Ms": 6.94,
+    "p99Ms": 6.96,
+    "cpuMs": 0.02,
+    "cpuP50Ms": 0,
+    "metrics": {
+      "gpuUnavailable": 1
+    }
   }
 ]

@@ -170,6 +170,11 @@ export class WebGlRenderPass implements RhiRenderPass {
     this.open = false;
   }
 
+  /** パスが開いているか判定する。 */
+  public isOpen(): boolean {
+    return this.open;
+  }
+
   /** パイプラインの固定機能を適用する。 */
   private applyPipeline(pipeline: WebGlRenderPipeline): void {
     this.cache.useProgram(pipeline.gpu);
@@ -243,8 +248,6 @@ export class WebGlCommandEncoder implements RhiCommandEncoder {
 
   private readonly renderPass: WebGlRenderPass;
 
-  private open = false;
-
   /**
    * エンコーダを作る。パスは使い回す。
    * @param gl GL コンテキスト
@@ -262,10 +265,9 @@ export class WebGlCommandEncoder implements RhiCommandEncoder {
 
   /** レンダーパスを開く。二重に開くと例外になる。 @hot */
   public beginRenderPass(desc: RenderPassDesc): RhiRenderPass {
-    if (this.open) {
+    if (this.renderPass.isOpen()) {
       throw new PlutoError(ErrorCode.InvalidState, 'パスを開いている途中で別のパスは開けません');
     }
-    this.open = true;
     this.renderPass.begin(desc);
     return this.renderPass;
   }
@@ -335,7 +337,7 @@ export class WebGlCommandEncoder implements RhiCommandEncoder {
    * @hot
    */
   public finish(): void {
-    this.open = false;
+    // GL は即時実行のため状態リセット等なし
   }
 
   /**

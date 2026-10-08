@@ -178,5 +178,10 @@ export {
   SpritePathCpuAssisted,
   SpritePathGpuDriven,
   SpriteRenderer,
+  CameraStore,
+  CameraUniforms,
+  RenderGraph,
+  TransientPool,
+  Renderer,
 } from './render';
 export { GpuPrefixSum, GpuRadixSort } from './compute';

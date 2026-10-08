@@ -333,4 +333,14 @@ export class SpriteBuffer {
       );
     }
   }
+
+  /**
+   * GPU リソースを破棄する。
+   */
+  public destroy(): void {
+    this.gpuBuffer?.destroy();
+    this.gpuBuffer = undefined;
+    this.gpuTexture?.destroy();
+    this.gpuTexture = undefined;
+  }
 }

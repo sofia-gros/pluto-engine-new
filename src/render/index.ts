@@ -72,3 +72,24 @@ export { SpritePathCpuAssisted, type SpritePathTextures } from './sprite/sprite-
 export { SpritePathGpuDriven } from './sprite/sprite-path-gpu-driven';
 
 export { SpriteRenderer, type SpriteRendererOptions } from './sprite/sprite-renderer';
+
+export { CameraStore, type CameraViewport, type CameraVec2 } from './camera/camera-store';
+
+export {
+  CameraUniforms,
+  CAMERA_UNIFORM_STRIDE_BYTES,
+  CAMERA_UNIFORM_STRIDE_FLOATS,
+} from './camera/camera-uniforms';
+
+export {
+  RenderGraph,
+  DEFAULT_PASS_ORDER,
+  getPassOrderIndex,
+  type DefaultPassName,
+} from './graph/render-graph';
+
+export { type RenderPassNode, type RenderPassContext } from './graph/render-pass-node';
+
+export { TransientPool } from './graph/transient-pool';
+
+export { Renderer, type RendererOptions } from './renderer';

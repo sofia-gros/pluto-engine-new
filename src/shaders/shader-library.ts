@@ -22,6 +22,9 @@ import radixSortWgsl from './sort/radix-sort.wgsl?raw';
 import resetArgsWgsl from './cull/reset-args.wgsl?raw';
 import spriteCullWgsl from './cull/sprite-cull.wgsl?raw';
 import sortKeysWgsl from './cull/sort-keys.wgsl?raw';
+import fullscreenWgsl from './post/fullscreen.wgsl?raw';
+import fullscreenVertGlsl from './post/fullscreen.vert.glsl?raw';
+import blitFragGlsl from './post/blit.frag.glsl?raw';
 
 /** 1 本のシェーダのソースコード表現 (docs/06-rhi.md §6 互換)。 */
 export interface ShaderSource {
@@ -99,6 +102,12 @@ registerShader({
 registerShader({
   name: 'cull/sort-keys',
   wgsl: sortKeysWgsl,
+});
+registerShader({
+  name: 'post/fullscreen',
+  wgsl: fullscreenWgsl,
+  glslVertex: fullscreenVertGlsl,
+  glslFragment: blitFragGlsl,
 });
 
 /**

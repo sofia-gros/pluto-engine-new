@@ -65,7 +65,7 @@
 | T-4.3  | スプライトデータ                    | DONE        | [T-4.3.md](./reviews/T-4.3.md)   | [2829349](https://github.com/sofia-gros/pluto-engine-new/commit/2829349) |
 | T-4.4  | CPU 補助描画パス                    | DONE        | [T-4.4.md](./reviews/T-4.4.md)   | [0fb2b28](https://github.com/sofia-gros/pluto-engine-new/commit/0fb2b28) |
 | T-4.5  | GPU プリミティブ                    | DONE        | [T-4.5.md](./reviews/T-4.5.md)   | [51c93a3](https://github.com/sofia-gros/pluto-engine-new/commit/51c93a3) |
-| T-4.6  | GPU 駆動描画パス                    | DONE        | [T-4.6.md](./reviews/T-4.6.md)   |                                                                          |
+| T-4.6  | GPU 駆動描画パス                    | DONE        | [T-4.6.md](./reviews/T-4.6.md)   | [62d0fa6](https://github.com/sofia-gros/pluto-engine-new/commit/62d0fa6) |
 | T-4.7  | カメラ・レンダーグラフ・レンダラ    | IN_PROGRESS |                                  |                                                                          |
 | T-5.1  | Game / Scene / Factory / カメラ     | TODO        |                                  |                                                                          |
 | T-5.2  | 入力                                | TODO        |                                  |                                                                          |
