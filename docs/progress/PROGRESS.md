@@ -63,7 +63,7 @@
 | T-4.1  | シェーダ基盤                        | DONE        | [T-4.1.md](./reviews/T-4.1.md)   | [cc247e1](https://github.com/sofia-gros/pluto-engine-new/commit/cc247e1) |
 | T-4.2  | テクスチャ・アセット                | DONE        | [T-4.2.md](./reviews/T-4.2.md)   | [f668437](https://github.com/sofia-gros/pluto-engine-new/commit/f668437) |
 | T-4.3  | スプライトデータ                    | DONE        | [T-4.3.md](./reviews/T-4.3.md)   | [2829349](https://github.com/sofia-gros/pluto-engine-new/commit/2829349) |
-| T-4.4  | CPU 補助描画パス                    | DONE        | [T-4.4.md](./reviews/T-4.4.md)   |                                                                          |
+| T-4.4  | CPU 補助描画パス                    | DONE        | [T-4.4.md](./reviews/T-4.4.md)   | [0fb2b28](https://github.com/sofia-gros/pluto-engine-new/commit/0fb2b28) |
 | T-4.5  | GPU プリミティブ                    | IN_PROGRESS |                                  |                                                                          |
 | T-4.6  | GPU 駆動描画パス                    | TODO        |                                  |                                                                          |
 | T-4.7  | カメラ・レンダーグラフ・レンダラ    | TODO        |                                  |                                                                          |
