@@ -4,9 +4,9 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-**T-4.7** カメラ・レンダーグラフ・レンダラ (状態: IN_PROGRESS)
+**T-5.1** Game / Scene / Factory / カメラ (状態: IN_PROGRESS)
 
-> 直前の完了タスク: **T-4.6** GPU 駆動描画パス ([レビュー](./reviews/T-4.6.md))
+> 直前の完了タスク: **T-4.7** カメラ・レンダーグラフ・レンダラ ([レビュー](./reviews/T-4.7.md))
 
 > 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.5 は完了し、T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
 >
@@ -66,8 +66,8 @@
 | T-4.4  | CPU 補助描画パス                    | DONE        | [T-4.4.md](./reviews/T-4.4.md)   | [0fb2b28](https://github.com/sofia-gros/pluto-engine-new/commit/0fb2b28) |
 | T-4.5  | GPU プリミティブ                    | DONE        | [T-4.5.md](./reviews/T-4.5.md)   | [51c93a3](https://github.com/sofia-gros/pluto-engine-new/commit/51c93a3) |
 | T-4.6  | GPU 駆動描画パス                    | DONE        | [T-4.6.md](./reviews/T-4.6.md)   | [62d0fa6](https://github.com/sofia-gros/pluto-engine-new/commit/62d0fa6) |
-| T-4.7  | カメラ・レンダーグラフ・レンダラ    | IN_PROGRESS |                                  |                                                                          |
-| T-5.1  | Game / Scene / Factory / カメラ     | TODO        |                                  |                                                                          |
+| T-4.7  | カメラ・レンダーグラフ・レンダラ    | DONE        | [T-4.7.md](./reviews/T-4.7.md)   | [84f4b3f](https://github.com/sofia-gros/pluto-engine-new/commit/84f4b3f) |
+| T-5.1  | Game / Scene / Factory / カメラ     | IN_PROGRESS |                                  |                                                                          |
 | T-5.2  | 入力                                | TODO        |                                  |                                                                          |
 | T-5.3  | トゥイーン・タイムライン            | TODO        |                                  |                                                                          |
 | T-5.4  | フレームアニメーション              | TODO        |                                  |                                                                          |
