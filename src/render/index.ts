@@ -63,4 +63,10 @@ export { SpriteBuffer, MAX_UPLOAD_RANGES_PER_FRAME } from './sprite/sprite-buffe
 
 export { spritePackKernel, spritePackKernelFn } from './sprite/sprite-pack-kernel';
 
+export { spriteCpuCullKernel, spriteCpuCullKernelFn } from './sprite/sprite-cpu-cull-kernel';
+
 export { SpritePackSystem } from './sprite/sprite-pack-system';
+
+export { SpritePathCpuAssisted, type SpritePathTextures } from './sprite/sprite-path-cpu-assisted';
+
+export { SpriteRenderer, type SpriteRendererOptions } from './sprite/sprite-renderer';

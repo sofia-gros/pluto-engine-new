@@ -8,6 +8,7 @@ import type { RhiBindGroup, RhiBindGroupLayout } from '../device';
 import {
   BindingType,
   TextureDimension,
+  TextureFormat,
   type BindGroupEntryDesc,
   type BindGroupLayoutDesc,
 } from '../types';
@@ -171,6 +172,12 @@ export class WebGlBindGroup implements RhiBindGroup {
  */
 export function expectedSamplerType(entry: BindGroupEntryDesc): number | null {
   if (entry.texture instanceof WebGlTexture) {
+    if (
+      entry.texture.format === TextureFormat.RGBA32Uint ||
+      entry.texture.format === TextureFormat.R32Uint
+    ) {
+      return 0x8dd2;
+    }
     return entry.texture.dimension === TextureDimension.D2Array ? 0x8dc1 : 0x8b5e;
   }
   if (entry.buffer instanceof WebGlBuffer && entry.buffer.isStorage) return 0x8dd2;

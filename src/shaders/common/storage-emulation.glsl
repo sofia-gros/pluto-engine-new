@@ -4,6 +4,8 @@
 #ifndef STORAGE_EMULATION_GLSL
 #define STORAGE_EMULATION_GLSL
 
+precision highp usampler2D;
+
 const uint PLUTO_DATA_TEXTURE_WIDTH = 2048u;
 
 /**
@@ -18,4 +20,4 @@ uvec4 pluto_fetch(usampler2D tex, uint texelIndex) {
     return texelFetch(tex, ivec2(x, y), 0);
 }
 
-#endif // STORAGE_EMULATION_GLSL
+#endif

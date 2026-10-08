@@ -8,8 +8,17 @@
 
 import { ErrorCode, PlutoError } from '../../core/debug';
 import { Bitset, RangeAllocator } from '../../core/memory';
-import { BufferUsage, type RhiBuffer, type RhiDevice } from '../../rhi';
 import {
+  BufferUsage,
+  TextureDimension,
+  TextureFormat,
+  TextureUsage,
+  type RhiBuffer,
+  type RhiDevice,
+  type RhiTexture,
+} from '../../rhi';
+import {
+  DATA_TEXTURE_WIDTH,
   DEFAULT_MAX_SPRITES,
   GPU_GROUP_ALIGN,
   SPRITE_STRIDE_BYTES,
@@ -54,6 +63,21 @@ export class SpriteBuffer {
 
   private currentHighWater = 0;
   private gpuBuffer: RhiBuffer | undefined = undefined;
+  private gpuTexture: RhiTexture | undefined = undefined;
+
+  /**
+   * GPU ストレージバッファを取得する (WebGPU 用)。
+   */
+  public getGpuBuffer(): RhiBuffer | undefined {
+    return this.gpuBuffer;
+  }
+
+  /**
+   * GPU データテクスチャを取得する (WebGL2 用)。
+   */
+  public getGpuTexture(): RhiTexture | undefined {
+    return this.gpuTexture;
+  }
 
   /**
    * @param maxSprites 最大スプライト数 (既定: DEFAULT_MAX_SPRITES = 1,048,576)
@@ -199,11 +223,24 @@ export class SpriteBuffer {
    * @param device RHI デバイス
    */
   public flushToGpu(device: RhiDevice): void {
-    this.gpuBuffer ??= device.createBuffer({
-      sizeBytes: this.buffer.byteLength,
-      usage: BufferUsage.Storage | BufferUsage.CopyDst,
-      label: 'SpriteBuffer',
-    }); // pluto-allow: 初回フラッシュ時の遅延バッファ生成
+    if (device.caps.backend === 'webgpu') {
+      this.gpuBuffer ??= device.createBuffer({
+        sizeBytes: this.buffer.byteLength,
+        usage: BufferUsage.Storage | BufferUsage.CopyDst,
+        label: 'SpriteBuffer',
+      }); // pluto-allow: 初回フラッシュ時の遅延バッファ生成
+    } else {
+      const texHeight = Math.ceil((this.maxSprites * 2) / DATA_TEXTURE_WIDTH) | 0;
+      this.gpuTexture ??= device.createTexture({
+        width: DATA_TEXTURE_WIDTH,
+        height: texHeight > 0 ? texHeight : 1,
+        layers: 1,
+        format: TextureFormat.RGBA32Uint,
+        usage: TextureUsage.TextureBinding | TextureUsage.CopyDst,
+        dimension: TextureDimension.D2,
+        label: 'SpriteDataTexture',
+      }); // pluto-allow: 初回フラッシュ時の遅延テクスチャ生成
+    }
 
     let rangeCount = 0;
     let isInRange = false;
@@ -261,12 +298,9 @@ export class SpriteBuffer {
   }
 
   /**
-   * 指定したブロック範囲を GPU バッファに書き込む。
+   * 指定したブロック範囲を GPU バッファまたはデータテクスチャに書き込む。
    */
   private writeBlocks(device: RhiDevice, startBlock: number, endBlock: number): void {
-    if (this.gpuBuffer === undefined) {
-      return;
-    }
     const startSlot = startBlock * SLOTS_PER_BLOCK;
     const endSlot = Math.min((endBlock + 1) * SLOTS_PER_BLOCK, this.maxSprites);
     const startWord = startSlot * SPRITE_STRIDE_WORDS;
@@ -274,6 +308,29 @@ export class SpriteBuffer {
     const byteOffset = startWord * 4;
 
     const subView = this.u32View.subarray(startWord, endWord);
-    device.writeBuffer(this.gpuBuffer, byteOffset, subView);
+
+    if (this.gpuBuffer !== undefined) {
+      device.writeBuffer(this.gpuBuffer, byteOffset, subView);
+    } else if (this.gpuTexture !== undefined) {
+      const startTexel = startSlot * 2;
+      const countTexels = (endSlot - startSlot) * 2;
+      const startY = (startTexel / DATA_TEXTURE_WIDTH) | 0;
+      const endY = ((startTexel + countTexels - 1) / DATA_TEXTURE_WIDTH) | 0;
+      const height = endY - startY + 1;
+      device.writeTexture(
+        this.gpuTexture,
+        {
+          offsetX: 0,
+          offsetY: startY,
+          layer: 0,
+          width: DATA_TEXTURE_WIDTH,
+          height,
+        }, // pluto-allow: writeTexture 記述子生成
+        this.u32View.subarray(
+          startY * DATA_TEXTURE_WIDTH * 4,
+          (startY + height) * DATA_TEXTURE_WIDTH * 4,
+        ),
+      );
+    }
   }
 }

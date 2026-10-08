@@ -65,4 +65,4 @@ fn spriteIsOccluder(s: SpriteInstance) -> bool {
     return (s.flags & FLAG_OCCLUDER) != 0u;
 }
 
-#endif // SPRITE_INSTANCE_WGSL
+#endif

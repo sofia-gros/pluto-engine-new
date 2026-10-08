@@ -7,8 +7,21 @@
 
 import { ErrorCode, PlutoError } from '../../core/debug';
 import { packHalf2x16 } from '../../core/math';
-import { BufferUsage, type RhiBuffer, type RhiDevice } from '../../rhi';
-import { FRAME_STRIDE_BYTES, MAX_FRAMES, WHITE_FRAME_ID } from '../render-constants';
+import {
+  BufferUsage,
+  TextureDimension,
+  TextureFormat,
+  TextureUsage,
+  type RhiBuffer,
+  type RhiDevice,
+  type RhiTexture,
+} from '../../rhi';
+import {
+  DATA_TEXTURE_WIDTH,
+  FRAME_STRIDE_BYTES,
+  MAX_FRAMES,
+  WHITE_FRAME_ID,
+} from '../render-constants';
 
 /**
  * 1 ワード (32bit) 単位のフレームストライド。
@@ -59,6 +72,21 @@ export class FrameTable {
   private dirtyMin = Infinity;
   private dirtyMax = -1;
   private gpuBuffer: RhiBuffer | undefined = undefined;
+  private gpuTexture: RhiTexture | undefined = undefined;
+
+  /**
+   * GPU ストレージバッファを取得する (WebGPU 用)。
+   */
+  public getGpuBuffer(): RhiBuffer | undefined {
+    return this.gpuBuffer;
+  }
+
+  /**
+   * GPU データテクスチャを取得する (WebGL2 用)。
+   */
+  public getGpuTexture(): RhiTexture | undefined {
+    return this.gpuTexture;
+  }
 
   /**
    * @param maxFrames 最大フレーム数 (既定: 65536)
@@ -191,13 +219,28 @@ export class FrameTable {
    * @param device RHI デバイス
    */
   public flush(device: RhiDevice): void {
-    if (this.gpuBuffer === undefined) {
-      this.gpuBuffer = device.createBuffer({
-        sizeBytes: this.buffer.byteLength,
-        usage: BufferUsage.Storage | BufferUsage.CopyDst,
-        label: 'FrameTableBuffer',
+    if (device.caps.backend === 'webgpu') {
+      if (this.gpuBuffer === undefined) {
+        this.gpuBuffer = device.createBuffer({
+          sizeBytes: this.buffer.byteLength,
+          usage: BufferUsage.Storage | BufferUsage.CopyDst,
+          label: 'FrameTableBuffer',
+        });
+        // 初回は全体を転送
+        this.dirtyMin = 0;
+        this.dirtyMax = this.frames.length - 1;
+      }
+    } else if (this.gpuTexture === undefined) {
+      const texHeight = Math.ceil((this.maxFrames * 2) / DATA_TEXTURE_WIDTH) | 0;
+      this.gpuTexture = device.createTexture({
+        width: DATA_TEXTURE_WIDTH,
+        height: texHeight > 0 ? texHeight : 1,
+        layers: 1,
+        format: TextureFormat.RGBA32Uint,
+        usage: TextureUsage.TextureBinding | TextureUsage.CopyDst,
+        dimension: TextureDimension.D2,
+        label: 'FrameTableTexture',
       });
-      // 初回は全体を転送
       this.dirtyMin = 0;
       this.dirtyMax = this.frames.length - 1;
     }
@@ -211,7 +254,29 @@ export class FrameTable {
     const byteOffset = startWord * 4;
     const subArray = this.u32View.subarray(startWord, endWord);
 
-    device.writeBuffer(this.gpuBuffer, byteOffset, subArray);
+    if (this.gpuBuffer !== undefined) {
+      device.writeBuffer(this.gpuBuffer, byteOffset, subArray);
+    } else if (this.gpuTexture !== undefined) {
+      const startTexel = this.dirtyMin * 2;
+      const countTexels = (this.dirtyMax - this.dirtyMin + 1) * 2;
+      const startY = (startTexel / DATA_TEXTURE_WIDTH) | 0;
+      const endY = ((startTexel + countTexels - 1) / DATA_TEXTURE_WIDTH) | 0;
+      const height = endY - startY + 1;
+      device.writeTexture(
+        this.gpuTexture,
+        {
+          offsetX: 0,
+          offsetY: startY,
+          layer: 0,
+          width: DATA_TEXTURE_WIDTH,
+          height,
+        },
+        this.u32View.subarray(
+          startY * DATA_TEXTURE_WIDTH * 4,
+          (startY + height) * DATA_TEXTURE_WIDTH * 4,
+        ),
+      );
+    }
 
     this.dirtyMin = Infinity;
     this.dirtyMax = -1;

@@ -4,9 +4,9 @@
 > 状態: `TODO` / `IN_PROGRESS` / `BLOCKED` (ユーザー待ち) / `DONE`
 > `IN_PROGRESS` は常に **最大 1 つ**。
 
-**T-4.3** スプライトデータ (状態: IN_PROGRESS)
+**T-4.5** GPU プリミティブ (状態: IN_PROGRESS)
 
-> 直前の完了タスク: **T-4.2** テクスチャ・アセット ([レビュー](./reviews/T-4.2.md))
+> 直前の完了タスク: **T-4.4** CPU 補助描画パス ([レビュー](./reviews/T-4.4.md))
 
 > 2026-10-06: コードベースレビュー ([報告書](./reviews/2026-10-06-codebase-review.md)) により是正フェーズ Phase R を T-2.3 の前に挿入した。T-R.1〜T-R.5 は完了し、T-2.3 は 2026-10-06 に完了 (受け入れ条件 6 のみ、`docs/11` §6 の対象を `pluto-lowlevel.js` に読み替える改訂でユーザー承認済み)。次は T-2.4。
 >
@@ -61,10 +61,10 @@
 | T-3.3  | RHI WebGL2 実装                     | DONE        | [T-3.3.md](./reviews/T-3.3.md)   | [c410a6e](https://github.com/sofia-gros/pluto-engine-new/commit/c410a6e) |
 | T-3.4  | デバイス生成とブラウザテスト        | DONE        | [T-3.4.md](./reviews/T-3.4.md)   | [8a6bc0a](https://github.com/sofia-gros/pluto-engine-new/commit/8a6bc0a) |
 | T-4.1  | シェーダ基盤                        | DONE        | [T-4.1.md](./reviews/T-4.1.md)   | [cc247e1](https://github.com/sofia-gros/pluto-engine-new/commit/cc247e1) |
-| T-4.2  | テクスチャ・アセット                | DONE        | [T-4.2.md](./reviews/T-4.2.md)   |                                                                          |
-| T-4.3  | スプライトデータ                    | DONE        | [T-4.3.md](./reviews/T-4.3.md)   |                                                                          |
-| T-4.4  | CPU 補助描画パス                    | TODO        |                                  |                                                                          |
-| T-4.5  | GPU プリミティブ                    | TODO        |                                  |                                                                          |
+| T-4.2  | テクスチャ・アセット                | DONE        | [T-4.2.md](./reviews/T-4.2.md)   | [f668437](https://github.com/sofia-gros/pluto-engine-new/commit/f668437) |
+| T-4.3  | スプライトデータ                    | DONE        | [T-4.3.md](./reviews/T-4.3.md)   | [2829349](https://github.com/sofia-gros/pluto-engine-new/commit/2829349) |
+| T-4.4  | CPU 補助描画パス                    | DONE        | [T-4.4.md](./reviews/T-4.4.md)   |                                                                          |
+| T-4.5  | GPU プリミティブ                    | IN_PROGRESS |                                  |                                                                          |
 | T-4.6  | GPU 駆動描画パス                    | TODO        |                                  |                                                                          |
 | T-4.7  | カメラ・レンダーグラフ・レンダラ    | TODO        |                                  |                                                                          |
 | T-5.1  | Game / Scene / Factory / カメラ     | TODO        |                                  |                                                                          |
@@ -116,6 +116,22 @@
   - `tests/unit/render/sprite/` 配下に各単体テストを作成し、全テスト通過。
   - `pnpm verify` (全 7 段階すべて成功、カバレッジ 95.39%)。
   - レビュー記録 `docs/progress/reviews/T-4.3.md` 作成。
+
+### 2026-10-08 T-4.4 完了 (CPU 補助描画パス)
+
+- やったこと:
+  - `src/shaders/sprite/sprite.wgsl`, `sprite.vert.glsl`, `sprite.frag.glsl` を実装し、共通インクルード (`#include <common/camera>`, `<common/sprite-instance>`, `<common/frame>`) を活用した頂点・フラグメントシェーダを配備した。
+  - `src/render/sprite/sprite-cpu-cull-kernel.ts` を実装し、Jobs スケジューラ / CPU 双方で動作する AABB 視錐台カリングおよび 3 ビン分類カーネルを配備した。
+  - `src/render/sprite/sprite-path-cpu-assisted.ts` を実装し、CPU カリング、LSD 基数ソート (8bit × 4 パス)、可視インデックスの GPU バッファ / データテクスチャ転送、3 ビン別描画パイプラインの実行を完備した。
+  - `src/render/sprite/sprite-renderer.ts` を実装し、デバイス能力に応じた描画パス統括クラスを配備した。
+  - WebGL2 でのデータテクスチャ書き込み (`RGBA32Uint` サポート、`layer: 0` 指定) およびシェーダバインディング整合を完了した。
+  - `tests/unit/render/sprite/` 配下に各単体テスト (`sprite-cpu-cull-kernel.test.ts`, `sprite-path-cpu-assisted.test.ts`, `sprite-renderer.test.ts`) を作成し、全件合格を確認した。
+  - `tests/browser/render/sprite-cpu-assisted.spec.ts` を作成し、WebGL2 実機で 64 スプライト描画のゴールデン画像比較テスト (`sprite-cpu-assisted.png`) に合格した。
+- 証拠:
+  - `pnpm verify` → **全 7 段階すべて成功** (check:structure / boundaries / rules, typecheck, lint, format:check, test:coverage: 95.51% Stmts, 84 ファイル 505 件の単体テストすべて通過)。
+  - `pnpm test:browser tests/browser/render/sprite-cpu-assisted.spec.ts --project=webgl2` → **1 passed (9.5s)**。
+  - `pnpm bench` → **悪化 0 件** (ecs-move cpuP50Ms 変動 1.2% で 10% 以内)。
+- レビュー記録: `docs/progress/reviews/T-4.4.md`
 
 ### 2026-10-08 T-4.1 完了 (シェーダ基盤)
 

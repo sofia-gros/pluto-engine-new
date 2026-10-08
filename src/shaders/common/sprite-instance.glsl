@@ -31,7 +31,13 @@ SpriteInstance decodeSprite(uvec4 texel0, uvec4 texel1) {
     s.rotation = unpackHalf2x16(texel0.w).x;
     s.layer = texel0.w >> 16u;
     s.frameId = texel1.x;
-    s.tint = unpackUnorm4x8(texel1.y);
+    uint tintBits = texel1.y;
+    s.tint = vec4(
+        float(tintBits & 0xffu) / 255.0,
+        float((tintBits >> 8u) & 0xffu) / 255.0,
+        float((tintBits >> 16u) & 0xffu) / 255.0,
+        float((tintBits >> 24u) & 0xffu) / 255.0
+    );
     s.flags = texel1.z;
     s.sortKey = uintBitsToFloat(texel1.w);
     return s;
@@ -61,4 +67,4 @@ bool spriteIsOccluder(uint flags) {
     return (flags & FLAG_OCCLUDER) != 0u;
 }
 
-#endif // SPRITE_INSTANCE_GLSL
+#endif

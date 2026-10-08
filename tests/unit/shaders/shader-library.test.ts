@@ -118,4 +118,27 @@ fn test() {}
     expect(retrieved).toEqual(custom);
     expect(getAllShaderNames()).toContain('custom_test_shader');
   });
+
+  it('sprite 組み込みシェーダが登録されており、preprocessWithBuiltins でインクルード展開できる', () => {
+    const spriteShader = getShader('sprite');
+    expect(spriteShader.wgsl).toBeDefined();
+    expect(spriteShader.glslVertex).toBeDefined();
+    expect(spriteShader.glslFragment).toBeDefined();
+
+    if (spriteShader.wgsl !== undefined) {
+      const expandedWgsl = preprocessWithBuiltins(spriteShader.wgsl);
+      expect(expandedWgsl).toContain('struct CameraUniform');
+      expect(expandedWgsl).toContain('struct SpriteInstance');
+      expect(expandedWgsl).toContain('struct FrameData');
+      expect(expandedWgsl).toContain('vs_main');
+      expect(expandedWgsl).toContain('fs_main');
+    }
+
+    if (spriteShader.glslVertex !== undefined) {
+      const expandedVert = preprocessWithBuiltins(spriteShader.glslVertex);
+      expect(expandedVert).toContain('CameraUniform');
+      expect(expandedVert).toContain('pluto_fetch');
+      expect(expandedVert).toContain('decodeSprite');
+    }
+  });
 });

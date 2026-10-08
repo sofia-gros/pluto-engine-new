@@ -39,4 +39,4 @@ fn frameIsCompressed(f: FrameData) -> bool {
     return (f.page & 0x10000u) != 0u;
 }
 
-#endif // FRAME_WGSL
+#endif

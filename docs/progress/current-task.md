@@ -1,63 +1,70 @@
-# 現在のタスク: T-4.3 スプライトデータ
+# 現在のタスク: T-4.4 CPU 補助描画パス
 
 ## 1. 目的
 
-`docs/07-renderer.md` §3, §10〜11、`docs/02-directory-structure.md` §15, §17、および `docs/12-roadmap.md` に基づき、スプライト 32 バイトインスタンスレイアウト (SSOT)、スプライト ECS コンポーネント、スプライト GPU/CPU バッファ、パックカーネルとシステム、対応シェーダ共通定義 (`sprite-instance.*`, `frame.*`, `storage-emulation.glsl`) を実装し、Worker へのカーネル登録を行う。
+`docs/07-renderer.md` §7, §9、`docs/02-directory-structure.md` §15, §17、および `docs/12-roadmap.md` に基づき、スプライト描画シェーダ (`sprite.wgsl`, `sprite.vert.glsl`, `sprite.frag.glsl`)、CPU カリングカーネル (`sprite-cpu-cull-kernel.ts`)、CPU 補助描画パス (`sprite-path-cpu-assisted.ts`)、スプライトレンダラ統括クラス (`sprite-renderer.ts`) を実装し、Worker へのカーネル登録と、両バックエンドでのゴールデン画像検証を行う。
 
 ## 2. 作成・編集するファイル (`docs/02-directory-structure.md` に完全準拠)
 
-| ファイル                                                  | 責務                                                                                          | HOT |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --- |
-| `src/render/sprite/sprite-instance-layout.ts`             | スプライト 32 バイトレイアウトの SSOT (オフセット定数、フラグ定数、`packSprite` 関数)         | HOT |
-| `src/render/sprite/sprite-components.ts`                  | `Sprite`, `SpriteSlot` コンポーネント定義 (`docs/07` §11)                                     | -   |
-| `src/render/sprite/sprite-buffer.ts`                      | GPU スプライトバッファ、`RangeAllocator` によるスロット割当、`Bitset` による dirty range 転送 | HOT |
-| `src/render/sprite/sprite-pack-kernel.ts`                 | CPU Tier の SoA → 32 バイト AoS ステージングへのパックカーネル                                | HOT |
-| `src/render/sprite/sprite-pack-system.ts`                 | 上記カーネルを dirty チャンクに対してスケジュールするシステム                                 | -   |
-| `src/render/index.ts`                                     | `src/render` の公開窓口                                                                       | -   |
-| `src/shaders/common/sprite-instance.wgsl`                 | スプライトインスタンス構造体とデコード関数 (WGSL)                                             | -   |
-| `src/shaders/common/sprite-instance.glsl`                 | スプライトインスタンス構造体とデコード関数 (GLSL, データテクスチャ対応)                       | -   |
-| `src/shaders/common/frame.wgsl`                           | フレームテーブル構造体 (WGSL)                                                                 | -   |
-| `src/shaders/common/frame.glsl`                           | フレームテーブル構造体 (GLSL)                                                                 | -   |
-| `src/shaders/common/storage-emulation.glsl`               | WebGL2 データテクスチャ読取ヘルパ (`pluto_fetch`)                                             | -   |
-| `src/worker-main.ts`                                      | `sprite-pack-kernel` の登録                                                                   | -   |
-| `tests/unit/render/sprite/sprite-instance-layout.test.ts` | レイアウトテスト (TS と WGSL/GLSL の定義一致検証)                                             | -   |
-| `tests/unit/render/sprite/sprite-components.test.ts`      | コンポーネント定義の単体テスト                                                                | -   |
-| `tests/unit/render/sprite/sprite-buffer.test.ts`          | スプライトバッファ・スロット割当・dirty 転送テスト                                            | -   |
-| `tests/unit/render/sprite/sprite-pack-kernel.test.ts`     | パックカーネルの単体テスト                                                                    | -   |
-| `tests/unit/render/sprite/sprite-pack-system.test.ts`     | パックシステムの単体テスト                                                                    | -   |
-| `tests/unit/render/index.test.ts`                         | render モジュール公開窓口テスト                                                               | -   |
-| `docs/progress/PROGRESS.md`                               | T-4.3 を IN_PROGRESS に更新                                                                   | -   |
+| ファイル                                                    | 責務                                                                                           | HOT |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --- |
+| `src/shaders/sprite/sprite.wgsl`                            | スプライト描画 WGSL (vertex pulling, RGBA8/圧縮配列サンプリング, Opaque/Alpha/Additive)        | -   |
+| `src/shaders/sprite/sprite.vert.glsl`                       | 同 GLSL 頂点シェーダ (データテクスチャ vertex pulling)                                         | -   |
+| `src/shaders/sprite/sprite.frag.glsl`                       | 同 GLSL フラグメントシェーダ (RGBA8/圧縮配列サンプリング, ティント乗算)                        | -   |
+| `src/shaders/shader-library.ts`                             | スプライトシェーダの登録                                                                       | -   |
+| `src/render/sprite/sprite-cpu-cull-kernel.ts`               | CPU チャンクカリングカーネル (外接円とカメラ矩形の交差判定、3 ビン別スロット配列構築)          | HOT |
+| `src/render/sprite/sprite-path-cpu-assisted.ts`             | compute 非対応環境向け描画パス (CPU カリング + LSD 基数ソート + 可視列転送 + インスタンス描画) | HOT |
+| `src/render/sprite/sprite-renderer.ts`                      | 能力 (`caps.compute`) に応じて描画パスを選択し、スプライト描画全体を統括                       | -   |
+| `src/render/index.ts`                                       | 公開シンボルの更新 (`SpriteRenderer`, `SpritePathCpuAssisted` 等)                              | -   |
+| `src/lowlevel.ts`                                           | 低レベル公開シンボルの更新 (`spriteCpuCullKernel` 等)                                          | -   |
+| `src/worker-main.ts`                                        | `sprite-cpu-cull-kernel` の登録                                                                | -   |
+| `tests/unit/render/sprite/sprite-cpu-cull-kernel.test.ts`   | CPU カリングカーネルの単体テスト                                                               | -   |
+| `tests/unit/render/sprite/sprite-path-cpu-assisted.test.ts` | CPU 補助パスの単体テスト                                                                       | -   |
+| `tests/unit/render/sprite/sprite-renderer.test.ts`          | スプライトレンダラの単体テスト                                                                 | -   |
+| `tests/browser/render/sprite-cpu-assisted.spec.ts`          | ブラウザゴールデン画像テスト (64 スプライトシーン, WebGPU & WebGL2)                            | -   |
+| `docs/progress/PROGRESS.md`                                 | T-4.4 を IN_PROGRESS に更新                                                                    | -   |
 
 ## 3. 実装ステップ
 
 1. **Step 1: 計画作成と PROGRESS 更新 (`pluto-task-start`)**
-   - 本ファイルを保存し、`PROGRESS.md` を `IN_PROGRESS` に更新。
-2. **Step 2: レイアウトとシェーダ共通定義の実装 (`pluto-shader` / `pluto-implement`)**
-   - `sprite-instance-layout.ts` (32 バイトインスタンス、オフセット定数、フラグ定数、packSprite)
-   - `shaders/common/sprite-instance.wgsl` & `sprite-instance.glsl`
-   - `shaders/common/frame.wgsl` & `frame.glsl`
-   - `shaders/common/storage-emulation.glsl`
-   - `shader-library.ts` への登録
-   - TS ⇔ WGSL / GLSL のレイアウト一致テストの作成・検証。
-3. **Step 3: スプライトコンポーネント・バッファの実装 (`pluto-implement` / `pluto-perf`)**
-   - `sprite-components.ts` (`Sprite`, `SpriteSlot`)
-   - `sprite-buffer.ts` (`RangeAllocator`, `Bitset` dirty 管理, `writeBuffer` 転送)
-   - 単体テスト作成と検証。
-4. **Step 4: パックカーネル・システムの実装と Worker 登録 (`pluto-implement`)**
-   - `sprite-pack-kernel.ts` (SoA → AoS, 角度・スケール計算, dirtyBits 設定)
-   - `sprite-pack-system.ts`
-   - `src/worker-main.ts` にカーネルを登録
-   - `src/render/index.ts` の作成
-   - 単体テスト作成と検証。
-5. **Step 5: 検証・ベンチマーク (`pluto-perf` / `pluto-test`)**
-   - `pnpm verify` がエラー 0・警告 0 で成功することを確認。
-6. **Step 6: レビューとコミット (`pluto-review` / `pluto-task-finish`)**
-   - レビュー記録 `docs/progress/reviews/T-4.3.md` 作成。
-   - `docs/progress/PROGRESS.md` 更新、コミット＆プッシュ。
+   - 本ファイルを保存し、`PROGRESS.md` の T-4.4 を `IN_PROGRESS` に更新。
+2. **Step 2: スプライトシェーダの実装 (`pluto-shader` / `pluto-implement`)**
+   - `src/shaders/sprite/sprite.wgsl`
+   - `src/shaders/sprite/sprite.vert.glsl`
+   - `src/shaders/sprite/sprite.frag.glsl`
+   - `src/shaders/shader-library.ts` への登録
+   - シェーダ単体コンパイル/前処理テスト。
+3. **Step 3: CPU カリングカーネルの実装 (`pluto-implement` / `pluto-perf`)**
+   - `src/render/sprite/sprite-cpu-cull-kernel.ts` (HOT)
+   - 外接円判定: 中心 `pos`, 半径 `length(vec2(width * scaleX, height * scaleY))`
+   - 3 ビン分類: Opaque (bit 3), Additive (bit 4), Alpha (それ以外)
+   - `src/worker-main.ts` への登録
+   - 単体テスト `sprite-cpu-cull-kernel.test.ts`
+4. **Step 4: CPU 補助描画パスの実装 (`pluto-implement` / `pluto-perf`)**
+   - `src/render/sprite/sprite-path-cpu-assisted.ts` (HOT)
+   - LSD 基数ソート (Alpha ビン: 8bit × 4 パス, key = `(layer << 20) | (sortKey * 1048576)`)
+   - 可視インデックスのデータテクスチャ転送 (`writeTexture`)
+   - パイプライン状態作成 (Opaque: Less + 深度書込, Alpha: PremultipliedAlpha + Less, Additive: Additive + Less)
+   - 単体テスト `sprite-path-cpu-assisted.test.ts`
+5. **Step 5: SpriteRenderer クラスの実装 (`pluto-implement`)**
+   - `src/render/sprite/sprite-renderer.ts`
+   - `caps.compute` によるパス選択 (v1 では CPU 補助パスへルーティング)
+   - 単体テスト `sprite-renderer.test.ts`
+6. **Step 6: ゴールデン画像テストの作成と検証 (`pluto-test`)**
+   - `tests/browser/render/sprite-cpu-assisted.spec.ts`
+   - 64 スプライト (layer/sortKey/flip/tint/opaque/additive) シーン
+   - WebGPU と WebGL2 での描画結果を検証・ゴールデン保存
+7. **Step 7: 検証・レビュー・コミット・プッシュ (`pluto-test` / `pluto-review` / `pluto-task-finish`)**
+   - `pnpm verify` (エラー 0・警告 0)
+   - `pnpm bench`
+   - `docs/progress/reviews/T-4.4.md`
+   - `PROGRESS.md` 更新
+   - git commit & git push
 
-## 4. 受け入れ条件 (ロードマップより)
+## 4. 完了条件 (受け入れ条件)
 
-- レイアウトテストで TS のオフセットと WGSL/GLSL の構造体定義が一致することを文字列解析で検証。
-- `FLAG_OCCLUDER` (bit 5) と `FRAME_PAGE_COMPRESSED_BIT` を含む。
-- `sprite-pack-kernel` を `src/worker-main.ts` に登録する。
-- `pnpm verify` がエラー 0・警告 0 で成功する。
+- [ ] スプライトシェーダは RGBA8 配列と圧縮配列の両方をバインドし `textureSampleLevel` / `textureLod` で読む (07 §5)
+- [ ] `sprite-cpu-cull-kernel` を `src/worker-main.ts` に登録する
+- [ ] 両バックエンドでゴールデン画像 (layer/sortKey/flip/tint/opaque/additive を含む 64 スプライトのシーン) が一致
+- [ ] `pnpm verify` がエラー 0・警告 0 で成功
+- [ ] レビュー記録 `docs/progress/reviews/T-4.4.md` が作成されている

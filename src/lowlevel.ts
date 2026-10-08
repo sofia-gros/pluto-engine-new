@@ -165,3 +165,14 @@ export type {
   RhiComputePipeline,
   RhiQuerySet,
 } from './rhi';
+export {
+  Sprite,
+  SpriteSlot,
+  SpriteBuffer,
+  spritePackKernel,
+  spriteCpuCullKernel,
+  AtlasPacker,
+  FrameTable,
+  TextureArrayManager,
+  packSprite,
+} from './render';

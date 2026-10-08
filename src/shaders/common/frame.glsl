@@ -27,4 +27,4 @@ FrameData decodeFrame(uvec4 texel0, uvec4 texel1) {
     return f;
 }
 
-#endif // FRAME_GLSL
+#endif

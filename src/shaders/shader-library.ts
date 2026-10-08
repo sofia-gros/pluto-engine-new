@@ -14,6 +14,9 @@ import frameWgsl from './common/frame.wgsl?raw';
 import spriteInstanceGlsl from './common/sprite-instance.glsl?raw';
 import spriteInstanceWgsl from './common/sprite-instance.wgsl?raw';
 import storageEmulationGlsl from './common/storage-emulation.glsl?raw';
+import spriteFragGlsl from './sprite/sprite.frag.glsl?raw';
+import spriteVertGlsl from './sprite/sprite.vert.glsl?raw';
+import spriteWgsl from './sprite/sprite.wgsl?raw';
 
 /** 1 本のシェーダのソースコード表現 (docs/06-rhi.md §6 互換)。 */
 export interface ShaderSource {
@@ -64,6 +67,14 @@ const SHADER_REGISTRY = new Map<string, ShaderSource>();
 export function registerShader(source: ShaderSource): void {
   SHADER_REGISTRY.set(source.name, source);
 }
+
+// 組み込みシェーダの初期登録
+registerShader({
+  name: 'sprite',
+  wgsl: spriteWgsl,
+  glslVertex: spriteVertGlsl,
+  glslFragment: spriteFragGlsl,
+});
 
 /**
  * 組み込みインクルードリゾルバを組み込んだプリプロセスを実行する。
